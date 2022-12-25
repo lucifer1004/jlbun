@@ -78,6 +78,7 @@ export class Julia {
   }
 
   private static safeCString(s: string): Buffer {
+    // FIXME: need to copy the buffer again to avoid memory corruption
     return Buffer.from(Buffer.from(s));
   }
 
@@ -124,7 +125,7 @@ export class Julia {
     return { ptr: jlbun.symbols.jl_eval_string(cCode) };
   }
 
-  public call(func: WrappedPointer, ...args: any[]): any {
+  public call(func: JuliaFunction, ...args: any[]): any {
     const bigArgs = new BigUint64Array(args.length);
     for (let i = 0; i < args.length; i++) {
       if (typeof args[i] === "object" && "ptr" in args[i]) {
@@ -144,7 +145,7 @@ export class Julia {
     return jlbun.symbols.jl_call(func.ptr, bigArgs, args.length);
   }
 
-  public apply(func: WrappedPointer, args: any[]) {
+  public apply(func: JuliaFunction, args: any[]) {
     return this.call(func, ...args);
   }
 
