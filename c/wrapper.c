@@ -32,8 +32,3 @@ JL_MODULE_GETTER(top)
 jl_function_t *jl_function_getter(jl_module_t *m, const char *name) {
   return jl_get_function(m, name);
 }
-
-// FIXME: `jl_call` has to be wrapped
-jl_value_t *jl_calln(jl_function_t *f, jl_value_t **args, uint32_t nargs) {
-  return jl_call(f, args, nargs);
-}
