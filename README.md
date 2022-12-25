@@ -1,15 +1,17 @@
 # jlbun - Using Julia in Bun
 
-To install dependencies:
+> You need to have `CMake` and `Julia` installed to use this library.
+
+First, compile the C wrapper via `CMake`. The output should be put in the `/build` folder.
+
+Second, install `Bun`-side dependencies:
 
 ```bash
 bun install
 ```
 
-To run:
+Then you can try the following example.
 
 ```bash
 bun run test.ts
 ```
-
-This project was created using `bun init` in bun v0.4.0. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
