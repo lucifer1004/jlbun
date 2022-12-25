@@ -57,6 +57,7 @@ export class Julia {
   private static instance: Julia;
   public static Base: JuliaModule;
   public static Core: JuliaModule;
+  public static Main: JuliaModule;
 
   public static String: JuliaDataType;
   public static Bool: JuliaDataType;
@@ -87,6 +88,7 @@ export class Julia {
       Julia.instance = new Julia();
       Julia.Base = new JuliaModule(jlbun.symbols.jl_base_module_getter());
       Julia.Core = new JuliaModule(jlbun.symbols.jl_core_module_getter());
+      Julia.Main = new JuliaModule(jlbun.symbols.jl_main_module_getter());
 
       Julia.String = new JuliaDataType(jlbun.symbols.jl_string_type_getter());
       Julia.Bool = new JuliaDataType(jlbun.symbols.jl_bool_type_getter());
