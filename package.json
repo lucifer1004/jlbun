@@ -1,0 +1,8 @@
+{
+  "name": "jlbun",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "bun-types": "^0.4.0"
+  }
+}
