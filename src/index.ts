@@ -47,9 +47,17 @@ export class JuliaFunction extends Function implements WrappedPointer {
 export class JuliaArray implements WrappedPointer {
   ptr: number;
 
-  constructor(type: WrappedPointer, length: number) {
+  constructor(type: JuliaDataType, length: number) {
     const arrType = jlbun.symbols.jl_apply_array_type(type.ptr, 1);
     this.ptr = jlbun.symbols.jl_alloc_array_1d(arrType, length);
+  }
+
+  get length(): number {
+    return Number(jlbun.symbols.jl_array_len_getter(this.ptr));
+  }
+
+  get ndims(): number {
+    return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
   }
 }
 

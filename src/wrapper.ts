@@ -86,6 +86,16 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         returns: FFIType.ptr,
     },
 
+    // Arrays
+    jl_array_len_getter: {
+        args: [FFIType.ptr],
+        returns: FFIType.i64,
+    },
+    jl_array_ndims_getter: {
+        args: [FFIType.ptr],
+        returns: FFIType.i32,
+    },
+
     // Auto generated wrappers
     jl_gc_enable: {
         args: [FFIType.i32],

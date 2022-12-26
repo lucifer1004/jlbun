@@ -32,3 +32,7 @@ JL_MODULE_GETTER(top)
 jl_function_t *jl_function_getter(jl_module_t *m, const char *name) {
   return jl_get_function(m, name);
 }
+
+// Arrays
+size_t jl_array_len_getter(jl_array_t *a) { return jl_array_len(a); }
+int32_t jl_array_ndims_getter(jl_array_t *a) { return jl_array_ndims(a); }
