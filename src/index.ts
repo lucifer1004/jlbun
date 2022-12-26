@@ -1,4 +1,5 @@
 import { jlbun } from "./wrapper.js";
+import { MethodError } from "./errors.js";
 
 interface WrappedPointer {
   ptr: number;
@@ -58,6 +59,16 @@ export class JuliaArray implements WrappedPointer {
 
   get ndims(): number {
     return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
+  }
+
+  push(value: WrappedPointer): void {
+    if (this.ndims === 1) {
+      jlbun.symbols.jl_array_ptr_1d_push(this.ptr, value.ptr);
+    } else {
+      throw new MethodError(
+        "`push` is not implemented for arrays with two or more dimensions.",
+      );
+    }
   }
 }
 
