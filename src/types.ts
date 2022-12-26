@@ -50,6 +50,9 @@ export class Julia {
   public static Core: JuliaModule;
   public static Main: JuliaModule;
 
+  public static Any: JuliaDataType;
+  public static Symbol: JuliaDataType;
+  public static Function: JuliaDataType;
   public static String: JuliaDataType;
   public static Bool: JuliaDataType;
   public static Char: JuliaDataType;
@@ -81,6 +84,9 @@ export class Julia {
       Julia.Core = new JuliaModule(jlbun.symbols.jl_core_module_getter());
       Julia.Main = new JuliaModule(jlbun.symbols.jl_main_module_getter());
 
+      Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter());
+      Julia.Symbol = new JuliaDataType(jlbun.symbols.jl_symbol_type_getter());
+      Julia.Function = new JuliaDataType(jlbun.symbols.jl_function_type_getter());
       Julia.String = new JuliaDataType(jlbun.symbols.jl_string_type_getter());
       Julia.Bool = new JuliaDataType(jlbun.symbols.jl_bool_type_getter());
       Julia.Char = new JuliaDataType(jlbun.symbols.jl_char_type_getter());

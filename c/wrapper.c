@@ -4,6 +4,9 @@
 #define JL_DATATYPE_GETTER(x)                                                  \
   jl_datatype_t *jl_##x##_type_getter() { return jl_##x##_type; }
 
+JL_DATATYPE_GETTER(any)
+JL_DATATYPE_GETTER(symbol)
+JL_DATATYPE_GETTER(function)
 JL_DATATYPE_GETTER(string)
 JL_DATATYPE_GETTER(bool)
 JL_DATATYPE_GETTER(char)

@@ -112,6 +112,18 @@ const LIBJLBUN_PATH = join(import.meta.dir, "..", "build", `libjlbun.\${suffix}`
 
 export const jlbun = dlopen(LIBJLBUN_PATH, {
     // Data types
+    jl_any_type_getter: {
+        args: [],
+        returns: FFIType.ptr,
+    },
+    jl_symbol_type_getter: {
+        args: [],
+        returns: FFIType.ptr,
+    },
+    jl_function_type_getter: {
+        args: [],
+        returns: FFIType.ptr,
+    },
     jl_string_type_getter: {
         args: [],
         returns: FFIType.ptr,
