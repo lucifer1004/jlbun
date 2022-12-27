@@ -37,99 +37,36 @@ export class JuliaArray implements WrappedPointer {
     const options = { ...DEFAULT_FROM_BUN_ARRAY_OPTIONS, ...extraOptions };
     const rawPtr = ptr(arr.buffer);
     const juliaGC = options.juliaGC ? 1 : 0;
+    let elementType: JuliaDataType;
     if (arr instanceof Int8Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.Int8.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.Int8, ptr);
+      elementType = Julia.Int8;
     } else if (arr instanceof Uint8Array || arr instanceof Uint8ClampedArray) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.UInt8.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.UInt8, ptr);
+      elementType = Julia.UInt8;
     } else if (arr instanceof Int16Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.Int16.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.Int16, ptr);
+      elementType = Julia.Int16;
     } else if (arr instanceof Uint16Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.UInt16.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.UInt16, ptr);
+      elementType = Julia.UInt16;
     } else if (arr instanceof Int32Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.Int32.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.Int32, ptr);
+      elementType = Julia.Int32;
     } else if (arr instanceof Uint32Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.UInt32.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.UInt32, ptr);
+      elementType = Julia.UInt32;
     } else if (arr instanceof Float32Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.Float32.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.Float32, ptr);
+      elementType = Julia.Float32;
     } else if (arr instanceof Float64Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.Float64.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.Float64, ptr);
+      elementType = Julia.Float64;
     } else if (arr instanceof BigInt64Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.Int64.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.Int64, ptr);
+      elementType = Julia.Int64;
     } else if (arr instanceof BigUint64Array) {
-      const arrType = jlbun.symbols.jl_apply_array_type(Julia.UInt64.ptr, 1);
-      const ptr = jlbun.symbols.jl_ptr_to_array_1d(
-        arrType,
-        rawPtr,
-        arr.length,
-        juliaGC,
-      );
-      return new JuliaArray(Julia.UInt64, ptr);
+      elementType = Julia.UInt64;
     } else {
       throw new MethodError("Unsupported TypedArray type.");
     }
+
+    const arrType = jlbun.symbols.jl_apply_array_type(elementType.ptr, 1);
+    return new JuliaArray(
+      elementType,
+      jlbun.symbols.jl_ptr_to_array_1d(arrType, rawPtr, arr.length, juliaGC),
+    );
   }
 
   get length(): number {
