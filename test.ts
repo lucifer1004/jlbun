@@ -1,8 +1,12 @@
 import { Julia, JuliaArray } from "./src/index.js";
 
-const julia = Julia.getInstance();
-julia.eval("println(Base.sqrt(2))");
-const println = julia.getFunction(Julia.Base, "println");
-const arr = new JuliaArray(Julia.Int64, 10);
-println(arr, " ", arr.length, " ", arr.ndims);
-julia.close();
+Julia.init();
+const bunArray = new Float64Array([1, 2, 3, 4, 5]);
+console.log("Array created by Bun: ", bunArray, " length: ", bunArray.length);
+const juliaArray = JuliaArray.from(bunArray);
+Julia.Base.println("Can be accessed by Julia: ", juliaArray, " length: ", juliaArray.length, " dims: ", juliaArray.ndims);
+bunArray[1] = 100.0;
+Julia.Base.println("Array value modified: ", juliaArray);
+Julia.Base["setindex!"](juliaArray, -10.0, 1);
+Julia.Base.println("Array value modified: ", juliaArray);
+Julia.close();

@@ -1,14 +1,37 @@
 import { jlbun } from "./wrapper.js";
 
+function safeCString(s: string): Buffer {
+  // FIXME: need to copy the buffer again to avoid memory corruption
+  return Buffer.from(Buffer.from(s));
+}
+
 export interface WrappedPointer {
   ptr: number;
 }
 
 export class JuliaModule implements WrappedPointer {
   ptr: number;
+  cache: Map<string, JuliaFunction>;
+  [key: string]: any;
 
   constructor(ptr: number) {
     this.ptr = ptr;
+    this.cache = new Map();
+
+    return new Proxy(this, {
+      get: (target, prop) => {
+        if (prop === "ptr") {
+          return target.ptr;
+        }
+        if (target.cache.has(prop as string)) {
+          return target.cache.get(prop as string);
+        }
+        const func = jlbun.symbols.jl_function_getter(target.ptr, safeCString(prop as string));
+        const juliaFunc = new JuliaFunction(func);
+        target.cache.set(prop as string, juliaFunc);
+        return juliaFunc;
+      }
+    });
   }
 }
 
@@ -32,20 +55,19 @@ export class JuliaFunction extends Function implements WrappedPointer {
   }
 
   _call(...args: any[]): any {
-    Julia.getInstance().call(this, ...args);
+    return Julia.call(this, ...args);
   }
 
   call(...args: any[]): any {
-    Julia.getInstance().call(this, ...args);
+    return Julia.call(this, ...args);
   }
 
   apply(args: any[]): any {
-    Julia.getInstance().call(this, ...args);
+    return Julia.call(this, ...args);
   }
 }
 
 export class Julia {
-  private static instance: Julia;
   public static Base: JuliaModule;
   public static Core: JuliaModule;
   public static Main: JuliaModule;
@@ -68,18 +90,9 @@ export class Julia {
   public static Float32: JuliaDataType;
   public static Float64: JuliaDataType;
 
-  private constructor() {
-    jlbun.symbols.jl_init();
-  }
-
-  private static safeCString(s: string): Buffer {
-    // FIXME: need to copy the buffer again to avoid memory corruption
-    return Buffer.from(Buffer.from(s));
-  }
-
-  public static getInstance(): Julia {
-    if (!Julia.instance) {
-      Julia.instance = new Julia();
+  public static init() {
+    if (!Julia.Base) {
+      jlbun.symbols.jl_init();
       Julia.Base = new JuliaModule(jlbun.symbols.jl_base_module_getter());
       Julia.Core = new JuliaModule(jlbun.symbols.jl_core_module_getter());
       Julia.Main = new JuliaModule(jlbun.symbols.jl_main_module_getter());
@@ -108,23 +121,21 @@ export class Julia {
         jlbun.symbols.jl_float64_type_getter(),
       );
     }
-
-    return Julia.instance;
   }
 
-  public getFunction(module: JuliaModule, name: string): JuliaFunction {
-    const cName = Julia.safeCString(name);
+  public static getFunction(module: JuliaModule, name: string): JuliaFunction {
+    const cName = safeCString(name);
     return new JuliaFunction(
       jlbun.symbols.jl_function_getter(module.ptr, cName),
     );
   }
 
-  public eval(code: string): WrappedPointer {
-    const cCode = Julia.safeCString(code);
+  public static eval(code: string): WrappedPointer {
+    const cCode = safeCString(code);
     return { ptr: jlbun.symbols.jl_eval_string(cCode) };
   }
 
-  public call(func: JuliaFunction, ...args: any[]): any {
+  public static call(func: JuliaFunction, ...args: any[]): any {
     const bigArgs = new BigUint64Array(args.length);
     for (let i = 0; i < args.length; i++) {
       if (typeof args[i] === "object" && "ptr" in args[i]) {
@@ -137,19 +148,19 @@ export class Julia {
         }
       } else if (typeof args[i] === "string") {
         bigArgs[i] = BigInt(
-          jlbun.symbols.jl_cstr_to_string(Julia.safeCString(args[i])),
+          jlbun.symbols.jl_cstr_to_string(safeCString(args[i])),
         );
       }
     }
     return jlbun.symbols.jl_call(func.ptr, bigArgs, args.length);
   }
 
-  public apply(func: JuliaFunction, args: any[]) {
+  public static apply(func: JuliaFunction, args: any[]) {
     return this.call(func, ...args);
   }
 
-  public close() {
-    jlbun.symbols.jl_atexit_hook(0);
+  public static close(status: number = 0) {
+    jlbun.symbols.jl_atexit_hook(status);
     jlbun.close();
   }
 }
