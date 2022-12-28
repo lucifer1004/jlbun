@@ -26,8 +26,7 @@ export class JuliaModule implements WrappedPointer {
         if (target.cache.has(prop as string)) {
           return target.cache.get(prop as string);
         }
-        const func = jlbun.symbols.jl_function_getter(target.ptr, safeCString(prop as string));
-        const juliaFunc = new JuliaFunction(func);
+        const juliaFunc = Julia.getFunction(target, prop as string);
         target.cache.set(prop as string, juliaFunc);
         return juliaFunc;
       }
