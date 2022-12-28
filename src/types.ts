@@ -33,7 +33,7 @@ export class JuliaModule implements WrappedPointer {
         );
         if (exist === 0) {
           throw new MethodError(
-            `Method ${prop as string} does not exist in module ${target.name}!`,
+            `${prop as string} does not exist in module ${target.name}!`,
           );
         }
 
@@ -165,12 +165,11 @@ export class Julia {
   }
 
   public static getProperties(obj: WrappedPointer): string[] {
+    const len = Number(jlbun.symbols.jl_propertycount(obj.ptr));
     const rawPtr = jlbun.symbols.jl_propertynames(obj.ptr);
-    let propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8));
-    const len = parseInt(new CString(Number(propPointers[0])).toString());
-    propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * (len + 1)));
+    let propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * len));
     const props: string[] = [];
-    for (let i = 1; i <= len; i++) {
+    for (let i = 0; i < len; i++) {
       props.push(new CString(Number(propPointers[i])).toString());
     }
     return props;
