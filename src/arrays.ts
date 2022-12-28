@@ -1,12 +1,7 @@
 import { ptr } from "bun:ffi";
 import { jlbun } from "./wrapper.js";
-import {
-  Julia,
-  JuliaDataType,
-  JuliaFunction,
-  WrappedPointer,
-} from "./types.js";
-import { JuliaValue, JuliaString } from "./values.js";
+import { Julia, JuliaDataType, JuliaFunction } from "./types.js";
+import { JuliaValue } from "./values.js";
 import { MethodError } from "./errors.js";
 
 type BunArray = TypedArray | BigInt64Array | BigUint64Array;
@@ -19,13 +14,12 @@ const DEFAULT_FROM_BUN_ARRAY_OPTIONS: FromBunArrayOptions = {
   juliaGC: false,
 };
 
-export class JuliaArray implements WrappedPointer {
+export class JuliaArray extends JuliaValue {
   type: JuliaDataType;
-  ptr: number;
 
   constructor(type: JuliaDataType, ptr: number) {
+    super(ptr);
     this.type = type;
-    this.ptr = ptr;
   }
 
   static init(type: JuliaDataType, length: number): JuliaArray {
@@ -83,7 +77,7 @@ export class JuliaArray implements WrappedPointer {
     return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
   }
 
-  toString(): string {
+  get value(): string {
     return Julia.Base.string(this).value;
   }
 

@@ -3,6 +3,7 @@ import { safeCString } from "./utils.js";
 import { jlbun } from "./wrapper.js";
 import { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
 import { JuliaModule } from "./module.js";
+import { JuliaArray } from "./arrays.js";
 import {
   JuliaBool,
   JuliaFloat32,
@@ -193,6 +194,11 @@ export class Julia {
       return new JuliaFloat32(ptr);
     } else if (typeStr == "Float64") {
       return new JuliaFloat64(ptr);
+    } else if (typeStr == "Array") {
+      const eltype = jlbun.symbols.jl_array_eltype(ptr);
+      const ndims = Number(jlbun.symbols.jl_array_ndims_getter(ptr));
+      const arrType = jlbun.symbols.jl_apply_array_type(eltype, ndims);
+      return new JuliaArray(arrType, ptr);
     }
 
     return new JuliaAny(ptr);
