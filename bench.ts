@@ -8,7 +8,6 @@ for (let i = 0; i < bunArray.length; i++) {
 
 Julia.init();
 const jlsqrt = Julia.Base.sqrt;
-const jlmap = Julia.Base.map;
 const jlmapi = Julia.Base["map!"];
 const juliaArray = JuliaArray.from(new Float64Array(bunArray));
 
