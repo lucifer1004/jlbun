@@ -1,6 +1,15 @@
+export interface IJuliaValue {
+  ptr: number;
+  get value(): any;
+  toString(): string;
+}
+
+export { jlbun } from "./wrapper.js";
+export { safeCString } from "./utils.js";
 export { Julia } from "./julia.js";
-export { JuliaDataType, JuliaFunction } from "./types.js";
+export { JuliaDataType } from "./types.js";
 export { JuliaArray } from "./arrays.js";
+export { JuliaFunction } from "./functions.js";
 export { JuliaModule } from "./module.js";
 export {
   JuliaBool,
@@ -15,7 +24,6 @@ export {
   JuliaUInt32,
   JuliaUInt64,
   JuliaUInt8,
-  JuliaValue,
   JuliaAny,
 } from "./values.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";

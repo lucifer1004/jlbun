@@ -1,26 +1,11 @@
 import { CString } from "bun:ffi";
-import { safeCString } from "./utils.js";
-import { jlbun } from "./wrapper.js";
-import { Julia } from "./julia.js";
-import { WrappedPointer } from "./types.js";
+import { jlbun, safeCString, IJuliaValue, Julia } from "./index.js";
 
-export abstract class JuliaValue implements WrappedPointer {
+export class JuliaInt8 implements IJuliaValue {
   ptr: number;
 
   constructor(ptr: number) {
     this.ptr = ptr;
-  }
-
-  abstract get value(): any;
-
-  toString(): string {
-    return this.value.toString();
-  }
-}
-
-export class JuliaInt8 extends JuliaValue {
-  constructor(ptr: number) {
-    super(ptr);
   }
 
   static from(value: number): JuliaInt8 {
@@ -30,11 +15,17 @@ export class JuliaInt8 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_int8(this.ptr);
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaUInt8 extends JuliaValue {
+export class JuliaUInt8 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number): JuliaUInt8 {
@@ -44,11 +35,17 @@ export class JuliaUInt8 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_uint8(this.ptr);
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaInt16 extends JuliaValue {
+export class JuliaInt16 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number): JuliaInt16 {
@@ -58,11 +55,17 @@ export class JuliaInt16 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_int16(this.ptr);
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaUInt16 extends JuliaValue {
+export class JuliaUInt16 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number): JuliaUInt16 {
@@ -72,11 +75,17 @@ export class JuliaUInt16 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_uint16(this.ptr);
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaInt32 extends JuliaValue {
+export class JuliaInt32 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number): JuliaInt32 {
@@ -86,11 +95,17 @@ export class JuliaInt32 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_int32(this.ptr);
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaUInt32 extends JuliaValue {
+export class JuliaUInt32 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number): JuliaUInt32 {
@@ -100,11 +115,16 @@ export class JuliaUInt32 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_uint32(this.ptr);
   }
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaInt64 extends JuliaValue {
+export class JuliaInt64 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number | bigint): JuliaInt64 {
@@ -114,11 +134,16 @@ export class JuliaInt64 extends JuliaValue {
   get value(): bigint {
     return jlbun.symbols.jl_unbox_int64(this.ptr);
   }
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaUInt64 extends JuliaValue {
+export class JuliaUInt64 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number | bigint): JuliaUInt64 {
@@ -130,9 +155,11 @@ export class JuliaUInt64 extends JuliaValue {
   }
 }
 
-export class JuliaFloat32 extends JuliaValue {
+export class JuliaFloat32 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number): JuliaFloat32 {
@@ -142,11 +169,17 @@ export class JuliaFloat32 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_float32(this.ptr);
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaFloat64 extends JuliaValue {
+export class JuliaFloat64 implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: number): JuliaFloat64 {
@@ -156,11 +189,17 @@ export class JuliaFloat64 extends JuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_float64(this.ptr);
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaBool extends JuliaValue {
+export class JuliaBool implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: boolean): JuliaBool {
@@ -170,11 +209,17 @@ export class JuliaBool extends JuliaValue {
   get value(): boolean {
     return jlbun.symbols.jl_unbox_bool(this.ptr) === 1;
   }
+
+  toString(): string {
+    return this.value.toString();
+  }
 }
 
-export class JuliaString extends JuliaValue {
+export class JuliaString implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   static from(value: string): JuliaString {
@@ -184,14 +229,24 @@ export class JuliaString extends JuliaValue {
   get value(): string {
     return new CString(jlbun.symbols.jl_string_ptr(this.ptr)).toString();
   }
+
+  toString(): string {
+    return this.value;
+  }
 }
 
-export class JuliaAny extends JuliaValue {
+export class JuliaAny implements IJuliaValue {
+  ptr: number;
+
   constructor(ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
   }
 
   get value(): string {
     return Julia.Base.string(this).value;
+  }
+
+  toString(): string {
+    return this.value;
   }
 }

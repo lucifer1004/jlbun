@@ -1,26 +1,29 @@
 import { CString, toArrayBuffer } from "bun:ffi";
-import { jlbun } from "./wrapper.js";
-import { safeCString } from "./utils.js";
-import { JuliaModule } from "./module.js";
-import { JuliaDataType, JuliaFunction, WrappedPointer } from "./types.js";
-import { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
-import { JuliaArray } from "./arrays.js";
 import {
+  jlbun,
+  safeCString,
+  IJuliaValue,
+  JuliaAny,
+  JuliaArray,
   JuliaBool,
+  JuliaDataType,
   JuliaFloat32,
   JuliaFloat64,
+  JuliaFunction,
   JuliaInt16,
   JuliaInt32,
   JuliaInt64,
   JuliaInt8,
+  JuliaModule,
   JuliaString,
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
   JuliaUInt8,
-  JuliaValue,
-  JuliaAny,
-} from "./values.js";
+  InexactError,
+  MethodError,
+  UnknownJuliaError,
+} from "./index.js";
 
 export class Julia {
   public static Base: JuliaModule;
@@ -80,25 +83,71 @@ export class Julia {
       Julia.prefetch(Julia.Core);
       Julia.prefetch(Julia.Main);
 
-      Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter());
-      Julia.Symbol = new JuliaDataType(jlbun.symbols.jl_symbol_type_getter());
+      Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter(), "Any");
+      Julia.Symbol = new JuliaDataType(
+        jlbun.symbols.jl_symbol_type_getter(),
+        "Symbol",
+      );
       Julia.Function = new JuliaDataType(
         jlbun.symbols.jl_function_type_getter(),
+        "Function",
       );
-      Julia.String = new JuliaDataType(jlbun.symbols.jl_string_type_getter());
-      Julia.Bool = new JuliaDataType(jlbun.symbols.jl_bool_type_getter());
-      Julia.Char = new JuliaDataType(jlbun.symbols.jl_char_type_getter());
-      Julia.Int8 = new JuliaDataType(jlbun.symbols.jl_int8_type_getter());
-      Julia.UInt8 = new JuliaDataType(jlbun.symbols.jl_uint8_type_getter());
-      Julia.Int16 = new JuliaDataType(jlbun.symbols.jl_int16_type_getter());
-      Julia.UInt16 = new JuliaDataType(jlbun.symbols.jl_uint16_type_getter());
-      Julia.Int32 = new JuliaDataType(jlbun.symbols.jl_int32_type_getter());
-      Julia.UInt32 = new JuliaDataType(jlbun.symbols.jl_uint32_type_getter());
-      Julia.Int64 = new JuliaDataType(jlbun.symbols.jl_int64_type_getter());
-      Julia.UInt64 = new JuliaDataType(jlbun.symbols.jl_uint64_type_getter());
-      Julia.Float16 = new JuliaDataType(jlbun.symbols.jl_float16_type_getter());
-      Julia.Float32 = new JuliaDataType(jlbun.symbols.jl_float32_type_getter());
-      Julia.Float64 = new JuliaDataType(jlbun.symbols.jl_float64_type_getter());
+      Julia.String = new JuliaDataType(
+        jlbun.symbols.jl_string_type_getter(),
+        "String",
+      );
+      Julia.Bool = new JuliaDataType(
+        jlbun.symbols.jl_bool_type_getter(),
+        "Bool",
+      );
+      Julia.Char = new JuliaDataType(
+        jlbun.symbols.jl_char_type_getter(),
+        "Char",
+      );
+      Julia.Int8 = new JuliaDataType(
+        jlbun.symbols.jl_int8_type_getter(),
+        "Int8",
+      );
+      Julia.UInt8 = new JuliaDataType(
+        jlbun.symbols.jl_uint8_type_getter(),
+        "UInt8",
+      );
+      Julia.Int16 = new JuliaDataType(
+        jlbun.symbols.jl_int16_type_getter(),
+        "Int16",
+      );
+      Julia.UInt16 = new JuliaDataType(
+        jlbun.symbols.jl_uint16_type_getter(),
+        "UInt16",
+      );
+      Julia.Int32 = new JuliaDataType(
+        jlbun.symbols.jl_int32_type_getter(),
+        "Int32",
+      );
+      Julia.UInt32 = new JuliaDataType(
+        jlbun.symbols.jl_uint32_type_getter(),
+        "UInt32",
+      );
+      Julia.Int64 = new JuliaDataType(
+        jlbun.symbols.jl_int64_type_getter(),
+        "Int64",
+      );
+      Julia.UInt64 = new JuliaDataType(
+        jlbun.symbols.jl_uint64_type_getter(),
+        "UInt64",
+      );
+      Julia.Float16 = new JuliaDataType(
+        jlbun.symbols.jl_float16_type_getter(),
+        "Float16",
+      );
+      Julia.Float32 = new JuliaDataType(
+        jlbun.symbols.jl_float32_type_getter(),
+        "Float32",
+      );
+      Julia.Float64 = new JuliaDataType(
+        jlbun.symbols.jl_float64_type_getter(),
+        "Float64",
+      );
     }
   }
 
@@ -110,7 +159,7 @@ export class Julia {
     );
   }
 
-  public static getProperties(obj: WrappedPointer): string[] {
+  public static getProperties(obj: IJuliaValue): string[] {
     const len = Number(jlbun.symbols.jl_propertycount(obj.ptr));
     const rawPtr = jlbun.symbols.jl_propertynames(obj.ptr);
     let propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * len));
@@ -121,7 +170,7 @@ export class Julia {
     return props;
   }
 
-  public static getTypeStr(ptr: number | WrappedPointer): string {
+  public static getTypeStr(ptr: number | IJuliaValue): string {
     if (typeof ptr === "number") {
       return new CString(jlbun.symbols.jl_typeof_str(ptr)).toString();
     } else {
@@ -161,13 +210,13 @@ export class Julia {
       const eltype = jlbun.symbols.jl_array_eltype(ptr);
       const ndims = Number(jlbun.symbols.jl_array_ndims_getter(ptr));
       const arrType = jlbun.symbols.jl_apply_array_type(eltype, ndims);
-      return new JuliaArray(arrType, ptr);
+      return new JuliaArray(new JuliaDataType(arrType, "Array"), ptr);
     }
 
     return new JuliaAny(ptr);
   }
 
-  public static eval(code: string): JuliaValue {
+  public static eval(code: string): IJuliaValue {
     const cCode = safeCString(code);
     const ret = jlbun.symbols.jl_eval_string(cCode);
 
@@ -187,7 +236,7 @@ export class Julia {
     return Julia.wrap(ret);
   }
 
-  public static call(func: JuliaFunction, ...args: any[]): JuliaValue {
+  public static call(func: JuliaFunction, ...args: any[]): IJuliaValue {
     const wrappedArgs: number[] = args.map((arg) => {
       if (
         (typeof arg === "object" || typeof arg === "function") &&

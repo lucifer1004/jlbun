@@ -1,25 +1,29 @@
 import { ptr } from "bun:ffi";
-import { jlbun } from "./wrapper.js";
-import { Julia } from "./julia.js";
-import { JuliaDataType, JuliaFunction } from "./types.js";
-import { JuliaValue } from "./values.js";
-import { MethodError } from "./errors.js";
+import {
+  jlbun,
+  IJuliaValue,
+  Julia,
+  JuliaDataType,
+  JuliaFunction,
+  MethodError,
+} from "./index.js";
 
 type BunArray = TypedArray | BigInt64Array | BigUint64Array;
 
-interface FromBunArrayOptions {
+interface IFromBunArrayOptions {
   juliaGC: boolean;
 }
 
-const DEFAULT_FROM_BUN_ARRAY_OPTIONS: FromBunArrayOptions = {
+const DEFAULT_FROM_BUN_ARRAY_OPTIONS: IFromBunArrayOptions = {
   juliaGC: false,
 };
 
-export class JuliaArray extends JuliaValue {
+export class JuliaArray implements IJuliaValue {
+  ptr: number;
   type: JuliaDataType;
 
   constructor(type: JuliaDataType, ptr: number) {
-    super(ptr);
+    this.ptr = ptr;
     this.type = type;
   }
 
@@ -82,7 +86,11 @@ export class JuliaArray extends JuliaValue {
     return Julia.Base.string(this).value;
   }
 
-  push(value: JuliaValue): void {
+  toString(): string {
+    return this.value;
+  }
+
+  push(value: IJuliaValue): void {
     if (this.ndims === 1) {
       jlbun.symbols.jl_array_ptr_1d_push(this.ptr, value.ptr);
     } else {

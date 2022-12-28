@@ -1,10 +1,13 @@
-import { jlbun } from "./wrapper.js";
-import { MethodError } from "./errors.js";
-import { safeCString } from "./utils.js";
-import { Julia } from "./julia.js";
-import { JuliaFunction, WrappedPointer } from "./types.js";
+import {
+  jlbun,
+  safeCString,
+  IJuliaValue,
+  Julia,
+  JuliaFunction,
+  MethodError,
+} from "./index.js";
 
-export class JuliaModule implements WrappedPointer {
+export class JuliaModule implements IJuliaValue {
   ptr: number;
   name: string;
   cache: Map<string, JuliaFunction>;
@@ -19,6 +22,9 @@ export class JuliaModule implements WrappedPointer {
       get: (target, prop) => {
         if (prop === "ptr") {
           return target.ptr;
+        }
+        if (prop === "name") {
+          return target.name;
         }
         if (target.cache.has(prop as string)) {
           return target.cache.get(prop as string);
@@ -39,5 +45,13 @@ export class JuliaModule implements WrappedPointer {
         return juliaFunc;
       },
     });
+  }
+
+  get value(): JuliaModule {
+    return this;
+  }
+
+  toString(): string {
+    return `[Module] ${this.name}`;
   }
 }
