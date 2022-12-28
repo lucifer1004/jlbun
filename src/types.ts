@@ -13,11 +13,13 @@ export interface WrappedPointer {
 
 export class JuliaModule implements WrappedPointer {
   ptr: number;
+  name: string;
   cache: Map<string, JuliaFunction>;
   [key: string]: any
 
-  constructor(ptr: number) {
+  constructor(ptr: number, name: string) {
     this.ptr = ptr;
+    this.name = name;
     this.cache = new Map();
 
     return new Proxy(this, {
@@ -29,7 +31,11 @@ export class JuliaModule implements WrappedPointer {
           return target.cache.get(prop as string);
         }
 
-        // FIXME: Here we assume that the function exists, otherwise the program will crash
+        const exist = Julia.eval(`length(methods(${target.name}.${prop as string})) > 0`);
+        if (exist.ptr === null) {
+          throw new MethodError(`Method ${prop as string} does not exist in module ${target.name}!`);
+        }
+
         const juliaFunc = Julia.getFunction(target, prop as string);
         target.cache.set(prop as string, juliaFunc);
         return juliaFunc;
@@ -96,9 +102,9 @@ export class Julia {
   public static init() {
     if (!Julia.Base) {
       jlbun.symbols.jl_init();
-      Julia.Base = new JuliaModule(jlbun.symbols.jl_base_module_getter());
-      Julia.Core = new JuliaModule(jlbun.symbols.jl_core_module_getter());
-      Julia.Main = new JuliaModule(jlbun.symbols.jl_main_module_getter());
+      Julia.Base = new JuliaModule(jlbun.symbols.jl_base_module_getter(), "Base");
+      Julia.Core = new JuliaModule(jlbun.symbols.jl_core_module_getter(), "Core");
+      Julia.Main = new JuliaModule(jlbun.symbols.jl_main_module_getter(), "Main");
 
       Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter());
       Julia.Symbol = new JuliaDataType(jlbun.symbols.jl_symbol_type_getter());
