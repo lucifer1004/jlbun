@@ -236,6 +236,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         args: [FFIType.ptr],
         returns: FFIType.ptr,
     },
+    jl_array_len_getter: {
+        args: [FFIType.ptr, FFIType.i32],
+        returns: $size_t,
+    },
 
     // Values
     jl_nothing_getter: {

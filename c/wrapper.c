@@ -68,7 +68,8 @@ const char **jl_propertynames(jl_value_t *v) {
 // Arrays
 size_t jl_array_len_getter(jl_array_t *a) { return jl_array_len(a); }
 int32_t jl_array_ndims_getter(jl_array_t *a) { return jl_array_ndims(a); }
-void* jl_array_data_getter(jl_array_t *a) { return jl_array_data(a); }
+void *jl_array_data_getter(jl_array_t *a) { return jl_array_data(a); }
+size_t jl_array_dim_getter(jl_array_t *a, int32_t i) { return jl_array_dim(a, i); }
 
 // Values
 jl_value_t *jl_nothing_getter() { return jl_nothing; }

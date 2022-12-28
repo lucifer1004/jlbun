@@ -78,6 +78,14 @@ export class JuliaArray implements IJuliaValue {
     return Number(jlbun.symbols.jl_array_len_getter(this.ptr));
   }
 
+  get size(): number[] {
+    const size = new Array<number>(this.ndims);
+    for (let i = 0; i < this.ndims; i++) {
+      size[i] = Number(jlbun.symbols.jl_array_dim_getter(this.ptr, i));
+    }
+    return size;
+  }
+
   get ndims(): number {
     return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
   }
@@ -137,6 +145,11 @@ export class JuliaArray implements IJuliaValue {
 
   reverse(): void {
     Julia.Base["reverse!"](this);
+  }
+
+  reshape(...shape: number[]): JuliaArray {
+    const arr = Julia.Base.reshape(this, ...shape);
+    return new JuliaArray(this.type, arr.ptr);
   }
 
   fill(value: any): void {
