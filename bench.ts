@@ -1,6 +1,7 @@
 import { Julia, JuliaArray } from "./src/index.js";
 
-const bunArray = new Float64Array(100000000);
+const N = 100000000;
+const bunArray = new Float64Array(N);
 for (let i = 0; i < bunArray.length; i++) {
   bunArray[i] = Math.random();
 }
@@ -12,7 +13,7 @@ const jlmapi = Julia.Base["map!"];
 const juliaArray = JuliaArray.from(new Float64Array(bunArray));
 
 let start = new Date().getTime();
-for (let i = 0; i < 100000000; ++i) {
+for (let i = 0; i < N; ++i) {
   bunArray[i] = Math.sqrt(bunArray[i]);
 }
 let elapsed = new Date().getTime() - start;
@@ -29,7 +30,7 @@ elapsed = new Date().getTime() - start;
 console.log(`Bun used ${elapsed} ms.`);
 
 start = new Date().getTime();
-jlmap(jlsqrt, juliaArray);
+juliaArray.map(jlsqrt);
 elapsed = new Date().getTime() - start;
 console.log(`Julia used ${elapsed} ms.`);
 

@@ -30,7 +30,7 @@ export class JuliaModule implements WrappedPointer {
         const exist = Julia.eval(
           `length(methods(${target.name}.${prop as string})) > 0`,
         );
-        if (exist.ptr === null) {
+        if (exist === null) {
           throw new MethodError(
             `Method ${prop as string} does not exist in module ${target.name}!`,
           );
@@ -144,9 +144,9 @@ export class Julia {
     );
   }
 
-  public static eval(code: string): WrappedPointer {
+  public static eval(code: string): any {
     const cCode = safeCString(code);
-    return { ptr: jlbun.symbols.jl_eval_string(cCode) };
+    return jlbun.symbols.jl_eval_string(cCode);
   }
 
   public static call(func: JuliaFunction, ...args: any[]): any {

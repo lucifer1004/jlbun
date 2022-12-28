@@ -1,6 +1,11 @@
 import { ptr } from "bun:ffi";
 import { jlbun } from "./wrapper.js";
-import { Julia, JuliaDataType, WrappedPointer } from "./types.js";
+import {
+  Julia,
+  JuliaDataType,
+  JuliaFunction,
+  WrappedPointer,
+} from "./types.js";
 import { JuliaValue, JuliaString } from "./values.js";
 import { MethodError } from "./errors.js";
 
@@ -94,5 +99,10 @@ export class JuliaArray implements WrappedPointer {
 
   reverse(): void {
     Julia.Base["reverse!"](this);
+  }
+
+  map(f: JuliaFunction): JuliaArray {
+    // TODO: get actual function return type
+    return new JuliaArray(this.type, Julia.Base.map(f, this));
   }
 }
