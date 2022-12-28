@@ -2,7 +2,22 @@
   "name": "jlbun",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "fmt": "prettier --write './**/*.{ts,tsx,js,jsx,json}'"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,jx,jsx,json}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "pre-commit": [
+    "lint-staged"
+  ],
   "devDependencies": {
-    "bun-types": "^0.4.0"
+    "bun-types": "^0.4.0",
+    "eslint": "^8.30.0",
+    "lint-staged": "^13.1.0",
+    "prettier": "^2.8.1"
   }
 }

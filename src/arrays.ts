@@ -1,6 +1,7 @@
 import { ptr } from "bun:ffi";
 import { jlbun } from "./wrapper.js";
 import { Julia, JuliaDataType, WrappedPointer } from "./types.js";
+import { JuliaValue, JuliaString } from "./values.js";
 import { MethodError } from "./errors.js";
 
 type BunArray = TypedArray | BigInt64Array | BigUint64Array;
@@ -77,7 +78,11 @@ export class JuliaArray implements WrappedPointer {
     return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
   }
 
-  push(value: WrappedPointer): void {
+  toString(): string {
+    return new JuliaString(Julia.Base.string(this)).value;
+  }
+
+  push(value: JuliaValue): void {
     if (this.ndims === 1) {
       jlbun.symbols.jl_array_ptr_1d_push(this.ptr, value.ptr);
     } else {
@@ -85,5 +90,9 @@ export class JuliaArray implements WrappedPointer {
         "`push` is not implemented for arrays with two or more dimensions.",
       );
     }
+  }
+
+  reverse(): void {
+    Julia.Base["reverse!"](this);
   }
 }
