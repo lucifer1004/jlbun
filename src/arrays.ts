@@ -1,6 +1,7 @@
 import { ptr } from "bun:ffi";
 import { jlbun } from "./wrapper.js";
-import { Julia, JuliaDataType, JuliaFunction } from "./types.js";
+import { Julia } from "./julia.js";
+import { JuliaDataType, JuliaFunction } from "./types.js";
 import { JuliaValue } from "./values.js";
 import { MethodError } from "./errors.js";
 

@@ -21,4 +21,5 @@ Julia.Base.println("Reversed By Julia: ", juliaArray);
 console.log("Accessed from Bun: ", bunArray);
 bunArray.reverse();
 Julia.Base.println("Reversed By Bun: ", juliaArray);
+Julia.eval("(2, 4)");
 Julia.close();

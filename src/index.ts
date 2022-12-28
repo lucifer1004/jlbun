@@ -1,4 +1,5 @@
-export { Julia, JuliaDataType, JuliaFunction } from "./types.js";
+export { Julia } from "./julia.js";
+export { JuliaDataType, JuliaFunction } from "./types.js";
 export { JuliaArray } from "./arrays.js";
 export { JuliaModule } from "./module.js";
 export {

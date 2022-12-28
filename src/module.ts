@@ -1,7 +1,8 @@
 import { jlbun } from "./wrapper.js";
 import { MethodError } from "./errors.js";
 import { safeCString } from "./utils.js";
-import { Julia, JuliaFunction, WrappedPointer } from "./types.js";
+import { Julia } from "./julia.js";
+import { JuliaFunction, WrappedPointer } from "./types.js";
 
 export class JuliaModule implements WrappedPointer {
   ptr: number;

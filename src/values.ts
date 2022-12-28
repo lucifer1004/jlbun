@@ -1,7 +1,8 @@
 import { CString } from "bun:ffi";
 import { safeCString } from "./utils.js";
 import { jlbun } from "./wrapper.js";
-import { Julia, WrappedPointer } from "./types.js";
+import { Julia } from "./julia.js";
+import { WrappedPointer } from "./types.js";
 
 export abstract class JuliaValue implements WrappedPointer {
   ptr: number;
