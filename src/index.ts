@@ -1,5 +1,6 @@
-export { Julia, JuliaDataType, JuliaFunction, JuliaModule } from "./types.js";
+export { Julia, JuliaDataType, JuliaFunction } from "./types.js";
 export { JuliaArray } from "./arrays.js";
+export { JuliaModule } from "./module.js";
 export {
   JuliaBool,
   JuliaFloat32,
@@ -14,5 +15,6 @@ export {
   JuliaUInt64,
   JuliaUInt8,
   JuliaValue,
+  JuliaAny,
 } from "./values.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";

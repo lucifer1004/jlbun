@@ -2,47 +2,26 @@ import { CString, toArrayBuffer } from "bun:ffi";
 import { safeCString } from "./utils.js";
 import { jlbun } from "./wrapper.js";
 import { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
+import { JuliaModule } from "./module.js";
+import {
+  JuliaBool,
+  JuliaFloat32,
+  JuliaFloat64,
+  JuliaInt16,
+  JuliaInt32,
+  JuliaInt64,
+  JuliaInt8,
+  JuliaString,
+  JuliaUInt16,
+  JuliaUInt32,
+  JuliaUInt64,
+  JuliaUInt8,
+  JuliaValue,
+  JuliaAny,
+} from "./values.js";
 
 export interface WrappedPointer {
   ptr: number;
-}
-
-export class JuliaModule implements WrappedPointer {
-  ptr: number;
-  name: string;
-  cache: Map<string, JuliaFunction>;
-  [key: string]: any;
-
-  constructor(ptr: number, name: string) {
-    this.ptr = ptr;
-    this.name = name;
-    this.cache = new Map();
-
-    return new Proxy(this, {
-      get: (target, prop) => {
-        if (prop === "ptr") {
-          return target.ptr;
-        }
-        if (target.cache.has(prop as string)) {
-          return target.cache.get(prop as string);
-        }
-
-        const exist = jlbun.symbols.jl_hasproperty(
-          target.ptr,
-          safeCString(prop as string),
-        );
-        if (exist === 0) {
-          throw new MethodError(
-            `${prop as string} does not exist in module ${target.name}!`,
-          );
-        }
-
-        const juliaFunc = Julia.getFunction(target, prop as string);
-        target.cache.set(prop as string, juliaFunc);
-        return juliaFunc;
-      },
-    });
-  }
 }
 
 export class JuliaDataType implements WrappedPointer {
@@ -55,10 +34,12 @@ export class JuliaDataType implements WrappedPointer {
 
 export class JuliaFunction extends Function implements WrappedPointer {
   ptr: number;
+  name: string;
 
-  constructor(ptr: number) {
+  constructor(ptr: number, name: string) {
     super();
     this.ptr = ptr;
+    this.name = name;
     return new Proxy(this, {
       apply: (target, _thisArg, args) => target._call(...args),
     });
@@ -161,6 +142,7 @@ export class Julia {
     const cName = safeCString(name);
     return new JuliaFunction(
       jlbun.symbols.jl_function_getter(module.ptr, cName),
+      name,
     );
   }
 
@@ -175,12 +157,68 @@ export class Julia {
     return props;
   }
 
-  public static eval(code: string): any {
-    const cCode = safeCString(code);
-    return jlbun.symbols.jl_eval_string(cCode);
+  public static getTypeStr(ptr: number | WrappedPointer): string {
+    if (typeof ptr === "number") {
+      return new CString(jlbun.symbols.jl_typeof_str(ptr)).toString();
+    } else {
+      return new CString(jlbun.symbols.jl_typeof_str(ptr.ptr)).toString();
+    }
   }
 
-  public static call(func: JuliaFunction, ...args: any[]): any {
+  public static wrap(ptr: number) {
+    const typeStr = Julia.getTypeStr(ptr);
+    if (typeStr == "String") {
+      return new JuliaString(ptr);
+    } else if (typeStr == "Bool") {
+      return new JuliaBool(ptr);
+    } else if (typeStr == "Int8") {
+      return new JuliaInt8(ptr);
+    } else if (typeStr == "UInt8") {
+      return new JuliaUInt8(ptr);
+    } else if (typeStr == "Int16") {
+      return new JuliaInt16(ptr);
+    } else if (typeStr == "UInt16") {
+      return new JuliaUInt16(ptr);
+    } else if (typeStr == "Int32") {
+      return new JuliaInt32(ptr);
+    } else if (typeStr == "UInt32") {
+      return new JuliaUInt32(ptr);
+    } else if (typeStr == "Int64") {
+      return new JuliaInt64(ptr);
+    } else if (typeStr == "UInt64") {
+      return new JuliaUInt64(ptr);
+    } else if (typeStr == "Float16") {
+      return new JuliaFloat32(ptr);
+    } else if (typeStr == "Float32") {
+      return new JuliaFloat32(ptr);
+    } else if (typeStr == "Float64") {
+      return new JuliaFloat64(ptr);
+    }
+
+    return new JuliaAny(ptr);
+  }
+
+  public static eval(code: string): JuliaValue {
+    const cCode = safeCString(code);
+    const ret = jlbun.symbols.jl_eval_string(cCode);
+
+    // Error handling
+    const err = jlbun.symbols.jl_exception_occurred();
+    if (err !== null) {
+      const errType = new CString(jlbun.symbols.jl_typeof_str(err)).toString();
+      if (errType == "MethodError") {
+        throw new MethodError(code);
+      } else if (errType == "InexactError") {
+        throw new InexactError(code);
+      } else {
+        throw new UnknownJuliaError(errType);
+      }
+    }
+
+    return Julia.wrap(ret);
+  }
+
+  public static call(func: JuliaFunction, ...args: any[]): JuliaValue {
     const wrappedArgs: number[] = args.map((arg) => {
       if (
         (typeof arg === "object" || typeof arg === "function") &&
@@ -226,15 +264,18 @@ export class Julia {
     const err = jlbun.symbols.jl_exception_occurred();
     if (err !== null) {
       const errType = new CString(jlbun.symbols.jl_typeof_str(err)).toString();
+      const funcCall =
+        func.name + "(" + args.map((arg) => arg.toString()).join(", ") + ")";
       if (errType == "MethodError") {
-        throw new MethodError("MethodError");
+        throw new MethodError(funcCall);
       } else if (errType == "InexactError") {
-        throw new InexactError("InexactError");
+        throw new InexactError(funcCall);
       } else {
         throw new UnknownJuliaError(errType);
       }
     }
-    return ret;
+
+    return Julia.wrap(ret);
   }
 
   public static apply(func: JuliaFunction, args: any[]) {

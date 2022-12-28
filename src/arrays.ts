@@ -84,7 +84,7 @@ export class JuliaArray implements WrappedPointer {
   }
 
   toString(): string {
-    return new JuliaString(Julia.Base.string(this)).value;
+    return Julia.Base.string(this).value;
   }
 
   push(value: JuliaValue): void {
