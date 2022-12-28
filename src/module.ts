@@ -26,6 +26,9 @@ export class JuliaModule implements IJuliaValue {
         if (prop === "name") {
           return target.name;
         }
+        if (prop === "value") {
+          return target.value;
+        }
         if (target.cache.has(prop as string)) {
           return target.cache.get(prop as string);
         }
@@ -47,8 +50,8 @@ export class JuliaModule implements IJuliaValue {
     });
   }
 
-  get value(): JuliaModule {
-    return this;
+  get value(): string {
+    return this.toString();
   }
 
   toString(): string {

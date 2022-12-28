@@ -14,6 +14,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [],
     returns: FFIType.ptr,
   },
+  jl_nothing_type_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
   jl_symbol_type_getter: {
     args: [],
     returns: FFIType.ptr,
@@ -125,6 +129,24 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   jl_array_ndims_getter: {
     args: [FFIType.ptr],
     returns: FFIType.i32,
+  },
+
+  // Values
+  jl_nothing_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  jl_true_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  jl_false_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  jl_symbol_name_getter: {
+    args: [FFIType.ptr],
+    returns: FFIType.cstring,
   },
 
   // Auto generated wrappers

@@ -250,3 +250,51 @@ export class JuliaAny implements IJuliaValue {
     return this.value;
   }
 }
+
+export class JuliaSymbol implements IJuliaValue {
+  ptr: number;
+  name: string;
+
+  constructor(ptr: number, name: string) {
+    this.ptr = ptr;
+    this.name = name;
+  }
+
+  static from(value: string): JuliaSymbol {
+    return new JuliaSymbol(jlbun.symbols.jl_symbol(value), value);
+  }
+
+  get value(): string {
+    return this.toString();
+  }
+
+  toString(): string {
+    return `[Symbol] ${this.name}`;
+  }
+}
+
+export class JuliaNothing implements IJuliaValue {
+  static instance: JuliaNothing;
+  ptr: number;
+
+  private constructor(ptr: number) {
+    this.ptr = ptr;
+  }
+
+  static getInstance(): JuliaNothing {
+    if (!JuliaNothing.instance) {
+      JuliaNothing.instance = new JuliaNothing(
+        jlbun.symbols.jl_nothing_getter(),
+      );
+    }
+    return JuliaNothing.instance;
+  }
+
+  get value(): null {
+    return null;
+  }
+
+  toString(): string {
+    return "null";
+  }
+}

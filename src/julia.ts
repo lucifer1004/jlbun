@@ -15,7 +15,9 @@ import {
   JuliaInt64,
   JuliaInt8,
   JuliaModule,
+  JuliaNothing,
   JuliaString,
+  JuliaSymbol,
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
@@ -31,6 +33,7 @@ export class Julia {
   public static Main: JuliaModule;
 
   public static Any: JuliaDataType;
+  public static Nothing: JuliaDataType;
   public static Symbol: JuliaDataType;
   public static Function: JuliaDataType;
   public static String: JuliaDataType;
@@ -84,6 +87,10 @@ export class Julia {
       Julia.prefetch(Julia.Main);
 
       Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter(), "Any");
+      Julia.Nothing = new JuliaDataType(
+        jlbun.symbols.jl_nothing_type_getter(),
+        "Nothing",
+      );
       Julia.Symbol = new JuliaDataType(
         jlbun.symbols.jl_symbol_type_getter(),
         "Symbol",
@@ -206,13 +213,33 @@ export class Julia {
       return new JuliaFloat32(ptr);
     } else if (typeStr == "Float64") {
       return new JuliaFloat64(ptr);
+    } else if (typeStr == "Module") {
+      return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
     } else if (typeStr == "Array") {
       const eltype = jlbun.symbols.jl_array_eltype(ptr);
       const ndims = Number(jlbun.symbols.jl_array_ndims_getter(ptr));
       const arrType = jlbun.symbols.jl_apply_array_type(eltype, ndims);
       return new JuliaArray(new JuliaDataType(arrType, "Array"), ptr);
+    } else if (typeStr == "Nothing") {
+      return JuliaNothing.getInstance();
+    } else if (typeStr == "DataType") {
+      return new JuliaDataType(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
+    } else if (typeStr == "Symbol") {
+      return new JuliaSymbol(
+        ptr,
+        jlbun.symbols.jl_symbol_name_getter(ptr).toString(),
+      );
+    } else if (typeStr[0] == "#") {
+      let funcName: string;
+      if (typeStr[1] >= "0" && typeStr[1] <= "9") {
+        funcName = "Lambda" + typeStr;
+      } else {
+        funcName = typeStr.slice(1);
+      }
+      return new JuliaFunction(ptr, funcName);
     }
 
+    console.log(typeStr);
     return new JuliaAny(ptr);
   }
 

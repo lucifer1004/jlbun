@@ -13,8 +13,8 @@ export class JuliaFunction extends Function implements IJuliaValue {
     });
   }
 
-  get value(): JuliaFunction {
-    return this;
+  get value(): string {
+    return this.toString();
   }
 
   toString(): string {

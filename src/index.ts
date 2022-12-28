@@ -12,6 +12,7 @@ export { JuliaArray } from "./arrays.js";
 export { JuliaFunction } from "./functions.js";
 export { JuliaModule } from "./module.js";
 export {
+  JuliaAny,
   JuliaBool,
   JuliaFloat32,
   JuliaFloat64,
@@ -19,11 +20,12 @@ export {
   JuliaInt32,
   JuliaInt64,
   JuliaInt8,
+  JuliaNothing,
   JuliaString,
+  JuliaSymbol,
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
   JuliaUInt8,
-  JuliaAny,
 } from "./values.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";

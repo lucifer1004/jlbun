@@ -9,8 +9,8 @@ export class JuliaDataType implements IJuliaValue {
     this.name = name;
   }
 
-  get value(): JuliaDataType {
-    return this;
+  get value(): string {
+    return this.toString();
   }
 
   toString(): string {

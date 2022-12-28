@@ -5,6 +5,7 @@
   jl_datatype_t *jl_##x##_type_getter() { return jl_##x##_type; }
 
 JL_DATATYPE_GETTER(any)
+JL_DATATYPE_GETTER(nothing)
 JL_DATATYPE_GETTER(symbol)
 JL_DATATYPE_GETTER(function)
 JL_DATATYPE_GETTER(string)
@@ -67,3 +68,9 @@ const char **jl_propertynames(jl_value_t *v) {
 // Arrays
 size_t jl_array_len_getter(jl_array_t *a) { return jl_array_len(a); }
 int32_t jl_array_ndims_getter(jl_array_t *a) { return jl_array_ndims(a); }
+
+// Values
+jl_value_t *jl_nothing_getter() { return jl_nothing; }
+jl_value_t *jl_true_getter() { return jl_true; }
+jl_value_t *jl_false_getter() { return jl_false; }
+const char* jl_symbol_name_getter(jl_sym_t *s) { return jl_symbol_name(s); }
