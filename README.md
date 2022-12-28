@@ -14,7 +14,7 @@ bun install
 
 ## Usage
 
-### Share arrays between Julia and Bun
+### Pass a Bun array to Julia
 
 ```typescript
 import { Julia, JuliaArray } from "./src/index.js";
@@ -40,5 +40,19 @@ Julia.Base["setindex!"](juliaArray, -10.0, 1);
 Julia.Base.println(juliaArray); // [-10.0, 100.0, 3.0, 4.0, 5.0]
 
 // This cleans up Julia-related stuff.
+Julia.close();
+```
+
+### Pass a Julia Array to Bun
+
+```typescript
+import { Julia } from "./src/index.js";
+
+Julia.init();
+
+const juliaArray = Julia.Base.rand(10, 10);
+const bunArray = juliaArray.value;
+console.log(bunArray);
+
 Julia.close();
 ```
