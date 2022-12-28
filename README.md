@@ -57,6 +57,24 @@ console.log(bunArray);
 Julia.close();
 ```
 
+### Do some linear algebra
+
+```typescript
+import { Julia } from "./src/index.js";
+
+Julia.init();
+
+const juliaArray = Julia.Base.rand(2, 2);
+const inv = Julia.Base.inv(juliaArray);
+console.log(inv.value);
+
+const anotherJuliaArray = Julia.Base.rand(2, 2);
+const product = Julia.Base["*"](juliaArray, anotherJuliaArray);
+console.log(product.value);
+
+Julia.close();
+```
+
 ## TODO
 
 - [ ] Tuple
