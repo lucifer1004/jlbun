@@ -2,14 +2,10 @@
 
 ## Installation
 
-> You need to have `CMake` and `Julia` installed to use this library.
-
-First, compile the C wrapper via `CMake`. The output should be put in the `/build` folder.
-
-Second, install `Bun`-side dependencies:
+> You need to have `Bun`, `CMake` and `Julia` installed to use this library.
 
 ```bash
-bun install
+bun install && bun rebuild
 ```
 
 ## Usage
