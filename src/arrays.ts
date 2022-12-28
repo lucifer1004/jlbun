@@ -101,6 +101,10 @@ export class JuliaArray implements WrappedPointer {
     Julia.Base["reverse!"](this);
   }
 
+  fill(value: any): void {
+    Julia.Base["fill!"](this, value);
+  }
+
   map(f: JuliaFunction): JuliaArray {
     // TODO: get actual function return type
     return new JuliaArray(this.type, Julia.Base.map(f, this));
