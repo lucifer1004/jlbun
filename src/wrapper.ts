@@ -130,6 +130,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr],
     returns: FFIType.i32,
   },
+  jl_array_data_getter: {
+    args: [FFIType.ptr],
+    returns: FFIType.ptr,
+  },
 
   // Values
   jl_nothing_getter: {

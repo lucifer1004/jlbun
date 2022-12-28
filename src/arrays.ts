@@ -1,4 +1,4 @@
-import { ptr } from "bun:ffi";
+import { ptr, toArrayBuffer } from "bun:ffi";
 import {
   jlbun,
   IJuliaValue,
@@ -37,7 +37,7 @@ export class JuliaArray implements IJuliaValue {
 
   static from(
     arr: BunArray,
-    extraOptions: Partial<FromBunArrayOptions> = {},
+    extraOptions: Partial<IFromBunArrayOptions> = {},
   ): JuliaArray {
     const options = { ...DEFAULT_FROM_BUN_ARRAY_OPTIONS, ...extraOptions };
     const rawPtr = ptr(arr.buffer);
@@ -82,12 +82,47 @@ export class JuliaArray implements IJuliaValue {
     return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
   }
 
-  get value(): string {
+  get(index: number): IJuliaValue {
+    return Julia.wrap(jlbun.symbols.jl_arrayref(this.ptr, index));
+  }
+
+  get value(): BunArray | Array<string> | string {
+    const eltype = jlbun.symbols.jl_array_eltype(this.ptr);
+    const rawPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
+
+    if (eltype === Julia.Int8.ptr) {
+      return new Int8Array(toArrayBuffer(rawPtr, 0, this.length));
+    } else if (eltype === Julia.UInt8.ptr) {
+      return new Uint8Array(toArrayBuffer(rawPtr, 0, this.length));
+    } else if (eltype === Julia.Int16.ptr) {
+      return new Int16Array(toArrayBuffer(rawPtr, 0, 2 * this.length));
+    } else if (eltype === Julia.UInt16.ptr) {
+      return new Uint16Array(toArrayBuffer(rawPtr, 0, 2 * this.length));
+    } else if (eltype === Julia.Int32.ptr) {
+      return new Int32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
+    } else if (eltype === Julia.UInt32.ptr) {
+      return new Uint32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
+    } else if (eltype === Julia.Float32.ptr) {
+      return new Float32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
+    } else if (eltype === Julia.Float64.ptr) {
+      return new Float64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
+    } else if (eltype === Julia.Int64.ptr) {
+      return new BigInt64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
+    } else if (eltype === Julia.UInt64.ptr) {
+      return new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
+    } else if (eltype === Julia.String.ptr) {
+      const arr = new Array<string>(this.length);
+      for (let i = 0; i < this.length; i++) {
+        arr[i] = this.get(i).toString();
+      }
+      return arr;
+    }
+
     return Julia.Base.string(this).value;
   }
 
   toString(): string {
-    return this.value;
+    return this.value.toString();
   }
 
   push(value: IJuliaValue): void {
@@ -109,7 +144,10 @@ export class JuliaArray implements IJuliaValue {
   }
 
   map(f: JuliaFunction): JuliaArray {
-    // TODO: get actual function return type
-    return new JuliaArray(this.type, Julia.Base.map(f, this));
+    const arr = Julia.Base.map(f, this);
+    const eltype = jlbun.symbols.jl_array_eltype(arr.ptr);
+    const ndims = Number(jlbun.symbols.jl_array_ndims_getter(arr.ptr));
+    const arrType = jlbun.symbols.jl_apply_array_type(eltype, ndims);
+    return new JuliaArray(new JuliaDataType(arrType, "Array"), arr.ptr);
   }
 }
