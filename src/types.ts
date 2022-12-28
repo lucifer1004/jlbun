@@ -1,4 +1,6 @@
+import { CString } from "bun:ffi";
 import { jlbun } from "./wrapper.js";
+import { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
 
 function safeCString(s: string): Buffer {
   // FIXME: need to copy the buffer again to avoid memory corruption
@@ -12,7 +14,7 @@ export interface WrappedPointer {
 export class JuliaModule implements WrappedPointer {
   ptr: number;
   cache: Map<string, JuliaFunction>;
-  [key: string]: any;
+  [key: string]: any
 
   constructor(ptr: number) {
     this.ptr = ptr;
@@ -26,10 +28,12 @@ export class JuliaModule implements WrappedPointer {
         if (target.cache.has(prop as string)) {
           return target.cache.get(prop as string);
         }
+
+        // FIXME: Here we assume that the function exists, otherwise the program will crash
         const juliaFunc = Julia.getFunction(target, prop as string);
         target.cache.set(prop as string, juliaFunc);
         return juliaFunc;
-      }
+      },
     });
   }
 }
@@ -98,7 +102,9 @@ export class Julia {
 
       Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter());
       Julia.Symbol = new JuliaDataType(jlbun.symbols.jl_symbol_type_getter());
-      Julia.Function = new JuliaDataType(jlbun.symbols.jl_function_type_getter());
+      Julia.Function = new JuliaDataType(
+        jlbun.symbols.jl_function_type_getter(),
+      );
       Julia.String = new JuliaDataType(jlbun.symbols.jl_string_type_getter());
       Julia.Bool = new JuliaDataType(jlbun.symbols.jl_bool_type_getter());
       Julia.Char = new JuliaDataType(jlbun.symbols.jl_char_type_getter());
@@ -135,23 +141,57 @@ export class Julia {
   }
 
   public static call(func: JuliaFunction, ...args: any[]): any {
-    const bigArgs = new BigUint64Array(args.length);
-    for (let i = 0; i < args.length; i++) {
-      if (typeof args[i] === "object" && "ptr" in args[i]) {
-        bigArgs[i] = BigInt(args[i].ptr);
-      } else if (typeof args[i] === "number") {
-        if (Number.isInteger(args[i])) {
-          bigArgs[i] = BigInt(jlbun.symbols.jl_box_int64(args[i]));
+    const wrappedArgs: number[] = args.map((arg) => {
+      if (typeof arg === "object" && "ptr" in arg) {
+        return arg.ptr;
+      } else if (typeof arg === "number") {
+        if (Number.isInteger(arg)) {
+          return jlbun.symbols.jl_box_int64(arg);
         } else {
-          bigArgs[i] = BigInt(jlbun.symbols.jl_box_float64(args[i]));
+          return jlbun.symbols.jl_box_float64(arg);
         }
-      } else if (typeof args[i] === "string") {
-        bigArgs[i] = BigInt(
-          jlbun.symbols.jl_cstr_to_string(safeCString(args[i])),
-        );
+      } else if (typeof arg === "string") {
+        return jlbun.symbols.jl_cstr_to_string(safeCString(arg));
+      } else {
+        throw new MethodError("Unsupported argument type");
+      }
+    });
+
+    let ret: any;
+    if (args.length == 0) {
+      ret = jlbun.symbols.jl_call0(func.ptr);
+    } else if (args.length == 1) {
+      ret = jlbun.symbols.jl_call1(func.ptr, wrappedArgs[0]);
+    } else if (args.length == 2) {
+      ret = jlbun.symbols.jl_call2(func.ptr, wrappedArgs[0], wrappedArgs[1]);
+    } else if (args.length == 3) {
+      ret = jlbun.symbols.jl_call3(
+        func.ptr,
+        wrappedArgs[0],
+        wrappedArgs[1],
+        wrappedArgs[2],
+      );
+    } else {
+      ret = jlbun.symbols.jl_call(
+        func.ptr,
+        new BigInt64Array(wrappedArgs.map(BigInt)),
+        args.length,
+      );
+    }
+
+    // Error handling
+    const err = jlbun.symbols.jl_exception_occurred();
+    if (err !== null) {
+      const errType = new CString(jlbun.symbols.jl_typeof_str(err)).toString();
+      if (errType == "MethodError") {
+        throw new MethodError("MethodError");
+      } else if (errType == "InexactError") {
+        throw new InexactError("InexactError");
+      } else {
+        throw new UnknownJuliaError(errType);
       }
     }
-    return jlbun.symbols.jl_call(func.ptr, bigArgs, args.length);
+    return ret;
   }
 
   public static apply(func: JuliaFunction, args: any[]) {
