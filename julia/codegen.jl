@@ -199,6 +199,16 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         returns: FFIType.ptr,
     },
 
+    // Builtins
+    jl_hasproperty: {
+        args: [FFIType.ptr, FFIType.cstring],
+        returns: FFIType.i8,
+    },
+    jl_propertynames: {
+        args: [FFIType.ptr],
+        returns: FFIType.ptr,
+    },
+
     // Functions
     jl_function_getter: {
         args: [FFIType.ptr, FFIType.cstring],

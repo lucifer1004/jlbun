@@ -3,7 +3,7 @@ import { Julia, JuliaArray } from "./src/index.js";
 const N = 100000000;
 const bunArray = new Float64Array(N);
 for (let i = 0; i < bunArray.length; i++) {
-  bunArray[i] = Math.random();
+  bunArray[i] = i;
 }
 
 Julia.init();

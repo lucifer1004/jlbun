@@ -3,6 +3,7 @@
   "module": "index.ts",
   "type": "module",
   "scripts": {
+    "rebuild": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
     "fmt": "prettier --write './**/*.{ts,tsx,js,jsx,json}'",
     "lint-staged": "lint-staged",
     "prepare": "husky install"
@@ -17,6 +18,8 @@
     "eslint": "^8.30.0",
     "husky": "^8.0.2",
     "lint-staged": "^13.1.0",
-    "prettier": "^2.8.1"
+    "mkdirp": "^1.0.4",
+    "prettier": "^2.8.1",
+    "rimraf": "^3.0.2"
   }
 }

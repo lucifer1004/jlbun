@@ -1,4 +1,4 @@
-import { CString } from "bun:ffi";
+import { CString, toArrayBuffer } from "bun:ffi";
 import { safeCString } from "./utils.js";
 import { jlbun } from "./wrapper.js";
 import { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
@@ -27,10 +27,11 @@ export class JuliaModule implements WrappedPointer {
           return target.cache.get(prop as string);
         }
 
-        const exist = Julia.eval(
-          `length(methods(${target.name}.${prop as string})) > 0`,
+        const exist = jlbun.symbols.jl_hasproperty(
+          target.ptr,
+          safeCString(prop as string),
         );
-        if (exist === null) {
+        if (exist === 0) {
           throw new MethodError(
             `Method ${prop as string} does not exist in module ${target.name}!`,
           );
@@ -99,9 +100,23 @@ export class Julia {
   public static Float32: JuliaDataType;
   public static Float64: JuliaDataType;
 
-  public static init() {
+  private static prefetch(module: JuliaModule): void {
+    const props = Julia.getProperties(module);
+    for (const prop of props) {
+      module[prop];
+    }
+  }
+
+  public static init(bindir: string = "", sysimage: string = ""): void {
     if (!Julia.Base) {
-      jlbun.symbols.jl_init();
+      if (sysimage === "") {
+        jlbun.symbols.jl_init();
+      } else {
+        jlbun.symbols.jl_init_with_image(
+          safeCString(bindir),
+          safeCString(sysimage),
+        );
+      }
       Julia.Base = new JuliaModule(
         jlbun.symbols.jl_base_module_getter(),
         "Base",
@@ -114,6 +129,11 @@ export class Julia {
         jlbun.symbols.jl_main_module_getter(),
         "Main",
       );
+
+      // Prefetch all the properties of Base, Core and Main
+      Julia.prefetch(Julia.Base);
+      Julia.prefetch(Julia.Core);
+      Julia.prefetch(Julia.Main);
 
       Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter());
       Julia.Symbol = new JuliaDataType(jlbun.symbols.jl_symbol_type_getter());
@@ -142,6 +162,18 @@ export class Julia {
     return new JuliaFunction(
       jlbun.symbols.jl_function_getter(module.ptr, cName),
     );
+  }
+
+  public static getProperties(obj: WrappedPointer): string[] {
+    const rawPtr = jlbun.symbols.jl_propertynames(obj.ptr);
+    let propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8));
+    const len = parseInt(new CString(Number(propPointers[0])).toString());
+    propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * (len + 1)));
+    const props: string[] = [];
+    for (let i = 1; i <= len; i++) {
+      props.push(new CString(Number(propPointers[i])).toString());
+    }
+    return props;
   }
 
   public static eval(code: string): any {
