@@ -237,7 +237,6 @@ export class Julia {
       return new JuliaFunction(ptr, funcName);
     }
 
-    console.log(typeStr);
     return new JuliaAny(ptr);
   }
 
