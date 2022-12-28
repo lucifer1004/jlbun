@@ -6,6 +6,19 @@ import {
   JuliaDataType,
   JuliaFunction,
   MethodError,
+  JuliaInt8,
+  JuliaUInt8,
+  JuliaInt16,
+  JuliaUInt16,
+  JuliaInt32,
+  JuliaUInt32,
+  JuliaInt64,
+  JuliaUInt64,
+  JuliaFloat32,
+  JuliaFloat64,
+  JuliaString,
+  JuliaBool,
+  JuliaSymbol,
 } from "./index.js";
 
 type BunArray = TypedArray | BigInt64Array | BigUint64Array;
@@ -20,18 +33,18 @@ const DEFAULT_FROM_BUN_ARRAY_OPTIONS: IFromBunArrayOptions = {
 
 export class JuliaArray implements IJuliaValue {
   ptr: number;
-  type: JuliaDataType;
+  elType: JuliaDataType;
 
-  constructor(type: JuliaDataType, ptr: number) {
+  constructor(ptr: number, elType: JuliaDataType) {
     this.ptr = ptr;
-    this.type = type;
+    this.elType = elType;
   }
 
-  static init(type: JuliaDataType, length: number): JuliaArray {
-    const arrType = jlbun.symbols.jl_apply_array_type(type.ptr, 1);
+  static init(elType: JuliaDataType, length: number): JuliaArray {
+    const arrType = jlbun.symbols.jl_apply_array_type(elType.ptr, 1);
     return new JuliaArray(
-      type,
       jlbun.symbols.jl_alloc_array_1d(arrType, length),
+      elType,
     );
   }
 
@@ -42,35 +55,35 @@ export class JuliaArray implements IJuliaValue {
     const options = { ...DEFAULT_FROM_BUN_ARRAY_OPTIONS, ...extraOptions };
     const rawPtr = ptr(arr.buffer);
     const juliaGC = options.juliaGC ? 1 : 0;
-    let elementType: JuliaDataType;
+    let elType: JuliaDataType;
     if (arr instanceof Int8Array) {
-      elementType = Julia.Int8;
+      elType = Julia.Int8;
     } else if (arr instanceof Uint8Array || arr instanceof Uint8ClampedArray) {
-      elementType = Julia.UInt8;
+      elType = Julia.UInt8;
     } else if (arr instanceof Int16Array) {
-      elementType = Julia.Int16;
+      elType = Julia.Int16;
     } else if (arr instanceof Uint16Array) {
-      elementType = Julia.UInt16;
+      elType = Julia.UInt16;
     } else if (arr instanceof Int32Array) {
-      elementType = Julia.Int32;
+      elType = Julia.Int32;
     } else if (arr instanceof Uint32Array) {
-      elementType = Julia.UInt32;
+      elType = Julia.UInt32;
     } else if (arr instanceof Float32Array) {
-      elementType = Julia.Float32;
+      elType = Julia.Float32;
     } else if (arr instanceof Float64Array) {
-      elementType = Julia.Float64;
+      elType = Julia.Float64;
     } else if (arr instanceof BigInt64Array) {
-      elementType = Julia.Int64;
+      elType = Julia.Int64;
     } else if (arr instanceof BigUint64Array) {
-      elementType = Julia.UInt64;
+      elType = Julia.UInt64;
     } else {
       throw new MethodError("Unsupported TypedArray type.");
     }
 
-    const arrType = jlbun.symbols.jl_apply_array_type(elementType.ptr, 1);
+    const arrType = jlbun.symbols.jl_apply_array_type(elType.ptr, 1);
     return new JuliaArray(
-      elementType,
       jlbun.symbols.jl_ptr_to_array_1d(arrType, rawPtr, arr.length, juliaGC),
+      elType,
     );
   }
 
@@ -94,31 +107,71 @@ export class JuliaArray implements IJuliaValue {
     return Julia.wrap(jlbun.symbols.jl_arrayref(this.ptr, index));
   }
 
+  set(index: number, value: any): void {
+    let ptr: number;
+
+    if (
+      (typeof value === "object" || typeof value === "function") &&
+      "ptr" in value
+    ) {
+      ptr = value.ptr;
+    } else if (this.elType.isEqual(Julia.Int8)) {
+      ptr = JuliaInt8.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.UInt8)) {
+      ptr = JuliaUInt8.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.Int16)) {
+      ptr = JuliaInt16.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.UInt16)) {
+      ptr = JuliaUInt16.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.Int32)) {
+      ptr = JuliaInt32.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.UInt32)) {
+      ptr = JuliaUInt32.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.Int64)) {
+      ptr = JuliaInt64.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.UInt64)) {
+      ptr = JuliaUInt64.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.Float32)) {
+      ptr = JuliaFloat32.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.Float64)) {
+      ptr = JuliaFloat64.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.String)) {
+      ptr = JuliaString.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.Bool)) {
+      ptr = JuliaBool.from(value).ptr;
+    } else if (this.elType.isEqual(Julia.Symbol)) {
+      ptr = JuliaSymbol.from(value).ptr;
+    } else {
+      throw new MethodError("Cannot convert to the array's element type.");
+    }
+
+    jlbun.symbols.jl_arrayset(this.ptr, ptr, index);
+  }
+
   get value(): BunArray | Array<string> | string {
-    const eltype = jlbun.symbols.jl_array_eltype(this.ptr);
     const rawPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
 
-    if (eltype === Julia.Int8.ptr) {
+    if (this.elType.ptr === Julia.Int8.ptr) {
       return new Int8Array(toArrayBuffer(rawPtr, 0, this.length));
-    } else if (eltype === Julia.UInt8.ptr) {
+    } else if (this.elType.ptr === Julia.UInt8.ptr) {
       return new Uint8Array(toArrayBuffer(rawPtr, 0, this.length));
-    } else if (eltype === Julia.Int16.ptr) {
+    } else if (this.elType.ptr === Julia.Int16.ptr) {
       return new Int16Array(toArrayBuffer(rawPtr, 0, 2 * this.length));
-    } else if (eltype === Julia.UInt16.ptr) {
+    } else if (this.elType.ptr === Julia.UInt16.ptr) {
       return new Uint16Array(toArrayBuffer(rawPtr, 0, 2 * this.length));
-    } else if (eltype === Julia.Int32.ptr) {
+    } else if (this.elType.ptr === Julia.Int32.ptr) {
       return new Int32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
-    } else if (eltype === Julia.UInt32.ptr) {
+    } else if (this.elType.ptr === Julia.UInt32.ptr) {
       return new Uint32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
-    } else if (eltype === Julia.Float32.ptr) {
+    } else if (this.elType.ptr === Julia.Float32.ptr) {
       return new Float32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
-    } else if (eltype === Julia.Float64.ptr) {
+    } else if (this.elType.ptr === Julia.Float64.ptr) {
       return new Float64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
-    } else if (eltype === Julia.Int64.ptr) {
+    } else if (this.elType.ptr === Julia.Int64.ptr) {
       return new BigInt64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
-    } else if (eltype === Julia.UInt64.ptr) {
+    } else if (this.elType.ptr === Julia.UInt64.ptr) {
       return new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
-    } else if (eltype === Julia.String.ptr) {
+    } else if (this.elType.ptr === Julia.String.ptr) {
       const arr = new Array<string>(this.length);
       for (let i = 0; i < this.length; i++) {
         arr[i] = this.get(i).toString();
@@ -149,7 +202,7 @@ export class JuliaArray implements IJuliaValue {
 
   reshape(...shape: number[]): JuliaArray {
     const arr = Julia.Base.reshape(this, ...shape);
-    return new JuliaArray(this.type, arr.ptr);
+    return new JuliaArray(arr.ptr, this.elType);
   }
 
   fill(value: any): void {
@@ -158,9 +211,7 @@ export class JuliaArray implements IJuliaValue {
 
   map(f: JuliaFunction): JuliaArray {
     const arr = Julia.Base.map(f, this);
-    const eltype = jlbun.symbols.jl_array_eltype(arr.ptr);
-    const ndims = Number(jlbun.symbols.jl_array_ndims_getter(arr.ptr));
-    const arrType = jlbun.symbols.jl_apply_array_type(eltype, ndims);
-    return new JuliaArray(new JuliaDataType(arrType, "Array"), arr.ptr);
+    const elType = jlbun.symbols.jl_array_eltype(arr.ptr);
+    return new JuliaArray(arr.ptr, elType);
   }
 }

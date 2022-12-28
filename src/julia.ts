@@ -185,7 +185,7 @@ export class Julia {
     }
   }
 
-  public static wrap(ptr: number) {
+  public static wrap(ptr: number): IJuliaValue {
     const typeStr = Julia.getTypeStr(ptr);
     if (typeStr == "String") {
       return new JuliaString(ptr);
@@ -216,10 +216,8 @@ export class Julia {
     } else if (typeStr == "Module") {
       return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
     } else if (typeStr == "Array") {
-      const eltype = jlbun.symbols.jl_array_eltype(ptr);
-      const ndims = Number(jlbun.symbols.jl_array_ndims_getter(ptr));
-      const arrType = jlbun.symbols.jl_apply_array_type(eltype, ndims);
-      return new JuliaArray(new JuliaDataType(arrType, "Array"), ptr);
+      const elType = jlbun.symbols.jl_array_eltype(ptr);
+      return new JuliaArray(ptr, elType);
     } else if (typeStr == "Nothing") {
       return JuliaNothing.getInstance();
     } else if (typeStr == "DataType") {

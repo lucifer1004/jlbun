@@ -14,7 +14,7 @@ Julia.Base.println(
 );
 bunArray[1] = 100.0;
 Julia.Base.println("Modified by Bun: ", juliaArray);
-Julia.Base["setindex!"](juliaArray, -10.0, 1);
+juliaArray.set(0, -10.0);
 Julia.Base.println("Modified by Julia: ", juliaArray);
 juliaArray.reverse();
 Julia.Base.println("Reversed By Julia: ", juliaArray);

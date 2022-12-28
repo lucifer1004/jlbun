@@ -35,8 +35,8 @@ Julia.Base.println(juliaArray); // [1.0, 2.0, 3.0, 4.0, 5.0]
 bunArray[1] = 100.0;
 Julia.Base.println(juliaArray); // [1.0, 100.0, 3.0, 4.0, 5.0]
 
-// Or we can modify the array at the Julia side (1-indexed).
-Julia.Base["setindex!"](juliaArray, -10.0, 1);
+// Or we can modify the array at the Julia side (also 0-indexed).
+juliaArray.set(0, -10.0);
 Julia.Base.println(juliaArray); // [-10.0, 100.0, 3.0, 4.0, 5.0]
 
 // This cleans up Julia-related stuff.
