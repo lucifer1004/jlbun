@@ -151,7 +151,10 @@ export class Julia {
 
   public static call(func: JuliaFunction, ...args: any[]): any {
     const wrappedArgs: number[] = args.map((arg) => {
-      if (typeof arg === "object" && "ptr" in arg) {
+      if (
+        (typeof arg === "object" || typeof arg === "function") &&
+        "ptr" in arg
+      ) {
         return arg.ptr;
       } else if (typeof arg === "number") {
         if (Number.isInteger(arg)) {

@@ -1,4 +1,4 @@
-import { Julia, JuliaArray, JuliaBool, JuliaInt64 } from "./src/index.js";
+import { Julia, JuliaArray } from "./src/index.js";
 
 Julia.init();
 const bunArray = new Float64Array([1, 2, 3, 4, 5]);
