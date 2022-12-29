@@ -5,6 +5,7 @@
     "target": "esnext",
     "moduleResolution": "nodenext",
     "strict": true,
+    "declaration": true,
     "downlevelIteration": true,
     "skipLibCheck": true,
     "jsx": "preserve",
@@ -15,8 +16,8 @@
       "bun-types" // add Bun global
     ],
     "paths": {
-      "jlbun": ["./jlbun/index.ts"]
+      "jlbun": ["./index.ts"]
     }
   },
-  "exclude": ["examples/**/*.js", "build/**/*", "docs/assets/**/*"]
+  "exclude": ["archive/**/*", "dist/**/*", "build/**/*", "docs/**/*"]
 }

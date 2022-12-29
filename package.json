@@ -3,14 +3,22 @@
   "version": "0.0.3",
   "module": "index.ts",
   "type": "module",
+  "files": [
+    "index.ts",
+    "jlbun/**/*.ts",
+    "dist/**/*.d.ts"
+  ],
+  "types": "dist/index.d.ts",
   "scripts": {
     "install": "bun build-lib",
+    "gen-types": " tsc --emitDeclarationOnly --outDir dist",
     "build-lib": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
     "typedoc": "typedoc --tsconfig tsconfig.typedoc.json",
     "fmt": "prettier --write './**/*.{ts,tsx,cjs,js,jsx,json}'",
     "lint": "eslint '**/*.{js,ts}' '*.{js,ts,cjs}' package.json --fix",
     "lint-staged": "lint-staged",
     "prepare": "bun x husky install",
+    "prepublishOnly": "bun gen-types",
     "test": "bun wiptest"
   },
   "lint-staged": {

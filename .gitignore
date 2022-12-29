@@ -173,6 +173,7 @@ dist
 archive
 build
 cmake-build-*
+dist
 docs
 julia.h
 bun.lockb
