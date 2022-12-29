@@ -148,7 +148,7 @@ export class JuliaArray implements IJuliaValue {
     jlbun.symbols.jl_arrayset(this.ptr, ptr, index);
   }
 
-  get value(): BunArray | Array<string> | string {
+  get rawValue(): BunArray {
     const rawPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
 
     if (this.elType.ptr === Julia.Int8.ptr) {
@@ -171,19 +171,21 @@ export class JuliaArray implements IJuliaValue {
       return new BigInt64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
     } else if (this.elType.ptr === Julia.UInt64.ptr) {
       return new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
-    } else if (this.elType.ptr === Julia.String.ptr) {
-      const arr = new Array<string>(this.length);
-      for (let i = 0; i < this.length; i++) {
-        arr[i] = this.get(i).toString();
-      }
-      return arr;
+    } else {
+      throw new MethodError("Cannot be converted to BunArray.");
     }
+  }
 
-    return Julia.Base.string(this).value;
+  get value(): IJuliaValue[] {
+    const arr = new Array<IJuliaValue>(this.length);
+    for (let i = 0; i < this.length; i++) {
+      arr[i] = this.get(i);
+    }
+    return arr;
   }
 
   toString(): string {
-    return this.value.toString();
+    return `[${this.value.map((x) => x.toString()).join(", ")}]`;
   }
 
   push(value: IJuliaValue): void {

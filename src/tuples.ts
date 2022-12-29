@@ -13,16 +13,16 @@ export class JuliaTuple implements IJuliaValue {
     return Julia.wrap(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
-  get value(): any[] {
+  get value(): IJuliaValue[] {
     const len = this.length;
     let arr = [];
     for (let i = 0; i < len; i++) {
-      arr.push(this.get(i).value);
+      arr.push(this.get(i));
     }
     return arr;
   }
 
   toString(): string {
-    return this.value.toString();
+    return `(${this.value.map((x) => x.toString()).join(", ")})`;
   }
 }

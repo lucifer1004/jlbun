@@ -25,6 +25,7 @@ import {
   InexactError,
   MethodError,
   UnknownJuliaError,
+  JuliaTuple,
 } from "./index.js";
 
 interface IJuliaInitOptions {
@@ -208,48 +209,50 @@ export class Julia {
 
   public static wrap(ptr: number): IJuliaValue {
     const typeStr = Julia.getTypeStr(ptr);
-    if (typeStr == "String") {
+    if (typeStr === "String") {
       return new JuliaString(ptr);
-    } else if (typeStr == "Bool") {
+    } else if (typeStr === "Bool") {
       return new JuliaBool(ptr);
-    } else if (typeStr == "Int8") {
+    } else if (typeStr === "Int8") {
       return new JuliaInt8(ptr);
-    } else if (typeStr == "UInt8") {
+    } else if (typeStr === "UInt8") {
       return new JuliaUInt8(ptr);
-    } else if (typeStr == "Int16") {
+    } else if (typeStr === "Int16") {
       return new JuliaInt16(ptr);
-    } else if (typeStr == "UInt16") {
+    } else if (typeStr === "UInt16") {
       return new JuliaUInt16(ptr);
-    } else if (typeStr == "Int32") {
+    } else if (typeStr === "Int32") {
       return new JuliaInt32(ptr);
-    } else if (typeStr == "UInt32") {
+    } else if (typeStr === "UInt32") {
       return new JuliaUInt32(ptr);
-    } else if (typeStr == "Int64") {
+    } else if (typeStr === "Int64") {
       return new JuliaInt64(ptr);
-    } else if (typeStr == "UInt64") {
+    } else if (typeStr === "UInt64") {
       return new JuliaUInt64(ptr);
-    } else if (typeStr == "Float16") {
+    } else if (typeStr === "Float16") {
       return new JuliaFloat32(ptr);
-    } else if (typeStr == "Float32") {
+    } else if (typeStr === "Float32") {
       return new JuliaFloat32(ptr);
-    } else if (typeStr == "Float64") {
+    } else if (typeStr === "Float64") {
       return new JuliaFloat64(ptr);
-    } else if (typeStr == "Module") {
+    } else if (typeStr === "Module") {
       return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
-    } else if (typeStr == "Array") {
+    } else if (typeStr === "Array") {
       const elType = jlbun.symbols.jl_array_eltype(ptr);
       const elTypeStr = jlbun.symbols.jl_typeof_str(elType).toString();
       return new JuliaArray(ptr, new JuliaDataType(elType, elTypeStr));
-    } else if (typeStr == "Nothing") {
+    } else if (typeStr === "Nothing") {
       return JuliaNothing.getInstance();
-    } else if (typeStr == "DataType") {
+    } else if (typeStr === "DataType") {
       return new JuliaDataType(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
-    } else if (typeStr == "Symbol") {
+    } else if (typeStr === "Symbol") {
       return new JuliaSymbol(
         ptr,
         jlbun.symbols.jl_symbol_name_getter(ptr).toString(),
       );
-    } else if (typeStr[0] == "#") {
+    } else if (typeStr == "Tuple") {
+      return new JuliaTuple(ptr);
+    } else if (typeStr[0] === "#") {
       let funcName: string;
       if (typeStr[1] >= "0" && typeStr[1] <= "9") {
         funcName = "Lambda" + typeStr;

@@ -134,6 +134,7 @@ export class JuliaInt64 implements IJuliaValue {
   get value(): bigint {
     return jlbun.symbols.jl_unbox_int64(this.ptr);
   }
+
   toString(): string {
     return this.value.toString();
   }
@@ -152,6 +153,10 @@ export class JuliaUInt64 implements IJuliaValue {
 
   get value(): bigint {
     return jlbun.symbols.jl_unbox_uint64(this.ptr);
+  }
+
+  toString(): string {
+    return this.value.toString();
   }
 }
 

@@ -47,7 +47,7 @@ import { Julia } from "./src/index.js";
 Julia.init();
 
 const juliaArray = Julia.Base.rand(10, 10);
-const bunArray = juliaArray.value;
+const bunArray = juliaArray.rawValue;
 console.log(bunArray);
 
 Julia.close();
