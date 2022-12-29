@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+
+    // so that if your project isn't using TypeScript, it still has autocomplete
+    "allowJs": true,
+
+    // "bun-types" is the important part
+    "types": ["bun-types"],
+    "paths": {
+      "jlbun": ["./jlbun/index.ts"]
+    }
+  },
+  "exclude": ["examples/**/*", "build/**/*", "docs/assets/**/*"],
+  "typedocOptions": {
+    "entryPoints": ["jlbun/index.ts"],
+    "out": "docs",
+    "readme": "docs.md",
+    "searchInComments": true,
+    "plugin": ["typedoc-plugin-katex"]
+  }
+}

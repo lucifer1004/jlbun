@@ -5,6 +5,7 @@
 .idea
 archive
 build
+docs
 node_modules
 .eslintignore
 .eslintrc.cjs

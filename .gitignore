@@ -173,6 +173,7 @@ dist
 archive
 build
 cmake-build-*
+docs
 julia.h
 bun.lockb
 Manifest.toml
