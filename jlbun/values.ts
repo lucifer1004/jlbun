@@ -187,7 +187,7 @@ export class JuliaFloat64 implements IJuliaValue {
     this.ptr = ptr;
   }
 
-  static from(value: number): JuliaFloat64 {
+  static from(value: number | bigint): JuliaFloat64 {
     return new JuliaFloat64(jlbun.symbols.jl_box_float64(value));
   }
 

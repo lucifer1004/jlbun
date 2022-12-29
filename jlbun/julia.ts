@@ -290,6 +290,8 @@ export class Julia {
       } else {
         return JuliaFloat64.from(value);
       }
+    } else if (typeof value === "bigint") {
+      return JuliaInt64.from(value);
     } else if (typeof value === "string") {
       return JuliaString.from(value);
     } else if (typeof value === "boolean") {

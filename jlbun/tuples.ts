@@ -9,6 +9,11 @@ export class JuliaTuple implements IJuliaValue {
     this.length = jlbun.symbols.jl_nfields_getter(this.ptr);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static from(...args: any[]): JuliaTuple {
+    return Julia.Base.tuple(...args);
+  }
+
   get(index: number): IJuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
@@ -32,6 +37,11 @@ export class JuliaPair implements IJuliaValue {
 
   constructor(ptr: number) {
     this.ptr = ptr;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static from(first: any, second: any): JuliaPair {
+    return Julia.Base.Pair(first, second);
   }
 
   get first(): IJuliaValue {
