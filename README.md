@@ -78,7 +78,7 @@ Julia.close();
 ### Install and use new packages
 
 ```typescript
-import { Julia } from "./src/index.js";
+import { Julia } from "jlbun";
 import { join } from "path";
 
 Julia.init();
