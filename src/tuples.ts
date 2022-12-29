@@ -10,7 +10,7 @@ export class JuliaTuple implements IJuliaValue {
   }
 
   get(index: number): IJuliaValue {
-    return Julia.wrap(jlbun.symbols.jl_get_nth_field(this.ptr, index));
+    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
   get value(): IJuliaValue[] {
@@ -41,7 +41,7 @@ export class JuliaNamedTuple implements IJuliaValue {
   }
 
   get(index: number): IJuliaValue {
-    return Julia.wrap(jlbun.symbols.jl_get_nth_field(this.ptr, index));
+    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
   get value(): Map<string, IJuliaValue> {

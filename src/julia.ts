@@ -1,8 +1,8 @@
 import { CString, toArrayBuffer } from "bun:ffi";
 import {
-  jlbun,
-  safeCString,
   IJuliaValue,
+  InexactError,
+  jlbun,
   JuliaAny,
   JuliaArray,
   JuliaBool,
@@ -24,8 +24,8 @@ import {
   JuliaUInt32,
   JuliaUInt64,
   JuliaUInt8,
-  InexactError,
   MethodError,
+  safeCString,
   UnknownJuliaError,
 } from "./index.js";
 
@@ -208,7 +208,7 @@ export class Julia {
     }
   }
 
-  public static wrap(ptr: number): IJuliaValue {
+  public static wrapPtr(ptr: number): IJuliaValue {
     const typeStr = Julia.getTypeStr(ptr);
     if (typeStr === "String") {
       return new JuliaString(ptr);
@@ -268,6 +268,41 @@ export class Julia {
     return new JuliaAny(ptr);
   }
 
+  public static autoWrap(value: any): IJuliaValue {
+    if (
+      (typeof value === "function" || typeof value === "object") &&
+      "ptr" in value
+    ) {
+      return value;
+    } else if (typeof value === "number") {
+      if (Number.isInteger(value)) {
+        return JuliaInt64.from(value);
+      } else {
+        return JuliaFloat64.from(value);
+      }
+    } else if (typeof value === "string") {
+      return JuliaString.from(value);
+    } else if (typeof value === "boolean") {
+      return JuliaBool.from(value);
+    } else if (typeof value === "undefined") {
+      return JuliaNothing.getInstance();
+    } else if (Array.isArray(value)) {
+      try {
+        return JuliaArray.from(
+          value as unknown as TypedArray | BigInt64Array | BigUint64Array,
+        );
+      } catch (_) {
+        const arr = JuliaArray.init(Julia.Any, 0);
+        for (const v of value) {
+          arr.push(Julia.autoWrap(v));
+        }
+        return arr;
+      }
+    } else {
+      throw new MethodError(`Cannot convert to Julia value: ${value}`);
+    }
+  }
+
   public static import(name: string): JuliaModule {
     Julia.eval(`import ${name}`);
     const module = new JuliaModule(Julia.Main[name].ptr, `Main.${name}`);
@@ -292,30 +327,11 @@ export class Julia {
       }
     }
 
-    return Julia.wrap(ret);
+    return Julia.wrapPtr(ret);
   }
 
   public static call(func: JuliaFunction, ...args: any[]): IJuliaValue {
-    const wrappedArgs: number[] = args.map((arg) => {
-      if (
-        (typeof arg === "object" || typeof arg === "function") &&
-        "ptr" in arg
-      ) {
-        return arg.ptr;
-      } else if (typeof arg === "number") {
-        if (Number.isInteger(arg)) {
-          return jlbun.symbols.jl_box_int64(arg);
-        } else {
-          return jlbun.symbols.jl_box_float64(arg);
-        }
-      } else if (typeof arg === "string") {
-        return jlbun.symbols.jl_cstr_to_string(safeCString(arg));
-      } else if (typeof arg === "boolean") {
-        return jlbun.symbols.jl_box_bool(arg ? 1 : 0);
-      } else {
-        throw new MethodError("Unsupported argument type");
-      }
-    });
+    const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
 
     let ret: any;
     if (args.length == 0) {
@@ -354,7 +370,7 @@ export class Julia {
       }
     }
 
-    return Julia.wrap(ret);
+    return Julia.wrapPtr(ret);
   }
 
   public static apply(func: JuliaFunction, args: any[]) {

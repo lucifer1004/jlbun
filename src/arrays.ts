@@ -1,24 +1,24 @@
 import { ptr, toArrayBuffer } from "bun:ffi";
 import {
-  jlbun,
   IJuliaValue,
+  jlbun,
   Julia,
+  JuliaBool,
   JuliaDataType,
-  JuliaFunction,
-  MethodError,
-  JuliaInt8,
-  JuliaUInt8,
-  JuliaInt16,
-  JuliaUInt16,
-  JuliaInt32,
-  JuliaUInt32,
-  JuliaInt64,
-  JuliaUInt64,
   JuliaFloat32,
   JuliaFloat64,
+  JuliaFunction,
+  JuliaInt16,
+  JuliaInt32,
+  JuliaInt64,
+  JuliaInt8,
   JuliaString,
-  JuliaBool,
   JuliaSymbol,
+  JuliaUInt16,
+  JuliaUInt32,
+  JuliaUInt64,
+  JuliaUInt8,
+  MethodError,
 } from "./index.js";
 
 type BunArray = TypedArray | BigInt64Array | BigUint64Array;
@@ -104,7 +104,7 @@ export class JuliaArray implements IJuliaValue {
   }
 
   get(index: number): IJuliaValue {
-    return Julia.wrap(jlbun.symbols.jl_arrayref(this.ptr, index));
+    return Julia.wrapPtr(jlbun.symbols.jl_arrayref(this.ptr, index));
   }
 
   set(index: number, value: any): void {

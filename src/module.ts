@@ -1,9 +1,9 @@
 import {
-  jlbun,
   IJuliaValue,
+  jlbun,
   JuliaFunction,
-  MethodError,
   JuliaSymbol,
+  MethodError,
 } from "./index.js";
 
 export class JuliaModule implements IJuliaValue {

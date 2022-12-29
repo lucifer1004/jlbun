@@ -1,5 +1,5 @@
 import { CString } from "bun:ffi";
-import { jlbun, safeCString, IJuliaValue, Julia } from "./index.js";
+import { IJuliaValue, jlbun, Julia, safeCString } from "./index.js";
 
 export class JuliaInt8 implements IJuliaValue {
   ptr: number;
