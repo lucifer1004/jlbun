@@ -1,0 +1,44 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+    tags: '*'
+  pull_request:
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+jobs:
+  test:
+    name: Test Bun-${{ matrix.bun-version }} + Julia-${{ matrix.julia-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version:
+          - '1.8'
+        bun-version:
+          - '0.4.0'
+        os:
+          - ubuntu-22.04
+          - macos-12
+          - windows-2022
+        arch:
+          - x64
+    steps:
+      - uses: actions/checkout@v2
+      - uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.25.x'
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+      - uses: xhyrom/setup-bun@v0.1.8
+        with:
+          bun-version: ${{ matrix.bun-version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          bun install && bun rebuild && bun test
