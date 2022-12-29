@@ -75,6 +75,27 @@ console.log(LA.norm(product).value);
 Julia.close();
 ```
 
+### Install and use new packages
+
+```typescript
+import { Julia } from "./src/index.js";
+import { join } from "path";
+
+Julia.init();
+
+// Install `CairoMakie`
+Julia.Pkg.add("CairoMakie");
+
+// Import `CairoMakie`
+const Cairo = Julia.import("CairoMakie");
+
+// Plot and save
+const plt = Cairo.plot(Julia.Base.rand(10), Julia.Base.rand(10));
+Cairo.save(join(process.cwd(), "plot.png"), plt);
+
+Julia.close();
+```
+
 ## TODO
 
 - [ ] Tuple

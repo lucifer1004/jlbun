@@ -27,10 +27,22 @@ import {
   UnknownJuliaError,
 } from "./index.js";
 
+interface IJuliaInitOptions {
+  bindir: string;
+  sysimage: string;
+  project: string;
+}
+
+const DEFAULT_JULIA_INIT_OPTIONS = {
+  bindir: "",
+  sysimage: "",
+  project: "",
+};
+
 export class Julia {
   public static Base: JuliaModule;
-  public static Core: JuliaModule;
   public static Main: JuliaModule;
+  public static Pkg: JuliaModule;
 
   public static Any: JuliaDataType;
   public static Nothing: JuliaDataType;
@@ -54,37 +66,46 @@ export class Julia {
   private static prefetch(module: JuliaModule): void {
     const props = Julia.getProperties(module);
     for (const prop of props) {
-      module[prop];
+      try {
+        module[prop];
+      } catch (e) {
+        console.error(`Failed to prefetch ${prop} from ${module.name}!`);
+      }
     }
   }
 
-  public static init(bindir: string = "", sysimage: string = ""): void {
+  public static init(extraOptions: Partial<IJuliaInitOptions> = {}): void {
+    const options = { ...DEFAULT_JULIA_INIT_OPTIONS, ...extraOptions };
+
     if (!Julia.Base) {
-      if (sysimage === "") {
+      if (options.sysimage === "" || options.bindir === "") {
         jlbun.symbols.jl_init();
       } else {
         jlbun.symbols.jl_init_with_image(
-          safeCString(bindir),
-          safeCString(sysimage),
+          safeCString(options.bindir),
+          safeCString(options.sysimage),
         );
       }
       Julia.Base = new JuliaModule(
         jlbun.symbols.jl_base_module_getter(),
         "Base",
       );
-      Julia.Core = new JuliaModule(
-        jlbun.symbols.jl_core_module_getter(),
-        "Core",
-      );
       Julia.Main = new JuliaModule(
         jlbun.symbols.jl_main_module_getter(),
         "Main",
       );
+      Julia.Pkg = Julia.import("Pkg");
 
       // Prefetch all the properties of Base, Core and Main
       Julia.prefetch(Julia.Base);
-      Julia.prefetch(Julia.Core);
       Julia.prefetch(Julia.Main);
+      Julia.prefetch(Julia.Pkg);
+
+      if (options.project !== "") {
+        Julia.Pkg.activate(options.project);
+      } else {
+        Julia.eval("Pkg.activate(; temp=true)");
+      }
 
       Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter(), "Any");
       Julia.Nothing = new JuliaDataType(
@@ -242,7 +263,9 @@ export class Julia {
 
   public static import(name: string): JuliaModule {
     Julia.eval(`import ${name}`);
-    return new JuliaModule(Julia.Main[name].ptr, `Main.${name}`);
+    const module = new JuliaModule(Julia.Main[name].ptr, `Main.${name}`);
+    Julia.prefetch(module);
+    return module;
   }
 
   public static eval(code: string): IJuliaValue {
@@ -280,6 +303,8 @@ export class Julia {
         }
       } else if (typeof arg === "string") {
         return jlbun.symbols.jl_cstr_to_string(safeCString(arg));
+      } else if (typeof arg === "boolean") {
+        return jlbun.symbols.jl_box_bool(arg ? 1 : 0);
       } else {
         throw new MethodError("Unsupported argument type");
       }
