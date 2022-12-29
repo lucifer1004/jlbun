@@ -15,9 +15,11 @@ import {
   JuliaInt64,
   JuliaInt8,
   JuliaModule,
+  JuliaNamedTuple,
   JuliaNothing,
   JuliaString,
   JuliaSymbol,
+  JuliaTuple,
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
@@ -25,7 +27,6 @@ import {
   InexactError,
   MethodError,
   UnknownJuliaError,
-  JuliaTuple,
 } from "./index.js";
 
 interface IJuliaInitOptions {
@@ -250,8 +251,10 @@ export class Julia {
         ptr,
         jlbun.symbols.jl_symbol_name_getter(ptr).toString(),
       );
-    } else if (typeStr == "Tuple") {
+    } else if (typeStr === "Tuple") {
       return new JuliaTuple(ptr);
+    } else if (typeStr === "NamedTuple") {
+      return new JuliaNamedTuple(ptr);
     } else if (typeStr[0] === "#") {
       let funcName: string;
       if (typeStr[1] >= "0" && typeStr[1] <= "9") {

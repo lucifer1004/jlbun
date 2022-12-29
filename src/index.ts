@@ -11,7 +11,7 @@ export { JuliaDataType } from "./types.js";
 export { JuliaArray } from "./arrays.js";
 export { JuliaFunction } from "./functions.js";
 export { JuliaModule } from "./module.js";
-export { JuliaTuple } from "./tuples.js";
+export { JuliaTuple, JuliaNamedTuple } from "./tuples.js";
 export {
   JuliaAny,
   JuliaBool,

@@ -216,6 +216,26 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         args: [FFIType.ptr],
         returns: FFIType.ptr,
     },
+        jl_nothing_getter: {
+        args: [],
+        returns: FFIType.ptr,
+    },
+    jl_true_getter: {
+        args: [],
+        returns: FFIType.ptr,
+    },
+    jl_false_getter: {
+        args: [],
+        returns: FFIType.ptr,
+    },
+    jl_symbol_name_getter: {
+        args: [FFIType.ptr],
+        returns: FFIType.cstring,
+    },
+    jl_nfields_getter: {
+        args: [FFIType.ptr],
+        returns: $size_t,
+    },
 
     // Functions
     jl_function_getter: {
@@ -238,28 +258,6 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     },
     jl_array_dim_getter: {
         args: [FFIType.ptr, FFIType.i32],
-        returns: $size_t,
-    },
-
-    // Values
-    jl_nothing_getter: {
-        args: [],
-        returns: FFIType.ptr,
-    },
-    jl_true_getter: {
-        args: [],
-        returns: FFIType.ptr,
-    },
-    jl_false_getter: {
-        args: [],
-        returns: FFIType.ptr,
-    },
-    jl_symbol_name_getter: {
-        args: [FFIType.ptr],
-        returns: FFIType.cstring,
-    },
-    jl_nfields_getter: {
-        args: [FFIType.ptr],
         returns: $size_t,
     },
 
