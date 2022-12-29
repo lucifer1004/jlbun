@@ -5,7 +5,7 @@
 > You need to have `Bun`, `CMake` and `Julia` installed to use this library.
 
 ```bash
-bun install && bun rebuild
+bun install jlbun
 ```
 
 ## Usage
@@ -13,7 +13,7 @@ bun install && bun rebuild
 ### Pass a Bun array to Julia
 
 ```typescript
-import { Julia, JuliaArray } from "./src/index.js";
+import { Julia, JuliaArray } from "jlbun";
 
 // This initializes Julia and loads prelude symbols.
 Julia.init();
@@ -42,7 +42,7 @@ Julia.close();
 ### Pass a Julia Array to Bun
 
 ```typescript
-import { Julia } from "./src/index.js";
+import { Julia } from "jlbun";
 
 Julia.init();
 
