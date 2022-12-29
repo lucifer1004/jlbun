@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import { Julia, JuliaArray } from "./index.js";
 
-beforeEach(() => Julia.init());
-afterEach(() => Julia.close());
+beforeAll(() => Julia.init());
+afterAll(() => Julia.close());
 
 test("JuliaArray", () => {
   const arr = JuliaArray.init(Julia.Int64, 10);

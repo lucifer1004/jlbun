@@ -298,6 +298,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         args: [FFIType.ptr, FFIType.cstring],
         returns: FFIType.ptr,
     },
+    jl_get_global0: {
+        args: [FFIType.ptr, FFIType.cstring],
+        returns: FFIType.ptr,
+    },
 
     // Arrays
     jl_array_len_getter: {

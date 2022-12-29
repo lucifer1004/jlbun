@@ -45,6 +45,7 @@ const DEFAULT_JULIA_INIT_OPTIONS = {
 };
 
 export class Julia {
+  public static Core: JuliaModule;
   public static Base: JuliaModule;
   public static Main: JuliaModule;
   public static Pkg: JuliaModule;
@@ -91,6 +92,11 @@ export class Julia {
           safeCString(options.sysimage),
         );
       }
+
+      Julia.Core = new JuliaModule(
+        jlbun.symbols.jl_core_module_getter(),
+        "Core",
+      );
       Julia.Base = new JuliaModule(
         jlbun.symbols.jl_base_module_getter(),
         "Base",
@@ -101,7 +107,8 @@ export class Julia {
       );
       Julia.Pkg = Julia.import("Pkg");
 
-      // Prefetch all the properties of Base, Core and Main
+      // Prefetch all the properties of Core, Base and Main
+      Julia.prefetch(Julia.Core);
       Julia.prefetch(Julia.Base);
       Julia.prefetch(Julia.Main);
       Julia.prefetch(Julia.Pkg);

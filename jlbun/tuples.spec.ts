@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, expect, test } from "bun:test";
-import { Julia, JuliaPair, JuliaTuple } from "./index.js";
+import { afterAll, beforeAll, expect, test } from "bun:test";
+import { Julia, JuliaPair } from "./index.js";
 
-beforeEach(() => Julia.init());
-afterEach(() => Julia.close());
+beforeAll(() => Julia.init());
+afterAll(() => Julia.close());
 
 test("JuliaPair", () => {
   const pair = JuliaPair.from(10n, 20n);

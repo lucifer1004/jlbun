@@ -11,7 +11,7 @@ export class JuliaTuple implements IJuliaValue {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static from(...args: any[]): JuliaTuple {
-    return Julia.Base.tuple(...args);
+    return Julia.Core.tuple(...args);
   }
 
   get(index: number): IJuliaValue {
