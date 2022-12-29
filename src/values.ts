@@ -261,7 +261,7 @@ export class JuliaSymbol implements IJuliaValue {
   }
 
   static from(value: string): JuliaSymbol {
-    return new JuliaSymbol(jlbun.symbols.jl_symbol(value), value);
+    return new JuliaSymbol(jlbun.symbols.jl_symbol(safeCString(value)), value);
   }
 
   get value(): string {

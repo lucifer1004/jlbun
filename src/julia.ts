@@ -240,6 +240,11 @@ export class Julia {
     return new JuliaAny(ptr);
   }
 
+  public static import(name: string): JuliaModule {
+    Julia.eval(`import ${name}`);
+    return new JuliaModule(Julia.Main[name].ptr, `Main.${name}`);
+  }
+
   public static eval(code: string): IJuliaValue {
     const cCode = safeCString(code);
     const ret = jlbun.symbols.jl_eval_string(cCode);

@@ -1,10 +1,9 @@
 import {
   jlbun,
-  safeCString,
   IJuliaValue,
-  Julia,
   JuliaFunction,
   MethodError,
+  JuliaSymbol,
 } from "./index.js";
 
 export class JuliaModule implements IJuliaValue {
@@ -33,17 +32,18 @@ export class JuliaModule implements IJuliaValue {
           return target.cache.get(prop as string);
         }
 
-        const exist = jlbun.symbols.jl_hasproperty(
+        const sym = jlbun.symbols.jl_get_global(
           target.ptr,
-          safeCString(prop as string),
+          JuliaSymbol.from(prop as string).ptr,
         );
-        if (exist === 0) {
+
+        if (sym === null) {
           throw new MethodError(
             `${prop as string} does not exist in module ${target.name}!`,
           );
         }
 
-        const juliaFunc = Julia.getFunction(target, prop as string);
+        const juliaFunc = new JuliaFunction(sym, prop as string);
         target.cache.set(prop as string, juliaFunc);
         return juliaFunc;
       },

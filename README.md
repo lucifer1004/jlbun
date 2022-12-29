@@ -68,6 +68,10 @@ const anotherJuliaArray = Julia.Base.rand(2, 2);
 const product = Julia.Base["*"](juliaArray, anotherJuliaArray);
 console.log(product.value);
 
+// We can also import Julia modules.
+const LA = Julia.import("LinearAlgebra");
+console.log(LA.norm(product).value);
+
 Julia.close();
 ```
 
