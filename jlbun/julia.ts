@@ -250,7 +250,7 @@ export class Julia {
       return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
     } else if (typeStr === "Array") {
       const elType = jlbun.symbols.jl_array_eltype(ptr);
-      const elTypeStr = jlbun.symbols.jl_typeof_str(elType).toString();
+      const elTypeStr = Julia.getTypeStr(elType);
       return new JuliaArray(ptr, new JuliaDataType(elType, elTypeStr));
     } else if (typeStr === "Nothing") {
       return JuliaNothing.getInstance();
@@ -336,7 +336,7 @@ export class Julia {
     // Error handling
     const err = jlbun.symbols.jl_exception_occurred();
     if (err !== null) {
-      const errType = new CString(jlbun.symbols.jl_typeof_str(err)).toString();
+      const errType = Julia.getTypeStr(err);
       if (errType == "MethodError") {
         throw new MethodError(code);
       } else if (errType == "InexactError") {
@@ -378,7 +378,7 @@ export class Julia {
     // Error handling
     const err = jlbun.symbols.jl_exception_occurred();
     if (err !== null) {
-      const errType = new CString(jlbun.symbols.jl_typeof_str(err)).toString();
+      const errType = Julia.getTypeStr(err);
       const funcCall =
         func.name + "(" + args.map((arg) => arg.toString()).join(", ") + ")";
       if (errType == "MethodError") {
