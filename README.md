@@ -98,7 +98,9 @@ Julia.close();
 
 ## TODO
 
-- [ ] Tuple
+- [x] Tuple
+- [ ] NamedTuple
+  - [ ] Keyword arguments of Julia functions
 - [ ] Range
 - [ ] Dict
 - [ ] Set
