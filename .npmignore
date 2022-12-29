@@ -6,6 +6,7 @@
 archive
 build
 docs
+julia
 node_modules
 .eslintignore
 .eslintrc.cjs
