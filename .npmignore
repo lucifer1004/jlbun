@@ -1,0 +1,16 @@
+.cache
+.github
+.husky
+.vscode
+.idea
+archive
+build
+node_modules
+.eslintignore
+.eslintrc.cjs
+.gitignore
+.prettierignore
+.prettierrc.cjs
+/bench.ts
+/test.ts
+/bun.lockb
