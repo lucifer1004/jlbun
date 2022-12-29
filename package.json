@@ -1,11 +1,8 @@
 {
   "name": "jlbun",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "module": "index.ts",
   "type": "module",
-  "files": [
-    "jlbun/**/*.ts"
-  ],
   "scripts": {
     "install": "bun build-lib",
     "build-lib": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
