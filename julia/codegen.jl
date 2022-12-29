@@ -258,6 +258,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         args: [FFIType.ptr],
         returns: FFIType.cstring,
     },
+    jl_nfields_getter: {
+        args: [FFIType.ptr],
+        returns: $size_t,
+    },
 
     // Auto generated wrappers
     $(join(bunffi_fdecls, "\n    "))

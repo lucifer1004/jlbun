@@ -75,4 +75,7 @@ size_t jl_array_dim_getter(jl_array_t *a, int32_t i) { return jl_array_dim(a, i)
 jl_value_t *jl_nothing_getter() { return jl_nothing; }
 jl_value_t *jl_true_getter() { return jl_true; }
 jl_value_t *jl_false_getter() { return jl_false; }
-const char* jl_symbol_name_getter(jl_sym_t *s) { return jl_symbol_name(s); }
+const char *jl_symbol_name_getter(jl_sym_t *s) { return jl_symbol_name(s); }
+size_t jl_nfields_getter(jl_datatype_t *t) {
+  return jl_nfields(t);
+}

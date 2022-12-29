@@ -238,7 +238,8 @@ export class Julia {
       return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
     } else if (typeStr == "Array") {
       const elType = jlbun.symbols.jl_array_eltype(ptr);
-      return new JuliaArray(ptr, elType);
+      const elTypeStr = jlbun.symbols.jl_typeof_str(elType).toString();
+      return new JuliaArray(ptr, new JuliaDataType(elType, elTypeStr));
     } else if (typeStr == "Nothing") {
       return JuliaNothing.getInstance();
     } else if (typeStr == "DataType") {
