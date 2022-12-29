@@ -34,7 +34,7 @@ jobs:
           cmake-version: '3.25.x'
       - uses: julia-actions/setup-julia@v1
         with:
-          version: ${{ matrix.version }}
+          version: ${{ matrix.julia-version }}
           arch: ${{ matrix.arch }}
       - uses: xhyrom/setup-bun@v0.1.8
         with:
