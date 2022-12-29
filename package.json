@@ -3,11 +3,6 @@
   "version": "0.0.3",
   "module": "index.ts",
   "type": "module",
-  "files": [
-    "index.ts",
-    "jlbun/**/*.ts",
-    "dist/**/*.d.ts"
-  ],
   "types": "dist/index.d.ts",
   "scripts": {
     "install": "bun build-lib",
