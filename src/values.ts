@@ -242,17 +242,19 @@ export class JuliaString implements IJuliaValue {
 
 export class JuliaAny implements IJuliaValue {
   ptr: number;
+  display: string;
 
   constructor(ptr: number) {
     this.ptr = ptr;
+    this.display = Julia.Base.string(this).value;
   }
 
   get value(): string {
-    return Julia.Base.string(this).value;
+    return this.display;
   }
 
   toString(): string {
-    return this.value;
+    return this.display;
   }
 }
 
@@ -270,11 +272,11 @@ export class JuliaSymbol implements IJuliaValue {
   }
 
   get value(): string {
-    return this.toString();
+    return `:${this.name}`;
   }
 
   toString(): string {
-    return `[Symbol] ${this.name}`;
+    return `:${this.name}`;
   }
 }
 
