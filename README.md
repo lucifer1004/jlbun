@@ -56,7 +56,7 @@ Julia.close();
 ### Do some linear algebra
 
 ```typescript
-import { Julia } from "./src/index.js";
+import { Julia } from "jlbun";
 
 Julia.init();
 
