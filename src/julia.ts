@@ -81,9 +81,9 @@ export class Julia {
 
     if (!Julia.Base) {
       if (options.sysimage === "" || options.bindir === "") {
-        jlbun.symbols.jl_init();
+        jlbun.symbols.jl_init0();
       } else {
-        jlbun.symbols.jl_init_with_image(
+        jlbun.symbols.jl_init_with_image0(
           safeCString(options.bindir),
           safeCString(options.sysimage),
         );

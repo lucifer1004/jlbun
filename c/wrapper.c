@@ -1,5 +1,21 @@
 #include <julia.h>
 
+// jl_init is a macro in Julia 1.6, while it is a function in Julia 1.8
+#ifdef jl_init
+void jl_init0() { jl_init__threading(); }
+
+void jl_init_with_image0(const char *julia_home_dir, const char *image_relative_path) {
+  jl_init_with_image__threading(julia_home_dir, image_relative_path);
+}
+#else
+void jl_init0() { jl_init(); }
+
+void jl_init_with_image0(const char *julia_home_dir,
+                         const char *image_relative_path) {
+  jl_init_with_image(julia_home_dir, image_relative_path);
+}
+#endif
+
 // Data types
 #define JL_DATATYPE_GETTER(x)                                                  \
   jl_datatype_t *jl_##x##_type_getter() { return jl_##x##_type; }

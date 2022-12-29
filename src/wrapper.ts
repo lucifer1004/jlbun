@@ -9,6 +9,16 @@ const LIBJLBUN_PATH = join(
 );
 
 export const jlbun = dlopen(LIBJLBUN_PATH, {
+  // Init
+  jl_init0: {
+    args: [],
+    returns: FFIType.void,
+  },
+  jl_init_with_image0: {
+    args: [FFIType.cstring, FFIType.cstring],
+    returns: FFIType.void,
+  },
+
   // Data types
   jl_any_type_getter: {
     args: [],
@@ -303,14 +313,6 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   jl_exception_occurred: {
     args: [],
     returns: FFIType.ptr,
-  },
-  jl_init: {
-    args: [],
-    returns: FFIType.void,
-  },
-  jl_init_with_image: {
-    args: [FFIType.ptr, FFIType.ptr],
-    returns: FFIType.void,
   },
   jl_atexit_hook: {
     args: [FFIType.i32],

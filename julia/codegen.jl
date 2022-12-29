@@ -32,8 +32,6 @@ INCLUDED = Set([
     "jl_arrayset",
     "jl_array_ptr_1d_push",
     "jl_array_eltype",
-    "jl_init",
-    "jl_init_with_image",
     "jl_typeof_str",
     "jl_eval_string",
     "jl_exception_occurred",
@@ -159,6 +157,16 @@ import { join } from "path";
 const LIBJLBUN_PATH = join(import.meta.dir, "..", "build", `libjlbun.\${suffix}`);
 
 export const jlbun = dlopen(LIBJLBUN_PATH, {
+    // Init
+    jl_init0: {
+        args: [],
+        returns: FFIType.void,
+    },
+    jl_init_with_image0: {
+        args: [FFIType.cstring, FFIType.cstring],
+        returns: FFIType.void,
+    },
+
     // Data types
     jl_any_type_getter: {
         args: [],
