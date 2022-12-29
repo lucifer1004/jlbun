@@ -10,6 +10,7 @@ export class JuliaModule implements IJuliaValue {
   ptr: number;
   name: string;
   cache: Map<string, JuliaFunction>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 
   constructor(ptr: number, name: string) {

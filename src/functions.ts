@@ -21,14 +21,17 @@ export class JuliaFunction extends Function implements IJuliaValue {
     return `[Function] ${this.name}`;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _call(...args: any[]): any {
     return Julia.call(this, ...args);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   call(...args: any[]): any {
     return Julia.call(this, ...args);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apply(args: any[]): any {
     return Julia.call(this, ...args);
   }

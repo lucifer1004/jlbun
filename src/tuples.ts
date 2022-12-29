@@ -1,4 +1,4 @@
-import { jlbun, Julia, JuliaSymbol, IJuliaValue } from "./index.js";
+import { IJuliaValue, jlbun, Julia, JuliaSymbol } from "./index.js";
 
 export class JuliaTuple implements IJuliaValue {
   ptr: number;
@@ -15,7 +15,7 @@ export class JuliaTuple implements IJuliaValue {
 
   get value(): IJuliaValue[] {
     const len = this.length;
-    let arr = [];
+    const arr = [];
     for (let i = 0; i < len; i++) {
       arr.push(this.get(i));
     }
@@ -46,7 +46,7 @@ export class JuliaNamedTuple implements IJuliaValue {
 
   get value(): Map<string, IJuliaValue> {
     const len = this.length;
-    let obj = new Map<string, IJuliaValue>();
+    const obj = new Map<string, IJuliaValue>();
     for (let i = 0; i < len; i++) {
       obj.set(this.fieldNames[i], this.get(i));
     }

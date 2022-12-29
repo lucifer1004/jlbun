@@ -4,23 +4,30 @@
   "type": "module",
   "scripts": {
     "rebuild": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
-    "fmt": "prettier --write './**/*.{ts,tsx,js,jsx,json}'",
+    "fmt": "prettier --write './**/*.{ts,tsx,cjs,js,jsx,json}'",
+    "lint": "eslint '**/*.{js,ts}' '*.{js,ts,cjs}' package.json --fix",
     "lint-staged": "lint-staged",
     "prepare": "bun x husky install",
     "test": "bun wiptest"
   },
   "lint-staged": {
-    "*.{ts,tsx,jx,jsx,json}": [
-      "prettier --write"
+    "*.{ts,tsx,cjs,js,jsx,json}": [
+      "eslint --fix"
     ]
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.42.1",
+    "@typescript-eslint/parser": "^5.42.1",
     "bun-types": "^0.4.0",
     "eslint": "^8.30.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-simple-import-sort": "^8.0.0",
     "husky": "^8.0.2",
     "lint-staged": "^13.1.0",
     "mkdirp": "^1.0.4",
     "prettier": "^2.8.1",
-    "rimraf": "^3.0.2"
+    "rimraf": "^3.0.2",
+    "typescript": "^4.9.4"
   }
 }

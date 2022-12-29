@@ -8,16 +8,16 @@ import {
   JuliaFloat32,
   JuliaFloat64,
   JuliaFunction,
+  JuliaInt8,
   JuliaInt16,
   JuliaInt32,
   JuliaInt64,
-  JuliaInt8,
   JuliaString,
   JuliaSymbol,
+  JuliaUInt8,
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
-  JuliaUInt8,
   MethodError,
 } from "./index.js";
 
@@ -107,6 +107,7 @@ export class JuliaArray implements IJuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_arrayref(this.ptr, index));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   set(index: number, value: any): void {
     let ptr: number;
 
@@ -207,6 +208,7 @@ export class JuliaArray implements IJuliaValue {
     return new JuliaArray(arr.ptr, this.elType);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fill(value: any): void {
     Julia.Base["fill!"](this, value);
   }

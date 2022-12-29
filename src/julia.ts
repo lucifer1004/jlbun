@@ -10,20 +10,20 @@ import {
   JuliaFloat32,
   JuliaFloat64,
   JuliaFunction,
+  JuliaInt8,
   JuliaInt16,
   JuliaInt32,
   JuliaInt64,
-  JuliaInt8,
   JuliaModule,
   JuliaNamedTuple,
   JuliaNothing,
   JuliaString,
   JuliaSymbol,
   JuliaTuple,
+  JuliaUInt8,
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
-  JuliaUInt8,
   MethodError,
   safeCString,
   UnknownJuliaError,
@@ -192,7 +192,7 @@ export class Julia {
   public static getProperties(obj: IJuliaValue): string[] {
     const len = Number(jlbun.symbols.jl_propertycount(obj.ptr));
     const rawPtr = jlbun.symbols.jl_propertynames(obj.ptr);
-    let propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * len));
+    const propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * len));
     const props: string[] = [];
     for (let i = 0; i < len; i++) {
       props.push(new CString(Number(propPointers[i])).toString());
@@ -268,6 +268,7 @@ export class Julia {
     return new JuliaAny(ptr);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static autoWrap(value: any): IJuliaValue {
     if (
       (typeof value === "function" || typeof value === "object") &&
@@ -330,10 +331,11 @@ export class Julia {
     return Julia.wrapPtr(ret);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static call(func: JuliaFunction, ...args: any[]): IJuliaValue {
     const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
 
-    let ret: any;
+    let ret: number;
     if (args.length == 0) {
       ret = jlbun.symbols.jl_call0(func.ptr);
     } else if (args.length == 1) {
@@ -373,11 +375,12 @@ export class Julia {
     return Julia.wrapPtr(ret);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static apply(func: JuliaFunction, args: any[]) {
     return this.call(func, ...args);
   }
 
-  public static close(status: number = 0) {
+  public static close(status = 0) {
     jlbun.symbols.jl_atexit_hook(status);
     jlbun.close();
   }
