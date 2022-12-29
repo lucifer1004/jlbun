@@ -6,7 +6,7 @@
     "rebuild": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
     "fmt": "prettier --write './**/*.{ts,tsx,js,jsx,json}'",
     "lint-staged": "lint-staged",
-    "prepare": "bunx husky install",
+    "prepare": "bun x husky install",
     "test": "bun wiptest"
   },
   "lint-staged": {
