@@ -27,6 +27,30 @@ export class JuliaTuple implements IJuliaValue {
   }
 }
 
+export class JuliaPair implements IJuliaValue {
+  ptr: number;
+
+  constructor(ptr: number) {
+    this.ptr = ptr;
+  }
+
+  get first(): IJuliaValue {
+    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 0));
+  }
+
+  get second(): IJuliaValue {
+    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 1));
+  }
+
+  get value(): [IJuliaValue, IJuliaValue] {
+    return [this.first, this.second];
+  }
+
+  toString(): string {
+    return `${this.first.toString()} => ${this.second.toString()}`;
+  }
+}
+
 export class JuliaNamedTuple implements IJuliaValue {
   ptr: number;
   length: number;

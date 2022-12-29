@@ -7,6 +7,7 @@ import {
   JuliaArray,
   JuliaBool,
   JuliaDataType,
+  JuliaDict,
   JuliaFloat32,
   JuliaFloat64,
   JuliaFunction,
@@ -17,6 +18,8 @@ import {
   JuliaModule,
   JuliaNamedTuple,
   JuliaNothing,
+  JuliaPair,
+  JuliaSet,
   JuliaString,
   JuliaSymbol,
   JuliaTuple,
@@ -253,8 +256,14 @@ export class Julia {
       );
     } else if (typeStr === "Tuple") {
       return new JuliaTuple(ptr);
+    } else if (typeStr === "Pair") {
+      return new JuliaPair(ptr);
     } else if (typeStr === "NamedTuple") {
       return new JuliaNamedTuple(ptr);
+    } else if (typeStr === "Set") {
+      return new JuliaSet(ptr);
+    } else if (typeStr === "Dict") {
+      return new JuliaDict(ptr);
     } else if (typeStr[0] === "#") {
       let funcName: string;
       if (typeStr[1] >= "0" && typeStr[1] <= "9") {

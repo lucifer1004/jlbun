@@ -5,7 +5,7 @@
 > You need to have `Bun`, `CMake` and `Julia` installed to use this library.
 
 ```bash
-bun install jlbun
+npm install jlbun
 ```
 
 ## Usage
@@ -102,5 +102,6 @@ Julia.close();
 - [x] NamedTuple
   - [ ] Keyword arguments of Julia functions
 - [ ] Range
-- [ ] Dict
-- [ ] Set
+- [x] Dict
+- [x] Set
+- [x] Pair

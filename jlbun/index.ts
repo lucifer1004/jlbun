@@ -6,11 +6,13 @@ export interface IJuliaValue {
 }
 
 export { JuliaArray } from "./arrays.js";
+export { JuliaDict } from "./dicts.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
 export { JuliaFunction } from "./functions.js";
 export { Julia } from "./julia.js";
 export { JuliaModule } from "./module.js";
-export { JuliaNamedTuple, JuliaTuple } from "./tuples.js";
+export { JuliaSet } from "./sets.js";
+export { JuliaNamedTuple, JuliaPair, JuliaTuple } from "./tuples.js";
 export { JuliaDataType } from "./types.js";
 export { safeCString } from "./utils.js";
 export {
