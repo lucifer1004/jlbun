@@ -22,9 +22,8 @@ jobs:
         bun-version:
           - '0.4.0'
         os:
-          - ubuntu-22.04
-          - macos-12
-          - windows-2022
+          - ubuntu-latest
+          - macos-latest
         arch:
           - x64
     steps:
