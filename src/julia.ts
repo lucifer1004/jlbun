@@ -31,13 +31,13 @@ import {
 interface IJuliaInitOptions {
   bindir: string;
   sysimage: string;
-  project: string;
+  project: string | null;
 }
 
 const DEFAULT_JULIA_INIT_OPTIONS = {
   bindir: "",
   sysimage: "",
-  project: "",
+  project: null,
 };
 
 export class Julia {
@@ -102,9 +102,9 @@ export class Julia {
       Julia.prefetch(Julia.Main);
       Julia.prefetch(Julia.Pkg);
 
-      if (options.project !== "") {
+      if (options.project === "") {
         Julia.Pkg.activate(options.project);
-      } else {
+      } else if (options.project !== null) {
         Julia.eval("Pkg.activate(; temp=true)");
       }
 
