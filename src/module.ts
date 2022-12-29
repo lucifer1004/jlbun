@@ -28,6 +28,9 @@ export class JuliaModule implements IJuliaValue {
         if (prop === "value") {
           return target.value;
         }
+        if (prop === "toString") {
+          return target.toString;
+        }
         if (target.cache.has(prop as string)) {
           return target.cache.get(prop as string);
         }
