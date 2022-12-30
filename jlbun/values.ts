@@ -210,8 +210,10 @@ export class JuliaSymbol extends JuliaPrimitive {
     this.name = name;
   }
 
-  static from(value: string): JuliaSymbol {
-    return new JuliaSymbol(jlbun.symbols.jl_symbol(safeCString(value)), value);
+  static from(value: string | symbol): JuliaSymbol {
+    const name =
+      typeof value === "string" ? value : (value.description as string);
+    return new JuliaSymbol(jlbun.symbols.jl_symbol(safeCString(name)), name);
   }
 
   get value(): symbol {
