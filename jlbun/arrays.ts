@@ -18,7 +18,6 @@ import {
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
-  JuliaValue,
   MethodError,
 } from "./index.js";
 
@@ -32,7 +31,7 @@ const DEFAULT_FROM_BUN_ARRAY_OPTIONS: IFromBunArrayOptions = {
   juliaGC: false,
 };
 
-class JuliaArrayBase {
+export class JuliaArray implements IJuliaValue {
   ptr: number;
   elType: JuliaDataType;
 
@@ -41,22 +40,18 @@ class JuliaArrayBase {
     this.elType = elType;
   }
 
-  static init<T extends typeof JuliaArrayBase>(
-    this: T,
-    elType: JuliaDataType,
-    length: number,
-  ): InstanceType<T> {
+  static init(elType: JuliaDataType, length: number): JuliaArray {
     const arrType = jlbun.symbols.jl_apply_array_type(elType.ptr, 1);
-    return new this(
+    return new JuliaArray(
       jlbun.symbols.jl_alloc_array_1d(arrType, length),
       elType,
-    ) as InstanceType<T>;
+    );
   }
 
-  static from<T extends typeof JuliaArrayBase>(
+  static from(
     arr: BunArray,
     extraOptions: Partial<IFromBunArrayOptions> = {},
-  ): InstanceType<T> {
+  ): JuliaArray {
     const options = { ...DEFAULT_FROM_BUN_ARRAY_OPTIONS, ...extraOptions };
     const rawPtr = ptr(arr.buffer);
     const juliaGC = options.juliaGC ? 1 : 0;
@@ -86,10 +81,10 @@ class JuliaArrayBase {
     }
 
     const arrType = jlbun.symbols.jl_apply_array_type(elType.ptr, 1);
-    return new this(
+    return new JuliaArray(
       jlbun.symbols.jl_ptr_to_array_1d(arrType, rawPtr, arr.length, juliaGC),
       elType,
-    ) as InstanceType<T>;
+    );
   }
 
   get length(): number {
@@ -190,6 +185,10 @@ class JuliaArrayBase {
     return arr;
   }
 
+  toString(): string {
+    return `[${this.value.map((x) => x.toString()).join(", ")}]`;
+  }
+
   push(value: IJuliaValue): void {
     if (this.ndims === 1) {
       jlbun.symbols.jl_array_ptr_1d_push(this.ptr, value.ptr);
@@ -204,9 +203,9 @@ class JuliaArrayBase {
     Julia.Base["reverse!"](this);
   }
 
-  reshape(...shape: number[]): JuliaArrayBase {
+  reshape(...shape: number[]): JuliaArray {
     const arr = Julia.Base.reshape(this, ...shape);
-    return new JuliaArrayBase(arr.ptr, this.elType);
+    return new JuliaArray(arr.ptr, this.elType);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -214,11 +213,9 @@ class JuliaArrayBase {
     Julia.Base["fill!"](this, value);
   }
 
-  map(f: JuliaFunction): JuliaArrayBase {
+  map(f: JuliaFunction): JuliaArray {
     const arr = Julia.Base.map(f, this);
     const elType = jlbun.symbols.jl_array_eltype(arr.ptr);
-    return new JuliaArrayBase(arr.ptr, elType);
+    return new JuliaArray(arr.ptr, elType);
   }
 }
-
-export const JuliaArray = JuliaValue(JuliaArrayBase);

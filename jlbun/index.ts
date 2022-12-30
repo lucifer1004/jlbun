@@ -10,7 +10,6 @@ export { JuliaDict } from "./dicts.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
 export { JuliaFunction } from "./functions.js";
 export { Julia } from "./julia.js";
-export { JuliaValue } from "./mixins.js";
 export { JuliaModule } from "./module.js";
 export { JuliaSet } from "./sets.js";
 export { JuliaNamedTuple, JuliaPair, JuliaTuple } from "./tuples.js";
