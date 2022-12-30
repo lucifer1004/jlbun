@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { Julia, JuliaArray, JuliaPair, JuliaTuple } from "./index.js";
+import {
+  Julia,
+  JuliaArray,
+  JuliaNamedTuple,
+  JuliaPair,
+  JuliaTuple,
+} from "./index.js";
 
 beforeAll(() => Julia.init({ project: null }));
 afterAll(() => Julia.close());
@@ -32,14 +38,16 @@ describe("JuliaArray", () => {
     arr.reverse();
     expect(arr.get(4).value).toBe(20n);
     expect(arr.get(9).value).toBe(10n);
-    expect(arr.toString()).toBe("[10, 10, 10, 10, 20, 10, 10, 10, 10, 10]");
+    expect(arr.toString()).toBe(
+      "[JuliaArray [10, 10, 10, 10, 20, 10, 10, 10, 10, 10]]",
+    );
 
     const reshapedArr = arr.reshape(2, 5);
     expect(reshapedArr.length).toBe(10);
     expect(reshapedArr.ndims).toBe(2);
     expect(reshapedArr.size).toEqual([2, 5]);
 
-    const bunArr = reshapedArr.rawValue;
+    const bunArr = reshapedArr.value;
     expect(bunArr).toEqual(
       new BigInt64Array([10n, 10n, 10n, 10n, 20n, 10n, 10n, 10n, 10n, 10n]),
     );
@@ -61,7 +69,9 @@ describe("JuliaArray", () => {
     arr.reverse();
     expect(arr.get(4).value).toBe(20);
     expect(arr.get(9).value).toBe(10);
-    expect(arr.toString()).toBe("[10, 10, 10, 10, 20, 10, 10, 10, 10, 10]");
+    expect(arr.toString()).toBe(
+      "[JuliaArray Int32[10, 10, 10, 10, 20, 10, 10, 10, 10, 10]]",
+    );
 
     const reshapedArr = arr.reshape(2, 5);
     expect(reshapedArr.length).toBe(10);
@@ -72,6 +82,12 @@ describe("JuliaArray", () => {
       new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10, 10]),
     );
   });
+
+  it("can be a general Julia array", () => {
+    const arr = Julia.eval('[1, 2, "hello"]');
+    const bunArr = arr.value;
+    expect(bunArr).toEqual([1n, 2n, "hello"]);
+  });
 });
 
 describe("JuliaPair", () => {
@@ -79,7 +95,7 @@ describe("JuliaPair", () => {
     const pair = Julia.eval('2 => "hello"') as JuliaPair;
     expect(pair.first.value).toBe(2n);
     expect(pair.second.value).toBe("hello");
-    expect(pair.toString()).toBe("2 => hello");
+    expect(pair.toString()).toBe('2 => "hello"');
   });
 
   it("can be created from JS", () => {
@@ -104,6 +120,25 @@ describe("JuliaTuple", () => {
     expect(tuple.get(0).value).toBe(1n);
     expect(tuple.get(1).value).toBe(2n);
     expect(tuple.get(2).value).toBe("hello");
-    expect(tuple.toString()).toBe("(1, 2, hello)");
+    expect(tuple.toString()).toBe('(1, 2, "hello")');
+  });
+});
+
+describe("JuliaNamedTuple", () => {
+  it("can be created from Julia", () => {
+    const tuple = Julia.eval("(a = 1, b = 2, c = 3)") as JuliaNamedTuple;
+    expect(tuple.fieldNames).toEqual(["a", "b", "c"]);
+    expect(tuple.get(0).value).toBe(1n);
+    expect(tuple.get(1).value).toBe(2n);
+    expect(tuple.get(2).value).toBe(3n);
+    expect(tuple.toString()).toBe("(a = 1, b = 2, c = 3)");
+  });
+
+  it("can be created from JS", () => {
+    const tuple = JuliaNamedTuple.from({ a: 1, b: 2, c: "hello" });
+    expect(tuple.get(0).value).toBe(1n);
+    expect(tuple.get(1).value).toBe(2n);
+    expect(tuple.get(2).value).toBe("hello");
+    expect(tuple.toString()).toBe('(a = 1, b = 2, c = "hello")');
   });
 });

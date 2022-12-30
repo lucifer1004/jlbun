@@ -149,7 +149,8 @@ export class JuliaArray implements IJuliaValue {
     jlbun.symbols.jl_arrayset(this.ptr, ptr, index);
   }
 
-  get rawValue(): BunArray {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get value(): BunArray | any[] {
     const rawPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
 
     if (this.elType.ptr === Julia.Int8.ptr) {
@@ -173,30 +174,30 @@ export class JuliaArray implements IJuliaValue {
     } else if (this.elType.ptr === Julia.UInt64.ptr) {
       return new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
     } else {
-      throw new MethodError("Cannot be converted to BunArray.");
+      return Array.from({ length: this.length }, (_, i) => this.get(i).value);
     }
-  }
-
-  get value(): IJuliaValue[] {
-    const arr = new Array<IJuliaValue>(this.length);
-    for (let i = 0; i < this.length; i++) {
-      arr[i] = this.get(i);
-    }
-    return arr;
   }
 
   toString(): string {
-    return `[${this.value.map((x) => x.toString()).join(", ")}]`;
+    return `[JuliaArray ${Julia.string(this)}]`;
   }
 
-  push(value: IJuliaValue): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  push(...values: any[]): void {
     if (this.ndims === 1) {
-      jlbun.symbols.jl_array_ptr_1d_push(this.ptr, value.ptr);
+      const wrappedValues = values.map((value) => Julia.autoWrap(value));
+      for (const value of wrappedValues) {
+        jlbun.symbols.jl_array_ptr_1d_push(this.ptr, value.ptr);
+      }
     } else {
       throw new MethodError(
         "`push` is not implemented for arrays with two or more dimensions.",
       );
     }
+  }
+
+  pop(): IJuliaValue {
+    return Julia.Base["pop!"](this);
   }
 
   reverse(): void {

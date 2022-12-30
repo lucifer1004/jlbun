@@ -7,11 +7,14 @@ export class JuliaDict implements IJuliaValue {
     this.ptr = ptr;
   }
 
-  get value(): Map<IJuliaValue, IJuliaValue> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get value(): Map<any, any> {
     const values = Julia.Base.collect(this).value;
-    const map = new Map<IJuliaValue, IJuliaValue>();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const map = new Map<any, any>();
     for (const value of values) {
-      map.set(Julia.Base.first(value), Julia.Base.last(value));
+      map.set(Julia.Base.first(value).value, Julia.Base.last(value).value);
     }
     return map;
   }
@@ -29,8 +32,6 @@ export class JuliaDict implements IJuliaValue {
   }
 
   toString(): string {
-    return `JuliaDict {${this.entries()
-      .map(([key, value]) => `${key.toString()} => ${value.toString()}`)
-      .join(", ")}}`;
+    return `[JuliaDict ${Julia.string(this)}`;
   }
 }

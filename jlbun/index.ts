@@ -2,7 +2,6 @@ export interface IJuliaValue {
   ptr: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get value(): any;
-  toString(): string;
 }
 
 export { JuliaArray } from "./arrays.js";

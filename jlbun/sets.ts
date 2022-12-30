@@ -7,14 +7,13 @@ export class JuliaSet implements IJuliaValue {
     this.ptr = ptr;
   }
 
-  get value(): Set<IJuliaValue> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get value(): Set<any> {
     const values = Julia.Base.collect(this).value;
-    return new Set(values);
+    return new Set(values.map((value: IJuliaValue) => value.value));
   }
 
   toString(): string {
-    return `JuliaSet {${Array.from(this.value.values())
-      .map((value) => value.toString())
-      .join(", ")}}`;
+    return `[JuliaSet ${Julia.string(this)}]`;
   }
 }

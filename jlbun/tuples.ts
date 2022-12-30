@@ -1,4 +1,4 @@
-import { IJuliaValue, jlbun, Julia, JuliaSymbol } from "./index.js";
+import { IJuliaValue, jlbun, Julia, JuliaArray, JuliaSymbol } from "./index.js";
 
 export class JuliaTuple implements IJuliaValue {
   ptr: number;
@@ -18,17 +18,13 @@ export class JuliaTuple implements IJuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
-  get value(): IJuliaValue[] {
-    const len = this.length;
-    const arr = [];
-    for (let i = 0; i < len; i++) {
-      arr.push(this.get(i));
-    }
-    return arr;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get value(): any[] {
+    return Array.from({ length: this.length }, (_, i) => this.get(i).value);
   }
 
   toString(): string {
-    return `(${this.value.map((x) => x.toString()).join(", ")})`;
+    return Julia.string(this);
   }
 }
 
@@ -52,12 +48,13 @@ export class JuliaPair implements IJuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 1));
   }
 
-  get value(): [IJuliaValue, IJuliaValue] {
-    return [this.first, this.second];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get value(): [any, any] {
+    return [this.first.value, this.second.value];
   }
 
   toString(): string {
-    return `${this.first.toString()} => ${this.second.toString()}`;
+    return Julia.string(this);
   }
 }
 
@@ -69,27 +66,46 @@ export class JuliaNamedTuple implements IJuliaValue {
   constructor(ptr: number) {
     this.ptr = ptr;
     this.length = Number(jlbun.symbols.jl_nfields_getter(this.ptr));
-    this.fieldNames = Julia.Base.fieldnames(Julia.Base.typeof(this)).value.map(
-      (x: JuliaSymbol) => x.name,
+    const fieldNamesStr: string = Julia.Base.fieldnames(
+      Julia.Base.typeof(this),
+    ).toString();
+    const fieldNamesStrTrimmed = fieldNamesStr.substring(
+      1,
+      fieldNamesStr.length - 1,
     );
+    this.fieldNames = fieldNamesStrTrimmed
+      .split(", ")
+      .map((s) => s.substring(1, s.length));
+  }
+
+  public static from(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    obj: Record<string, any>,
+  ): JuliaNamedTuple {
+    const arr = JuliaArray.init(Julia.Any, 0);
+    for (const k of Object.keys(obj)) {
+      arr.push(JuliaPair.from(JuliaSymbol.from(k), obj[k]));
+    }
+    return Julia.Core.NamedTuple(arr);
   }
 
   get(index: number): IJuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
-  get value(): Map<string, IJuliaValue> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get value(): Map<string, any> {
     const len = this.length;
-    const obj = new Map<string, IJuliaValue>();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = new Map<string, any>();
     for (let i = 0; i < len; i++) {
-      obj.set(this.fieldNames[i], this.get(i));
+      obj.set(this.fieldNames[i], this.get(i).value);
     }
     return obj;
   }
 
   toString(): string {
-    return `(${Array.from(this.value.entries())
-      .map(([key, value]) => `${key} = ${value.toString()}`)
-      .join(", ")})`;
+    return Julia.string(this);
   }
 }

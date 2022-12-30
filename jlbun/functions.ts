@@ -18,6 +18,6 @@ export class JuliaFunction extends Function implements IJuliaValue {
   }
 
   toString(): string {
-    return `[Function] ${this.name}`;
+    return `[JuliaFunction ${this.name}]`;
   }
 }

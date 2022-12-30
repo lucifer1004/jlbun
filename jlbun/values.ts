@@ -1,4 +1,3 @@
-import { CString } from "bun:ffi";
 import { IJuliaValue, jlbun, Julia, safeCString } from "./index.js";
 
 export class JuliaInt8 implements IJuliaValue {
@@ -17,7 +16,7 @@ export class JuliaInt8 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -37,7 +36,7 @@ export class JuliaUInt8 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -57,7 +56,7 @@ export class JuliaInt16 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -77,7 +76,7 @@ export class JuliaUInt16 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -97,7 +96,7 @@ export class JuliaInt32 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -115,8 +114,9 @@ export class JuliaUInt32 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_uint32(this.ptr);
   }
+
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -136,7 +136,7 @@ export class JuliaInt64 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -156,7 +156,7 @@ export class JuliaUInt64 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -176,7 +176,7 @@ export class JuliaFloat32 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -196,7 +196,7 @@ export class JuliaFloat64 implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -216,7 +216,7 @@ export class JuliaBool implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value.toString();
+    return Julia.string(this);
   }
 }
 
@@ -236,7 +236,7 @@ export class JuliaString implements IJuliaValue {
   }
 
   toString(): string {
-    return this.value;
+    return Julia.string(this);
   }
 }
 
@@ -246,7 +246,7 @@ export class JuliaAny implements IJuliaValue {
 
   constructor(ptr: number) {
     this.ptr = ptr;
-    this.display = Julia.Base.string(this).value;
+    this.display = Julia.string(this);
   }
 
   get value(): string {
@@ -254,7 +254,7 @@ export class JuliaAny implements IJuliaValue {
   }
 
   toString(): string {
-    return this.display;
+    return `[JuliaValue ${this.display}`;
   }
 }
 
@@ -276,7 +276,7 @@ export class JuliaSymbol implements IJuliaValue {
   }
 
   toString(): string {
-    return `:${this.name}`;
+    return Julia.string(this);
   }
 }
 
@@ -302,6 +302,6 @@ export class JuliaNothing implements IJuliaValue {
   }
 
   toString(): string {
-    return "null";
+    return Julia.string(this);
   }
 }
