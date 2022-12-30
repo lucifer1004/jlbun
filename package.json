@@ -1,6 +1,13 @@
 {
   "name": "jlbun",
   "version": "0.0.4",
+  "license": "MIT",
+  "description": "jlbun enables using Julia in Bun",
+  "keywords": [
+    "julia",
+    "ffi",
+    "scientific computation"
+  ],
   "module": "index.ts",
   "type": "module",
   "types": "dist/index.d.ts",
