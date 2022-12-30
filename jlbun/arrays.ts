@@ -153,25 +153,25 @@ export class JuliaArray implements JuliaValue {
   get value(): BunArray | any[] {
     const rawPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
 
-    if (this.elType.ptr === Julia.Int8.ptr) {
+    if (this.elType.isEqual(Julia.Int8)) {
       return new Int8Array(toArrayBuffer(rawPtr, 0, this.length));
-    } else if (this.elType.ptr === Julia.UInt8.ptr) {
+    } else if (this.elType.isEqual(Julia.UInt8)) {
       return new Uint8Array(toArrayBuffer(rawPtr, 0, this.length));
-    } else if (this.elType.ptr === Julia.Int16.ptr) {
+    } else if (this.elType.isEqual(Julia.Int16)) {
       return new Int16Array(toArrayBuffer(rawPtr, 0, 2 * this.length));
-    } else if (this.elType.ptr === Julia.UInt16.ptr) {
+    } else if (this.elType.isEqual(Julia.UInt16)) {
       return new Uint16Array(toArrayBuffer(rawPtr, 0, 2 * this.length));
-    } else if (this.elType.ptr === Julia.Int32.ptr) {
+    } else if (this.elType.isEqual(Julia.Int32)) {
       return new Int32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
-    } else if (this.elType.ptr === Julia.UInt32.ptr) {
+    } else if (this.elType.isEqual(Julia.UInt32)) {
       return new Uint32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
-    } else if (this.elType.ptr === Julia.Float32.ptr) {
+    } else if (this.elType.isEqual(Julia.Float32)) {
       return new Float32Array(toArrayBuffer(rawPtr, 0, 4 * this.length));
-    } else if (this.elType.ptr === Julia.Float64.ptr) {
+    } else if (this.elType.isEqual(Julia.Float64)) {
       return new Float64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
-    } else if (this.elType.ptr === Julia.Int64.ptr) {
+    } else if (this.elType.isEqual(Julia.Int64)) {
       return new BigInt64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
-    } else if (this.elType.ptr === Julia.UInt64.ptr) {
+    } else if (this.elType.isEqual(Julia.UInt64)) {
       return new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * this.length));
     } else {
       return Array.from({ length: this.length }, (_, i) => this.get(i).value);
