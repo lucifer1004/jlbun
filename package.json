@@ -2,6 +2,12 @@
   "name": "jlbun",
   "version": "0.0.4",
   "module": "index.ts",
+  "license": "MIT",
+  "description": "Using Julia in Bun",
+  "keywords": [
+    "julia",
+    "ffi"
+  ],
   "type": "module",
   "types": "dist/index.d.ts",
   "scripts": {
