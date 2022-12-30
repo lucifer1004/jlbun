@@ -32,6 +32,34 @@ describe("JuliaArray", () => {
       new BigInt64Array([10n, 10n, 10n, 10n, 20n, 10n, 10n, 10n, 10n, 10n]),
     );
   });
+
+  it("can be created from JS", () => {
+    const rawArr = new Int32Array(10);
+    const arr = JuliaArray.from(rawArr);
+    expect(arr.length).toBe(10);
+    expect(arr.ndims).toBe(1);
+    expect(arr.size).toEqual([10]);
+
+    arr.fill(10);
+    expect(arr.get(0).value).toBe(10);
+
+    arr.set(5, 20);
+    expect(arr.get(5).value).toBe(20);
+
+    arr.reverse();
+    expect(arr.get(4).value).toBe(20);
+    expect(arr.get(9).value).toBe(10);
+    expect(arr.toString()).toBe("[10, 10, 10, 10, 20, 10, 10, 10, 10, 10]");
+
+    const reshapedArr = arr.reshape(2, 5);
+    expect(reshapedArr.length).toBe(10);
+    expect(reshapedArr.ndims).toBe(2);
+    expect(reshapedArr.size).toEqual([2, 5]);
+
+    expect(rawArr).toEqual(
+      new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10, 10]),
+    );
+  });
 });
 
 describe("JuliaPair", () => {
