@@ -1,10 +1,22 @@
-import { IJuliaValue, jlbun, Julia, safeCString } from "./index.js";
+import { jlbun, Julia, JuliaValue, MethodError, safeCString } from "./index.js";
 
-export class JuliaInt8 implements IJuliaValue {
+abstract class JuliaPrimitive implements JuliaValue {
   ptr: number;
 
   constructor(ptr: number) {
     this.ptr = ptr;
+  }
+
+  abstract get value(): number | bigint | boolean | string | symbol | null;
+
+  toString(): string {
+    return Julia.string(this);
+  }
+}
+
+export class JuliaInt8 extends JuliaPrimitive {
+  constructor(ptr: number) {
+    super(ptr);
   }
 
   static from(value: number): JuliaInt8 {
@@ -14,17 +26,11 @@ export class JuliaInt8 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_int8(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaUInt8 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaUInt8 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number): JuliaUInt8 {
@@ -34,17 +40,11 @@ export class JuliaUInt8 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_uint8(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaInt16 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaInt16 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number): JuliaInt16 {
@@ -54,17 +54,11 @@ export class JuliaInt16 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_int16(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaUInt16 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaUInt16 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number): JuliaUInt16 {
@@ -74,17 +68,11 @@ export class JuliaUInt16 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_uint16(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaInt32 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaInt32 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number): JuliaInt32 {
@@ -94,17 +82,11 @@ export class JuliaInt32 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_int32(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaUInt32 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaUInt32 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number): JuliaUInt32 {
@@ -114,17 +96,11 @@ export class JuliaUInt32 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_uint32(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaInt64 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaInt64 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number | bigint): JuliaInt64 {
@@ -134,17 +110,11 @@ export class JuliaInt64 implements IJuliaValue {
   get value(): bigint {
     return jlbun.symbols.jl_unbox_int64(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaUInt64 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaUInt64 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number | bigint): JuliaUInt64 {
@@ -154,17 +124,11 @@ export class JuliaUInt64 implements IJuliaValue {
   get value(): bigint {
     return jlbun.symbols.jl_unbox_uint64(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaFloat32 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaFloat32 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number): JuliaFloat32 {
@@ -174,17 +138,11 @@ export class JuliaFloat32 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_float32(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaFloat64 implements IJuliaValue {
-  ptr: number;
-
+export class JuliaFloat64 extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: number | bigint): JuliaFloat64 {
@@ -194,17 +152,11 @@ export class JuliaFloat64 implements IJuliaValue {
   get value(): number {
     return jlbun.symbols.jl_unbox_float64(this.ptr);
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaBool implements IJuliaValue {
-  ptr: number;
-
+export class JuliaBool extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: boolean): JuliaBool {
@@ -214,17 +166,31 @@ export class JuliaBool implements IJuliaValue {
   get value(): boolean {
     return jlbun.symbols.jl_unbox_bool(this.ptr) === 1;
   }
+}
 
-  toString(): string {
-    return Julia.string(this);
+export class JuliaChar extends JuliaPrimitive {
+  name: string;
+
+  constructor(ptr: number) {
+    super(ptr);
+    this.name = Julia.string(this);
+  }
+
+  static from(value: string): JuliaChar {
+    if (value.length !== 1) {
+      throw new MethodError("Expected a single character");
+    }
+    return Julia.Base.Char(value.charCodeAt(0));
+  }
+
+  get value(): string {
+    return this.name;
   }
 }
 
-export class JuliaString implements IJuliaValue {
-  ptr: number;
-
+export class JuliaString extends JuliaPrimitive {
   constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static from(value: string): JuliaString {
@@ -234,36 +200,13 @@ export class JuliaString implements IJuliaValue {
   get value(): string {
     return jlbun.symbols.jl_string_ptr(this.ptr).toString();
   }
-
-  toString(): string {
-    return Julia.string(this);
-  }
 }
 
-export class JuliaAny implements IJuliaValue {
-  ptr: number;
-  display: string;
-
-  constructor(ptr: number) {
-    this.ptr = ptr;
-    this.display = Julia.string(this);
-  }
-
-  get value(): string {
-    return this.display;
-  }
-
-  toString(): string {
-    return `[JuliaValue ${this.display}`;
-  }
-}
-
-export class JuliaSymbol implements IJuliaValue {
-  ptr: number;
+export class JuliaSymbol extends JuliaPrimitive {
   name: string;
 
   constructor(ptr: number, name: string) {
-    this.ptr = ptr;
+    super(ptr);
     this.name = name;
   }
 
@@ -271,21 +214,16 @@ export class JuliaSymbol implements IJuliaValue {
     return new JuliaSymbol(jlbun.symbols.jl_symbol(safeCString(value)), value);
   }
 
-  get value(): string {
-    return `:${this.name}`;
-  }
-
-  toString(): string {
-    return Julia.string(this);
+  get value(): symbol {
+    return Symbol.for(this.name);
   }
 }
 
-export class JuliaNothing implements IJuliaValue {
+export class JuliaNothing extends JuliaPrimitive {
   static instance: JuliaNothing;
-  ptr: number;
 
   private constructor(ptr: number) {
-    this.ptr = ptr;
+    super(ptr);
   }
 
   static getInstance(): JuliaNothing {
@@ -300,8 +238,25 @@ export class JuliaNothing implements IJuliaValue {
   get value(): null {
     return null;
   }
+}
+
+export class JuliaAny implements JuliaValue {
+  ptr: number;
+  display?: string;
+
+  constructor(ptr: number) {
+    this.ptr = ptr;
+    this.display = undefined;
+  }
+
+  get value(): string {
+    if (this.display === undefined) {
+      this.display = Julia.string(this);
+    }
+    return this.display;
+  }
 
   toString(): string {
-    return Julia.string(this);
+    return `[JuliaValue ${this.value}`;
   }
 }

@@ -1,12 +1,12 @@
 import {
-  IJuliaValue,
   jlbun,
   JuliaFunction,
   JuliaSymbol,
+  JuliaValue,
   MethodError,
 } from "./index.js";
 
-export class JuliaModule implements IJuliaValue {
+export class JuliaModule implements JuliaValue {
   ptr: number;
   name: string;
   cache: Map<string, JuliaFunction>;

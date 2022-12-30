@@ -1,6 +1,6 @@
-import { IJuliaValue, Julia } from "./index.js";
+import { Julia, JuliaValue } from "./index.js";
 
-export class JuliaDict implements IJuliaValue {
+export class JuliaDict implements JuliaValue {
   ptr: number;
 
   constructor(ptr: number) {
@@ -19,15 +19,15 @@ export class JuliaDict implements IJuliaValue {
     return map;
   }
 
-  keys(): IJuliaValue[] {
+  keys(): JuliaValue[] {
     return Julia.Base.keys(this).value;
   }
 
-  values(): IJuliaValue[] {
+  values(): JuliaValue[] {
     return Julia.Base.values(this).value;
   }
 
-  entries(): [IJuliaValue, IJuliaValue][] {
+  entries(): [JuliaValue, JuliaValue][] {
     return Array.from(this.value.entries());
   }
 

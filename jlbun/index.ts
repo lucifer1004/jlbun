@@ -1,7 +1,8 @@
-export interface IJuliaValue {
+export interface JuliaValue {
   ptr: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get value(): any;
+  toString(): string;
 }
 
 export { JuliaArray } from "./arrays.js";
@@ -17,6 +18,7 @@ export { safeCString } from "./utils.js";
 export {
   JuliaAny,
   JuliaBool,
+  JuliaChar,
   JuliaFloat32,
   JuliaFloat64,
   JuliaInt8,

@@ -1,6 +1,6 @@
-import { IJuliaValue, jlbun, Julia, JuliaArray, JuliaSymbol } from "./index.js";
+import { jlbun, Julia, JuliaArray, JuliaSymbol, JuliaValue } from "./index.js";
 
-export class JuliaTuple implements IJuliaValue {
+export class JuliaTuple implements JuliaValue {
   ptr: number;
   length: number;
 
@@ -14,7 +14,7 @@ export class JuliaTuple implements IJuliaValue {
     return Julia.Core.tuple(...args);
   }
 
-  get(index: number): IJuliaValue {
+  get(index: number): JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
@@ -28,7 +28,7 @@ export class JuliaTuple implements IJuliaValue {
   }
 }
 
-export class JuliaPair implements IJuliaValue {
+export class JuliaPair implements JuliaValue {
   ptr: number;
 
   constructor(ptr: number) {
@@ -40,11 +40,11 @@ export class JuliaPair implements IJuliaValue {
     return Julia.Base.Pair(first, second);
   }
 
-  get first(): IJuliaValue {
+  get first(): JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 0));
   }
 
-  get second(): IJuliaValue {
+  get second(): JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 1));
   }
 
@@ -58,7 +58,7 @@ export class JuliaPair implements IJuliaValue {
   }
 }
 
-export class JuliaNamedTuple implements IJuliaValue {
+export class JuliaNamedTuple implements JuliaValue {
   ptr: number;
   length: number;
   fieldNames: string[];
@@ -89,7 +89,7 @@ export class JuliaNamedTuple implements IJuliaValue {
     return Julia.Core.NamedTuple(arr);
   }
 
-  get(index: number): IJuliaValue {
+  get(index: number): JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 

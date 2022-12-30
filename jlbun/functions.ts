@@ -1,6 +1,6 @@
-import { IJuliaValue, Julia } from "./index.js";
+import { Julia, JuliaValue } from "./index.js";
 
-export class JuliaFunction extends Function implements IJuliaValue {
+export class JuliaFunction extends Function implements JuliaValue {
   ptr: number;
   name: string;
 

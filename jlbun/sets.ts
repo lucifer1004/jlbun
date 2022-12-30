@@ -1,6 +1,6 @@
-import { IJuliaValue, Julia } from "./index.js";
+import { Julia, JuliaValue } from "./index.js";
 
-export class JuliaSet implements IJuliaValue {
+export class JuliaSet implements JuliaValue {
   ptr: number;
 
   constructor(ptr: number) {
@@ -10,7 +10,7 @@ export class JuliaSet implements IJuliaValue {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get value(): Set<any> {
     const values = Julia.Base.collect(this).value;
-    return new Set(values.map((value: IJuliaValue) => value.value));
+    return new Set(values.map((value: JuliaValue) => value.value));
   }
 
   toString(): string {

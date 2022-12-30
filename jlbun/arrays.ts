@@ -1,6 +1,5 @@
 import { ptr, toArrayBuffer } from "bun:ffi";
 import {
-  IJuliaValue,
   jlbun,
   Julia,
   JuliaBool,
@@ -18,6 +17,7 @@ import {
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
+  JuliaValue,
   MethodError,
 } from "./index.js";
 
@@ -31,7 +31,7 @@ const DEFAULT_FROM_BUN_ARRAY_OPTIONS: IFromBunArrayOptions = {
   juliaGC: false,
 };
 
-export class JuliaArray implements IJuliaValue {
+export class JuliaArray implements JuliaValue {
   ptr: number;
   elType: JuliaDataType;
 
@@ -103,7 +103,7 @@ export class JuliaArray implements IJuliaValue {
     return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
   }
 
-  get(index: number): IJuliaValue {
+  get(index: number): JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_arrayref(this.ptr, index));
   }
 
@@ -196,7 +196,7 @@ export class JuliaArray implements IJuliaValue {
     }
   }
 
-  pop(): IJuliaValue {
+  pop(): JuliaValue {
     return Julia.Base["pop!"](this);
   }
 

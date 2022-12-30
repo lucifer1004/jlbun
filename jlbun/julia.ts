@@ -1,10 +1,10 @@
 import {
-  IJuliaValue,
   InexactError,
   jlbun,
   JuliaAny,
   JuliaArray,
   JuliaBool,
+  JuliaChar,
   JuliaDataType,
   JuliaDict,
   JuliaFloat32,
@@ -26,6 +26,7 @@ import {
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
+  JuliaValue,
   MethodError,
   safeCString,
   UnknownJuliaError,
@@ -202,7 +203,7 @@ export class Julia {
     }
   }
 
-  private static getProperties(obj: IJuliaValue): string[] {
+  private static getProperties(obj: JuliaValue): string[] {
     const properties = Julia.Base.propertynames(obj) as JuliaArray;
     const props: string[] = [];
     for (let i = 0; i < properties.length; i++) {
@@ -212,7 +213,7 @@ export class Julia {
     return props;
   }
 
-  private static getTypeStr(ptr: number | IJuliaValue): string {
+  private static getTypeStr(ptr: number | JuliaValue): string {
     if (typeof ptr === "number") {
       return jlbun.symbols.jl_typeof_str(ptr).toString();
     } else {
@@ -221,7 +222,7 @@ export class Julia {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public static autoWrap(value: any): IJuliaValue {
+  public static autoWrap(value: any): JuliaValue {
     if (
       ((typeof value === "function" || typeof value === "object") &&
         "ptr" in value) ||
@@ -267,12 +268,14 @@ export class Julia {
     );
   }
 
-  public static wrapPtr(ptr: number): IJuliaValue {
+  public static wrapPtr(ptr: number): JuliaValue {
     const typeStr = Julia.getTypeStr(ptr);
     if (typeStr === "String") {
       return new JuliaString(ptr);
     } else if (typeStr === "Bool") {
       return new JuliaBool(ptr);
+    } else if (typeStr === "Char") {
+      return new JuliaChar(ptr);
     } else if (typeStr === "Int8") {
       return new JuliaInt8(ptr);
     } else if (typeStr === "UInt8") {
@@ -365,7 +368,7 @@ export class Julia {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public static call(func: JuliaFunction, ...args: any[]): IJuliaValue {
+  public static call(func: JuliaFunction, ...args: any[]): JuliaValue {
     const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
 
     let ret: number;
@@ -394,7 +397,7 @@ export class Julia {
     return Julia.wrapPtr(ret);
   }
 
-  public static eval(code: string): IJuliaValue {
+  public static eval(code: string): JuliaValue {
     const cCode = safeCString(code);
     const ret = jlbun.symbols.jl_eval_string(cCode);
     Julia.handleEvalException(code);
@@ -408,7 +411,7 @@ export class Julia {
     return module;
   }
 
-  public static repr(value: IJuliaValue): string {
+  public static repr(value: JuliaValue): string {
     if (Julia.options.reprMIME == "") {
       return (Julia.Base.repr(value) as JuliaString).value;
     } else {
@@ -417,15 +420,15 @@ export class Julia {
     }
   }
 
-  public static string(value: IJuliaValue): string {
+  public static string(value: JuliaValue): string {
     return (Julia.Base.string(value) as JuliaString).value;
   }
 
-  public static print(value: IJuliaValue): void {
+  public static print(value: JuliaValue): void {
     Julia.Base.print(value);
   }
 
-  public static println(value: IJuliaValue): void {
+  public static println(value: JuliaValue): void {
     Julia.Base.println(value);
   }
 
