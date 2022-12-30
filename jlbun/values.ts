@@ -232,7 +232,7 @@ export class JuliaString implements IJuliaValue {
   }
 
   get value(): string {
-    return new CString(jlbun.symbols.jl_string_ptr(this.ptr)).toString();
+    return jlbun.symbols.jl_string_ptr(this.ptr).toString();
   }
 
   toString(): string {

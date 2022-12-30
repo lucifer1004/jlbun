@@ -98,7 +98,11 @@ INCLUDED = Set([
 function bunffi_type(cursor_type)
     result = @match cursor_type begin
         ::CLVoid => "FFIType.void"
-        ::CLPointer => "FFIType.ptr"
+        ::CLPointer =>
+            @match Clang.getPointeeType(cursor_type) begin
+                ::Union{CLChar_S, CLChar_U} => "FFIType.cstring"
+                _ => "FFIType.ptr"
+            end
         ::CLInt => "FFIType.i32"
         ::CLUInt => "FFIType.u32"
         ::CLLong => size_t
@@ -298,11 +302,7 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         args: [FFIType.ptr, FFIType.cstring],
         returns: FFIType.ptr,
     },
-    jl_get_global0: {
-        args: [FFIType.ptr, FFIType.cstring],
-        returns: FFIType.ptr,
-    },
-
+    
     // Arrays
     jl_array_len_getter: {
         args: [FFIType.ptr],
@@ -326,5 +326,5 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
 })
 """
 
-    write(joinpath(@__DIR__, "..", "src", "wrapper.ts"), dlopen_template)
+    write(joinpath(@__DIR__, "..", "jlbun", "wrapper.ts"), dlopen_template)
 end

@@ -212,9 +212,9 @@ export class Julia {
 
   public static getTypeStr(ptr: number | IJuliaValue): string {
     if (typeof ptr === "number") {
-      return new CString(jlbun.symbols.jl_typeof_str(ptr)).toString();
+      return jlbun.symbols.jl_typeof_str(ptr).toString();
     } else {
-      return new CString(jlbun.symbols.jl_typeof_str(ptr.ptr)).toString();
+      return jlbun.symbols.jl_typeof_str(ptr.ptr).toString();
     }
   }
 
