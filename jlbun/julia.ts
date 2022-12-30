@@ -41,7 +41,7 @@ interface IJuliaInitOptions {
 const DEFAULT_JULIA_INIT_OPTIONS = {
   bindir: "",
   sysimage: "",
-  project: null,
+  project: "",
 };
 
 export class Julia {
@@ -113,10 +113,10 @@ export class Julia {
       Julia.prefetch(Julia.Main);
       Julia.prefetch(Julia.Pkg);
 
-      if (options.project === "") {
-        Julia.Pkg.activate(options.project);
-      } else if (options.project !== null) {
+      if (options.project === null) {
         Julia.eval("Pkg.activate(; temp=true)");
+      } else if (options.project !== "") {
+        Julia.Pkg.activate(options.project);
       }
 
       Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter(), "Any");
@@ -200,12 +200,11 @@ export class Julia {
   }
 
   public static getProperties(obj: IJuliaValue): string[] {
-    const len = Number(jlbun.symbols.jl_propertycount(obj.ptr));
-    const rawPtr = jlbun.symbols.jl_propertynames(obj.ptr);
-    const propPointers = new BigUint64Array(toArrayBuffer(rawPtr, 0, 8 * len));
+    const properties = Julia.Base.propertynames(obj) as JuliaArray;
     const props: string[] = [];
-    for (let i = 0; i < len; i++) {
-      props.push(new CString(Number(propPointers[i])).toString());
+    for (let i = 0; i < properties.length; i++) {
+      const prop = (properties.get(i) as JuliaSymbol).name;
+      props.push(prop);
     }
     return props;
   }

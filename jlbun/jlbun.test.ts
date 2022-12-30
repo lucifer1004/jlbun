@@ -1,8 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Julia, JuliaArray, JuliaPair, JuliaTuple } from "./index.js";
 
-beforeAll(() => Julia.init());
+beforeAll(() => Julia.init({ project: null }));
 afterAll(() => Julia.close());
+
+describe("Julia", () => {
+  it("can import modules", () => {
+    Julia.import("Printf");
+    expect(Julia.eval('Printf.@sprintf "%d %.2f" 10 2').value).toBe("10 2.00");
+  });
+
+  it("can call functions of imported modules", () => {
+    const Dates = Julia.import("Dates");
+    expect(Dates.monthname(1).value).toBe("January");
+  });
+});
 
 describe("JuliaArray", () => {
   it("can be created from Julia", () => {
