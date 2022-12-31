@@ -94,3 +94,7 @@ void *jl_array_data_getter(jl_array_t *a) { return jl_array_data(a); }
 size_t jl_array_dim_getter(jl_array_t *a, int32_t i) {
   return jl_array_dim(a, i);
 }
+
+// GC
+void jl_gc_push1(jl_value_t *x) { JL_GC_PUSH1(x); }
+void jl_gc_pop() { JL_GC_POP(); }

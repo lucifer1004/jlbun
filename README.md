@@ -2,7 +2,8 @@
 
 ## Installation
 
-> You need to have `Bun`, `CMake` and `Julia` installed to use this library.
+> - You need to have `Bun`, `CMake` and `Julia` installed to use this library.
+> - `bun install` does not run the packages's `install` scripts, so `npm install` is used instead. 
 
 ```bash
 npm install jlbun
@@ -96,11 +97,26 @@ Cairo.save(join(process.cwd(), "plot.png"), plt);
 Julia.close();
 ```
 
+### Function calls with keyword arguments
+
+```typescript
+import { Julia, JuliaArray } from "jlbun";
+
+Julia.init();
+
+const rawArray = new Int32Array([1, 10, 20, 30, 100]);
+const arr = JuliaArray.from(rawArray);
+Julia.Base["sort!"].callWithKwargs({ by: Julia.Base.string, rev: true }, arr);
+console.log(rawArray); // Int32Array(5) [ 30, 20, 100, 10, 1 ]
+
+Julia.close();
+```
+
 ## TODO
 
 - [x] Tuple
 - [x] NamedTuple
-  - [ ] Keyword arguments of Julia functions
+  - [x] Keyword arguments of Julia functions
 - [ ] Range
 - [x] Dict
 - [x] Set

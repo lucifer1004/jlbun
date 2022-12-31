@@ -274,6 +274,27 @@ describe("JuliaNothing", () => {
   });
 });
 
+describe("JuliaFunction", () => {
+  it("can be called with keyword arguments", () => {
+    const arr = JuliaArray.from(new Int32Array([1, 5, 4, 2, 3]));
+    Julia.Base["sort!"](arr);
+    expect(arr.value).toEqual(new Int32Array([1, 2, 3, 4, 5]));
+
+    Julia.callWithKwargs(Julia.Base["sort!"], { rev: true }, arr);
+    expect(arr.value).toEqual(new Int32Array([5, 4, 3, 2, 1]));
+  });
+
+  it("can be called with multiple keyword arguments", () => {
+    const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
+    Julia.Base["sort!"].callWithKwargs(
+      { by: Julia.Base.string, rev: true },
+      arr,
+    );
+
+    expect(arr.value).toEqual(new Int32Array([30, 20, 100, 10, 1]));
+  });
+});
+
 describe("JuliaArray", () => {
   it("can be created from Julia", () => {
     const arr = JuliaArray.init(Julia.Int64, 10);

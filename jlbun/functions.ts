@@ -13,6 +13,11 @@ export class JuliaFunction extends Function implements JuliaValue {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  callWithKwargs(kwargs: Record<string, any>, ...args: any[]): JuliaValue {
+    return Julia.callWithKwargs(this, kwargs, ...args);
+  }
+
   get value(): string {
     return this.toString();
   }

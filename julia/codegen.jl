@@ -47,7 +47,9 @@ INCLUDED = Set([
     "jl_call",
     "jl_atexit_hook",
     "jl_get_global",
+    "jl_set_global",
     "jl_get_nth_field",
+    "jl_get_kwsorter",
     "jl_box_int8",
     "jl_box_uint8",
     "jl_box_int16",
@@ -324,6 +326,16 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     jl_array_dim_getter: {
         args: [FFIType.ptr, FFIType.i32],
         returns: $size_t,
+    },
+
+    // GC
+    jl_gc_push1: {
+        args: [FFIType.ptr],
+        returns: FFIType.void,
+    },
+    jl_gc_pop: {
+        args: [],
+        returns: FFIType.void,
     },
 
     // Auto generated wrappers

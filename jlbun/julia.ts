@@ -56,6 +56,7 @@ const DEFAULT_JULIA_OPTIONS = {
 
 export class Julia {
   private static options: JuliaOptions = DEFAULT_JULIA_OPTIONS;
+  private static globals: JuliaDict;
 
   public static Core: JuliaModule;
   public static Base: JuliaModule;
@@ -200,6 +201,13 @@ export class Julia {
         jlbun.symbols.jl_float64_type_getter(),
         "Float64",
       );
+
+      Julia.globals = Julia.eval("Dict()") as JuliaDict;
+      jlbun.symbols.jl_set_global(
+        Julia.Main.ptr,
+        JuliaSymbol.from("__jlbun_globals__").ptr,
+        Julia.globals.ptr,
+      );
     }
   }
 
@@ -211,6 +219,10 @@ export class Julia {
       props.push(prop);
     }
     return props;
+  }
+
+  private static setGlobal(name: string, obj: JuliaValue): void {
+    Julia.Base["setindex!"](Julia.globals, obj, name);
   }
 
   public static getTypeStr(ptr: number | JuliaValue): string {
@@ -350,13 +362,30 @@ export class Julia {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private static handleCallException(func: JuliaFunction, args: any[]): void {
+  private static handleCallException(
+    func: JuliaFunction,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    args: any[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: Record<string, any> = {},
+  ): void {
     const err = jlbun.symbols.jl_exception_occurred();
     if (err !== null) {
       const errType = Julia.getTypeStr(err);
-      const funcCall =
-        func.name + "(" + args.map((arg) => arg.toString()).join(", ") + ")";
+      const funcCallParts = [
+        func.name,
+        "(",
+        args.map((arg) => arg.toString()).join(", "),
+        "; ",
+      ];
+      funcCallParts.push(
+        Object.entries(kwargs)
+          .map(([key, value]) => `${key} = ${value}`)
+          .join(", "),
+      );
+      funcCallParts.push(")");
+      const funcCall = funcCallParts.join("");
+
       if (errType == "MethodError") {
         throw new MethodError(funcCall);
       } else if (errType == "InexactError") {
@@ -394,6 +423,45 @@ export class Julia {
     }
 
     Julia.handleCallException(func, args);
+    return Julia.wrapPtr(ret);
+  }
+
+  public static callWithKwargs(
+    func: JuliaFunction,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
+  ): JuliaValue {
+    const kwsorter = Julia.Core.kwfunc(func);
+    const wrappedKwargs = JuliaNamedTuple.from(kwargs);
+
+    // // We need to keep this alive.
+    // Julia.setGlobal("__jlbun_kwargs__", wrappedKwargs);
+
+    const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
+
+    let ret: number;
+    if (args.length == 0) {
+      ret = jlbun.symbols.jl_call2(kwsorter.ptr, wrappedKwargs.ptr, func.ptr);
+    } else if (args.length == 1) {
+      ret = jlbun.symbols.jl_call3(
+        kwsorter.ptr,
+        wrappedKwargs.ptr,
+        func.ptr,
+        wrappedArgs[0],
+      );
+    } else {
+      wrappedArgs.splice(0, 0, func.ptr);
+      ret = jlbun.symbols.jl_call(
+        kwsorter.ptr,
+        wrappedKwargs.ptr,
+        new BigInt64Array(wrappedArgs.map(BigInt)),
+        args.length + 1,
+      );
+    }
+
+    Julia.handleCallException(func, args, kwargs);
     return Julia.wrapPtr(ret);
   }
 

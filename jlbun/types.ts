@@ -10,10 +10,14 @@ export class JuliaDataType implements JuliaValue {
   }
 
   get value(): string {
-    return this.toString();
+    return this.name;
   }
 
   isEqual(other: JuliaDataType): boolean {
     return this.ptr === other.ptr;
+  }
+
+  toString(): string {
+    return `[JuliaDataType ${this.name}]`;
   }
 }
