@@ -171,6 +171,7 @@ dist
 .vscode
 .idea
 archive
+benchmarks/results
 build
 cmake-build-*
 dist

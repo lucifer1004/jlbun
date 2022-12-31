@@ -4,6 +4,7 @@
 .vscode
 .idea
 archive
+benchmarks
 build
 docs
 julia

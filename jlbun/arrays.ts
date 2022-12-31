@@ -23,11 +23,11 @@ import {
 
 type BunArray = TypedArray | BigInt64Array | BigUint64Array;
 
-interface IFromBunArrayOptions {
+interface FromBunArrayOptions {
   juliaGC: boolean;
 }
 
-const DEFAULT_FROM_BUN_ARRAY_OPTIONS: IFromBunArrayOptions = {
+const DEFAULT_FROM_BUN_ARRAY_OPTIONS: FromBunArrayOptions = {
   juliaGC: false,
 };
 
@@ -50,7 +50,7 @@ export class JuliaArray implements JuliaValue {
 
   static from(
     arr: BunArray,
-    extraOptions: Partial<IFromBunArrayOptions> = {},
+    extraOptions: Partial<FromBunArrayOptions> = {},
   ): JuliaArray {
     const options = { ...DEFAULT_FROM_BUN_ARRAY_OPTIONS, ...extraOptions };
     const rawPtr = ptr(arr.buffer);
@@ -217,6 +217,7 @@ export class JuliaArray implements JuliaValue {
   map(f: JuliaFunction): JuliaArray {
     const arr = Julia.Base.map(f, this);
     const elType = jlbun.symbols.jl_array_eltype(arr.ptr);
-    return new JuliaArray(arr.ptr, elType);
+    const typeStr = Julia.getTypeStr(elType);
+    return new JuliaArray(arr.ptr, new JuliaDataType(elType, typeStr));
   }
 }

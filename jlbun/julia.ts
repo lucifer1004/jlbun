@@ -213,7 +213,7 @@ export class Julia {
     return props;
   }
 
-  private static getTypeStr(ptr: number | JuliaValue): string {
+  public static getTypeStr(ptr: number | JuliaValue): string {
     if (typeof ptr === "number") {
       return jlbun.symbols.jl_typeof_str(ptr).toString();
     } else {
