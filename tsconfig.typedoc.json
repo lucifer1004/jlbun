@@ -18,7 +18,13 @@
       "jlbun": ["./jlbun/index.ts"]
     }
   },
-  "exclude": ["examples/**/*", "build/**/*", "docs/assets/**/*"],
+  "exclude": [
+    "archive/**/*",
+    "benchmarks/**/*",
+    "dist/**/*",
+    "build/**/*",
+    "docs/**/*"
+  ],
   "typedocOptions": {
     "entryPoints": ["jlbun/index.ts"],
     "out": "docs",

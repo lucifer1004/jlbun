@@ -17,7 +17,7 @@
       "@types/node"
     ],
     "paths": {
-      "jlbun": ["./index.ts"]
+      "jlbun": ["./jlbun/index.ts"]
     }
   },
   "exclude": [
