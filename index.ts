@@ -21,6 +21,7 @@ export {
   JuliaSet,
   JuliaString,
   JuliaSymbol,
+  JuliaTask,
   JuliaTuple,
   JuliaUInt8,
   JuliaUInt16,

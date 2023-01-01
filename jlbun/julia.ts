@@ -21,6 +21,7 @@ import {
   JuliaSet,
   JuliaString,
   JuliaSymbol,
+  JuliaTask,
   JuliaTuple,
   JuliaUInt8,
   JuliaUInt16,
@@ -351,6 +352,8 @@ export class Julia {
         funcName = typeStr.slice(1);
       }
       return new JuliaFunction(ptr, funcName);
+    } else if (typeStr === "Task") {
+      return new JuliaTask(ptr);
     }
 
     return new JuliaAny(ptr);
@@ -399,7 +402,7 @@ export class Julia {
       } else if (errType == "InexactError") {
         throw new InexactError(funcCall);
       } else {
-        throw new UnknownJuliaError(errType);
+        throw new UnknownJuliaError(Julia.string(Julia.wrapPtr(err)));
       }
     }
   }

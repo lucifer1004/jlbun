@@ -16,6 +16,7 @@ import {
   JuliaSet,
   JuliaString,
   JuliaSymbol,
+  JuliaTask,
   JuliaTuple,
   JuliaUInt8,
   JuliaUInt16,
@@ -492,5 +493,13 @@ describe("JuliaDict", () => {
         ["c", "hello"],
       ]),
     );
+  });
+});
+
+describe("JuliaTask", () => {
+  it("can be created from Julia", async () => {
+    const task = Julia.eval("Task(() -> sum(i for i in 1:100))") as JuliaTask;
+    const promise = task.value;
+    expect((await promise).value).toBe(5050n);
   });
 });
