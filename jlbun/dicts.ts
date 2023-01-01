@@ -54,6 +54,6 @@ export class JuliaDict implements JuliaValue {
   }
 
   toString(): string {
-    return `JuliaDict ${Julia.string(this)}`;
+    return `[JuliaDict ${Julia.string(this)}]`;
   }
 }

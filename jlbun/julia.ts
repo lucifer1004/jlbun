@@ -84,7 +84,7 @@ export class Julia {
   public static Float64: JuliaDataType;
 
   private static prefetch(module: JuliaModule): void {
-    const props = Julia.getProperties(module);
+    const props = Julia.getModuleExports(module);
     for (const prop of props) {
       try {
         module[prop];
@@ -105,32 +105,6 @@ export class Julia {
           safeCString(Julia.options.bindir),
           safeCString(Julia.options.sysimage),
         );
-      }
-
-      Julia.Core = new JuliaModule(
-        jlbun.symbols.jl_core_module_getter(),
-        "Core",
-      );
-      Julia.Base = new JuliaModule(
-        jlbun.symbols.jl_base_module_getter(),
-        "Base",
-      );
-      Julia.Main = new JuliaModule(
-        jlbun.symbols.jl_main_module_getter(),
-        "Main",
-      );
-      Julia.Pkg = Julia.import("Pkg");
-
-      // Prefetch all the properties of Core, Base and Main
-      Julia.prefetch(Julia.Core);
-      Julia.prefetch(Julia.Base);
-      Julia.prefetch(Julia.Main);
-      Julia.prefetch(Julia.Pkg);
-
-      if (Julia.options.project === null) {
-        Julia.eval("Pkg.activate(; temp=true)");
-      } else if (Julia.options.project !== "") {
-        Julia.Pkg.activate(Julia.options.project);
       }
 
       Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter(), "Any");
@@ -203,6 +177,32 @@ export class Julia {
         "Float64",
       );
 
+      Julia.Core = new JuliaModule(
+        jlbun.symbols.jl_core_module_getter(),
+        "Core",
+      );
+      Julia.Base = new JuliaModule(
+        jlbun.symbols.jl_base_module_getter(),
+        "Base",
+      );
+      Julia.Main = new JuliaModule(
+        jlbun.symbols.jl_main_module_getter(),
+        "Main",
+      );
+      Julia.Pkg = Julia.import("Pkg");
+
+      // Prefetch all the properties of Core, Base and Main
+      Julia.prefetch(Julia.Core);
+      Julia.prefetch(Julia.Base);
+      Julia.prefetch(Julia.Main);
+      Julia.prefetch(Julia.Pkg);
+
+      if (Julia.options.project === null) {
+        Julia.eval("Pkg.activate(; temp=true)");
+      } else if (Julia.options.project !== "") {
+        Julia.Pkg.activate(Julia.options.project);
+      }
+
       Julia.globals = Julia.eval("Dict()") as JuliaDict;
       jlbun.symbols.jl_set_global(
         Julia.Main.ptr,
@@ -212,14 +212,11 @@ export class Julia {
     }
   }
 
-  private static getProperties(obj: JuliaValue): string[] {
-    const properties = Julia.Base.propertynames(obj) as JuliaArray;
-    const props: string[] = [];
-    for (let i = 0; i < properties.length; i++) {
-      const prop = (properties.get(i) as JuliaSymbol).name;
-      props.push(prop);
-    }
-    return props;
+  private static getModuleExports(obj: JuliaValue): string[] {
+    return Julia.Base.names(obj).value.map(
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      (x: symbol) => x.description!,
+    );
   }
 
   public static setGlobal(name: string, obj: JuliaValue): void {

@@ -37,6 +37,6 @@ export class JuliaSet implements JuliaValue {
   }
 
   toString(): string {
-    return `JuliaSet ${Julia.string(this)}`;
+    return `[JuliaSet ${Julia.string(this)}]`;
   }
 }

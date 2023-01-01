@@ -59,6 +59,6 @@ export class JuliaModule implements JuliaValue {
   }
 
   toString(): string {
-    return `[Module] ${this.name}`;
+    return `[JuliaModule ${this.name}]`;
   }
 }
