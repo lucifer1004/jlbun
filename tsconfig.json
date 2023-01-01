@@ -13,11 +13,18 @@
     "forceConsistentCasingInFileNames": true,
     "allowJs": true,
     "types": [
-      "bun-types" // add Bun global
+      "bun-types", // add Bun global
+      "@types/node"
     ],
     "paths": {
       "jlbun": ["./index.ts"]
     }
   },
-  "exclude": ["archive/**/*", "dist/**/*", "build/**/*", "docs/**/*"]
+  "exclude": [
+    "archive/**/*",
+    "benchmarks/**/*",
+    "dist/**/*",
+    "build/**/*",
+    "docs/**/*"
+  ]
 }

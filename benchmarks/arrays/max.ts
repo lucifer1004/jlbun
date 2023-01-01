@@ -1,5 +1,5 @@
 import { FORMAT_MD, suite } from "@thi.ng/bench";
-import { Julia, JuliaArray } from "../../index.js";
+import { Julia, JuliaArray } from "../../jlbun/index.js";
 
 Julia.init({ project: null });
 

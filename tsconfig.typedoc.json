@@ -10,7 +10,10 @@
     "allowJs": true,
 
     // "bun-types" is the important part
-    "types": ["bun-types"],
+    "types": [
+      "bun-types", // add Bun global
+      "@types/node"
+    ],
     "paths": {
       "jlbun": ["./jlbun/index.ts"]
     }

@@ -1,6 +1,6 @@
 {
   "name": "jlbun",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "module": "index.ts",
   "license": "MIT",
   "description": "Using Julia in Bun",
@@ -9,17 +9,20 @@
     "ffi"
   ],
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts"
+  ],
   "types": "dist/index.d.ts",
   "scripts": {
     "install": "bun build-lib",
-    "gen-types": " tsc --emitDeclarationOnly --outDir dist",
     "build-lib": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
     "typedoc": "typedoc --tsconfig tsconfig.typedoc.json",
     "fmt": "prettier --write './**/*.{ts,tsx,cjs,js,jsx,json}'",
     "lint": "eslint '**/*.{js,ts}' '*.{js,ts,cjs}' package.json --fix",
     "lint-staged": "lint-staged",
     "prepare": "bun x husky install",
-    "prepublishOnly": "bun gen-types",
+    "prepublishOnly": "rollup -c rollup.config.js",
     "test": "bun wiptest"
   },
   "lint-staged": {
@@ -43,6 +46,9 @@
     "husky": "^8.0.2",
     "lint-staged": "^13.1.0",
     "prettier": "^2.8.1",
+    "rollup": "^3.9.0",
+    "rollup-plugin-dts": "^5.1.0",
+    "rollup-plugin-esbuild": "^5.0.0",
     "typedoc": "^0.23.23",
     "typedoc-plugin-katex": "^0.1.2",
     "typescript": "^4.9.4"
