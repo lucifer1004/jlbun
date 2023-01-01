@@ -388,4 +388,12 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr],
     returns: FFIType.ptr,
   },
+  jl_new_task: {
+    args: [FFIType.ptr, FFIType.ptr, FFIType.i32],
+    returns: FFIType.ptr,
+  },
+  jl_set_task_tid: {
+    args: [FFIType.ptr, FFIType.i32],
+    returns: FFIType.i32,
+  },
 });

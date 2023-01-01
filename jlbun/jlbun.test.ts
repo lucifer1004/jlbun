@@ -7,6 +7,7 @@ import {
   JuliaDict,
   JuliaFloat32,
   JuliaFloat64,
+  JuliaFunction,
   JuliaInt8,
   JuliaInt16,
   JuliaInt32,
@@ -296,6 +297,28 @@ describe("JuliaFunction", () => {
 
     expect(arr.value).toEqual(new Int32Array([30, 20, 100, 10, 1]));
   });
+
+  it("can have many positional and keyword arguments", () => {
+    const f1_0 = Julia.eval("x -> 2x") as JuliaFunction;
+    expect(f1_0(10).value).toBe(20n);
+
+    const f0_1 = Julia.eval("(;a) -> 2a") as JuliaFunction;
+    expect(f0_1.callWithKwargs({ a: 10 }).value).toBe(20n);
+
+    const f1_1 = Julia.eval("(x; a) -> x * a") as JuliaFunction;
+    expect(f1_1.callWithKwargs({ a: 10 }, 2).value).toBe(20n);
+
+    const f2_0 = Julia.eval("(x, y) -> x + y") as JuliaFunction;
+    expect(f2_0(10, 20).value).toBe(30n);
+
+    const f2_1 = Julia.eval("(x, y; a) -> (x + y) * a") as JuliaFunction;
+    expect(f2_1.callWithKwargs({ a: 10 }, 2, 3).value).toBe(50n);
+
+    const f3_3 = Julia.eval(
+      "(x, y, z; a, b, c) -> (x + y + z) * (a + b + c)",
+    ) as JuliaFunction;
+    expect(f3_3.callWithKwargs({ a: 1, b: 2, c: 3 }, 1, 2, 3).value).toBe(36n);
+  });
 });
 
 describe("JuliaArray", () => {
@@ -501,5 +524,16 @@ describe("JuliaTask", () => {
     const task = Julia.eval("Task(() -> sum(i for i in 1:100))") as JuliaTask;
     const promise = task.value;
     expect((await promise).value).toBe(5050n);
+  });
+
+  it("can be scheduled to different threads", async () => {
+    const func = Julia.eval("() -> sum(i for i in 1:100)") as JuliaFunction;
+    const nthreads = Julia.nthreads;
+    const promises = [];
+    for (let i = 0; i < nthreads; i++) {
+      promises.push(JuliaTask.from(func).schedule(i).value);
+    }
+    const results = (await Promise.all(promises)).map((x) => x.value);
+    expect(results).toEqual(new Array(nthreads).fill(5050n));
   });
 });

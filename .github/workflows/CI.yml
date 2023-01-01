@@ -40,4 +40,4 @@ jobs:
           bun-version: ${{ matrix.bun-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
-          bun install && bun test
+          bun install && JULIA_NUM_THREADS=auto bun test

@@ -1,5 +1,16 @@
 # jlbun - Using Julia in Bun
 
+- [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
+  - [Installation](#installation)
+  - [Usage](#usage)
+    - [Pass a Bun array to Julia](#pass-a-bun-array-to-julia)
+    - [Pass a Julia Array to Bun](#pass-a-julia-array-to-bun)
+    - [Do some linear algebra](#do-some-linear-algebra)
+    - [Install and use new packages](#install-and-use-new-packages)
+    - [Function calls with keyword arguments](#function-calls-with-keyword-arguments)
+    - [Run Julia with multiple threads](#run-julia-with-multiple-threads)
+  - [TODO](#todo)
+
 ## Installation
 
 > - You need to have `Bun`, `CMake` and `Julia` installed to use this library.
@@ -108,6 +119,50 @@ const rawArray = new Int32Array([1, 10, 20, 30, 100]);
 const arr = JuliaArray.from(rawArray);
 Julia.Base["sort!"].callWithKwargs({ by: Julia.Base.string, rev: true }, arr);
 console.log(rawArray); // Int32Array(5) [ 30, 20, 100, 10, 1 ]
+
+Julia.close();
+```
+
+### Run Julia with multiple threads
+
+To use multiple threads in Julia, you need to set the `JULIA_NUM_THREADS` environment variable.
+
+With `export JULIA_NUM_THREADS=2` set, the following program should output `2` instead of `1`:
+
+```typescript
+import { Julia } from "jlbun";
+
+Julia.init();
+
+Julia.eval("println(Threads.nthreads())");
+
+Julia.close();
+```
+
+A more advanced example:
+
+```typescript
+import { Julia, JuliaFunction, JuliaTask, JuliaValue } from "jlbun";
+
+Julia.init();
+
+const promises: Promise<JuliaValue>[] = [];
+
+const func = Julia.eval(`function ()
+  ans = 0;
+  for i in 1:1000
+    ans += i
+  end
+  ans
+end
+`) as JuliaFunction;
+
+for (let i = 0; i < Julia.nthreads; i++) {
+  promises.push(JuliaTask.from(func).schedule(i).value);
+}
+
+const results = (await Promise.all(promises)).map(promise => promise.value);
+console.log(results); // [ 500500n, 500500n, 500500n, 500500n, 500500n, 500500n, 500500n, 500500n ]
 
 Julia.close();
 ```

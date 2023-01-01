@@ -58,6 +58,7 @@ const DEFAULT_JULIA_OPTIONS = {
 export class Julia {
   private static options: JuliaOptions = DEFAULT_JULIA_OPTIONS;
   private static globals: JuliaDict;
+  public static nthreads: number;
 
   public static Core: JuliaModule;
   public static Base: JuliaModule;
@@ -203,6 +204,7 @@ export class Julia {
         Julia.Pkg.activate(Julia.options.project);
       }
 
+      Julia.nthreads = Number(Julia.eval("Threads.nthreads()").value);
       Julia.globals = Julia.eval("Dict()") as JuliaDict;
       jlbun.symbols.jl_set_global(
         Julia.Main.ptr,
@@ -461,12 +463,11 @@ export class Julia {
         wrappedArgs[0],
       );
     } else {
-      wrappedArgs.splice(0, 0, func.ptr);
+      wrappedArgs.splice(0, 0, wrappedKwargs.ptr, func.ptr);
       ret = jlbun.symbols.jl_call(
         kwsorter.ptr,
-        wrappedKwargs.ptr,
         new BigInt64Array(wrappedArgs.map(BigInt)),
-        args.length + 1,
+        args.length + 2,
       );
     }
 

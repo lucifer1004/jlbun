@@ -75,6 +75,8 @@ INCLUDED = Set([
     "jl_cstr_to_string",
     "jl_string_ptr",
     "jl_symbol",
+    "jl_new_task",
+    "jl_set_task_tid",
 ])
 
 # EXCLUDED = Set([
