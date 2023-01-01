@@ -1,4 +1,4 @@
-import { Julia, JuliaValue } from "./index.js";
+import { Julia, JuliaNothing, JuliaValue } from "./index.js";
 
 export class JuliaDict implements JuliaValue {
   ptr: number;
@@ -8,15 +8,37 @@ export class JuliaDict implements JuliaValue {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): Map<any, any> {
-    const values = Julia.Base.collect(this).value;
+  has(key: any): boolean {
+    return Julia.Base.haskey(this, key).value;
+  }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const map = new Map<any, any>();
-    for (const value of values) {
-      map.set(Julia.Base.first(value).value, Julia.Base.last(value).value);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get(key: any): JuliaValue {
+    return Julia.Base.get(this, key, JuliaNothing.getInstance());
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set(key: any, value: any): JuliaValue {
+    return Julia.Base["setindex!"](this, value, key);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete(value: any): boolean {
+    if (this.has(value)) {
+      Julia.Base["pop!"](this, value);
+      return true;
+    } else {
+      return false;
     }
-    return map;
+  }
+
+  get size(): number {
+    return Number(Julia.Base.length(this).value);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  get value(): Map<any, any> {
+    return new Map(Julia.Base.collect(this).value);
   }
 
   keys(): JuliaValue[] {
@@ -32,6 +54,6 @@ export class JuliaDict implements JuliaValue {
   }
 
   toString(): string {
-    return `[JuliaDict ${Julia.string(this)}`;
+    return `JuliaDict ${Julia.string(this)}`;
   }
 }

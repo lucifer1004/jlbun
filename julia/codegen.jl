@@ -303,10 +303,18 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         args: [FFIType.ptr],
         returns: $size_t,
     },
+    jl_typeof_getter: {
+        args: [FFIType.ptr],
+        returns: FFIType.ptr,
+    },
 
     // Functions
     jl_function_getter: {
         args: [FFIType.ptr, FFIType.cstring],
+        returns: FFIType.ptr,
+    },
+    jl_kwfunc_getter: {
+        args: [FFIType.ptr],
         returns: FFIType.ptr,
     },
     

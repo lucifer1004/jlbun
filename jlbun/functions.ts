@@ -1,4 +1,4 @@
-import { Julia, JuliaValue } from "./index.js";
+import { Julia, JuliaNamedTuple, JuliaValue } from "./index.js";
 
 export class JuliaFunction extends Function implements JuliaValue {
   ptr: number;
@@ -13,8 +13,12 @@ export class JuliaFunction extends Function implements JuliaValue {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  callWithKwargs(kwargs: Record<string, any>, ...args: any[]): JuliaValue {
+  callWithKwargs(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: JuliaNamedTuple | Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
+  ): JuliaValue {
     return Julia.callWithKwargs(this, kwargs, ...args);
   }
 

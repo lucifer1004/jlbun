@@ -221,8 +221,16 @@ export class Julia {
     return props;
   }
 
-  private static setGlobal(name: string, obj: JuliaValue): void {
-    Julia.Base["setindex!"](Julia.globals, obj, name);
+  public static setGlobal(name: string, obj: JuliaValue): void {
+    Julia.globals.set(name, obj);
+  }
+
+  public static getGlobal(name: string): JuliaValue {
+    return Julia.globals.get(name);
+  }
+
+  public static deleteGlobal(name: string): boolean {
+    return Julia.globals.delete(name);
   }
 
   public static getTypeStr(ptr: number | JuliaValue): string {
@@ -429,15 +437,16 @@ export class Julia {
   public static callWithKwargs(
     func: JuliaFunction,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    kwargs: Record<string, any>,
+    kwargs: JuliaNamedTuple | Record<string, any>,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...args: any[]
   ): JuliaValue {
     const kwsorter = Julia.Core.kwfunc(func);
-    const wrappedKwargs = JuliaNamedTuple.from(kwargs);
+    const wrappedKwargs =
+      kwargs instanceof JuliaNamedTuple ? kwargs : JuliaNamedTuple.from(kwargs);
 
-    // // We need to keep this alive.
-    // Julia.setGlobal("__jlbun_kwargs__", wrappedKwargs);
+    // FIXME: This is a temporary workaround to keep the kwargs from being GC'd
+    jlbun.symbols.jl_call1(Julia.Base.collect.ptr, wrappedKwargs.ptr);
 
     const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
 

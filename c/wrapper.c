@@ -4,7 +4,8 @@
 #ifdef jl_init
 void jl_init0() { jl_init__threading(); }
 
-void jl_init_with_image0(const char *julia_home_dir, const char *image_relative_path) {
+void jl_init_with_image0(const char *julia_home_dir,
+                         const char *image_relative_path) {
   jl_init_with_image__threading(julia_home_dir, image_relative_path);
 }
 #else
@@ -52,6 +53,9 @@ JL_MODULE_GETTER(top)
 jl_function_t *jl_function_getter(jl_module_t *m, const char *name) {
   return jl_get_function(m, name);
 }
+jl_function_t *jl_kwfunc_getter(jl_function_t *f) {
+  return jl_get_kwsorter(jl_typeof(f));
+}
 
 // Builtins
 int8_t jl_hasproperty(jl_value_t *v, const char *name) {
@@ -86,6 +90,9 @@ jl_value_t *jl_true_getter() { return jl_true; }
 jl_value_t *jl_false_getter() { return jl_false; }
 const char *jl_symbol_name_getter(jl_sym_t *s) { return jl_symbol_name(s); }
 size_t jl_nfields_getter(jl_datatype_t *t) { return jl_nfields(t); }
+jl_datatype_t *jl_typeof_getter(jl_value_t *v) {
+  return (jl_datatype_t *)jl_typeof(v);
+}
 
 // Arrays
 size_t jl_array_len_getter(jl_array_t *a) { return jl_array_len(a); }
