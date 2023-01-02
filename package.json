@@ -1,6 +1,6 @@
 {
   "name": "jlbun",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "module": "index.ts",
   "license": "MIT",
   "description": "Using Julia in Bun",
