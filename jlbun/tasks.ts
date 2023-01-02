@@ -8,6 +8,9 @@ import {
   MethodError,
 } from "./index.js";
 
+/**
+ * Wrapper for Julia `Task`s.
+ */
 export class JuliaTask implements JuliaValue {
   ptr: number;
   canReschedule: boolean;
@@ -19,11 +22,21 @@ export class JuliaTask implements JuliaValue {
     this.scheduled = false;
   }
 
+  /**
+   * Wrap a 0-arg `JuliaFunction` as a `JuliaTask`.
+   *
+   * @param func The function to be wrapped.
+   */
   static from(func: JuliaFunction): JuliaTask {
     const task = Julia.Base.Task(func);
     return new JuliaTask(task.ptr, true);
   }
 
+  /**
+   * Designate a `JuliaTask` to the specified thread.
+   *
+   * @param threadId The desired thread ID this task should be designated to.
+   */
   schedule(threadId: number): JuliaTask {
     if (!this.canReschedule) {
       throw new MethodError("This task cannot be rescheduled");
@@ -38,6 +51,9 @@ export class JuliaTask implements JuliaValue {
     return this;
   }
 
+  /**
+   * Schedule a `JuliaTask` and get a `Promise` representing the result of the task.
+   */
   get value(): Promise<JuliaValue> {
     return new Promise((resolve, reject) => {
       if (!Julia.Base.istaskstarted(this).value && !this.scheduled) {
@@ -62,6 +78,9 @@ export class JuliaTask implements JuliaValue {
     });
   }
 
+  /**
+   * Stringify the underlying Julia `Task`.
+   */
   toString(): string {
     return Julia.string(this);
   }

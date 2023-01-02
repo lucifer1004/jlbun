@@ -1,5 +1,8 @@
 import { Julia, JuliaNamedTuple, JuliaValue } from "./index.js";
 
+/**
+ * Wrapper for Julia `Function`.
+ */
 export class JuliaFunction extends Function implements JuliaValue {
   ptr: number;
   name: string;

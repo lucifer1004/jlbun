@@ -21,6 +21,9 @@ import {
   MethodError,
 } from "./index.js";
 
+/**
+ * A typed JS Array.
+ */
 type BunArray = TypedArray | BigInt64Array | BigUint64Array;
 
 interface FromBunArrayOptions {
@@ -31,6 +34,9 @@ const DEFAULT_FROM_BUN_ARRAY_OPTIONS: FromBunArrayOptions = {
   juliaGC: false,
 };
 
+/**
+ * Wrapper for Julia `Array`.
+ */
 export class JuliaArray implements JuliaValue {
   ptr: number;
   elType: JuliaDataType;
@@ -40,6 +46,12 @@ export class JuliaArray implements JuliaValue {
     this.elType = elType;
   }
 
+  /**
+   * Create a `JuliaArray` with given element type and length.
+   *
+   * @param elType Element type of the array.
+   * @param length Length of the array.
+   */
   static init(elType: JuliaDataType, length: number): JuliaArray {
     const arrType = jlbun.symbols.jl_apply_array_type(elType.ptr, 1);
     return new JuliaArray(
@@ -48,6 +60,12 @@ export class JuliaArray implements JuliaValue {
     );
   }
 
+  /**
+   * Create a `JuliaArray` from a `BunArray` (`TypedArray | BigInt64Array | BigUint64Array`).
+   *
+   * @param arr
+   * @param extraOptions
+   */
   static from(
     arr: BunArray,
     extraOptions: Partial<FromBunArrayOptions> = {},
@@ -87,10 +105,16 @@ export class JuliaArray implements JuliaValue {
     );
   }
 
+  /**
+   * Length of the array.
+   */
   get length(): number {
     return Number(jlbun.symbols.jl_array_len_getter(this.ptr));
   }
 
+  /**
+   * Size (equivalent to `shape` in `numpy`'s terms) of the array.
+   */
   get size(): number[] {
     const size = new Array<number>(this.ndims);
     for (let i = 0; i < this.ndims; i++) {
@@ -99,14 +123,28 @@ export class JuliaArray implements JuliaValue {
     return size;
   }
 
+  /**
+   * Number of dimensions of the array.
+   */
   get ndims(): number {
     return Number(jlbun.symbols.jl_array_ndims_getter(this.ptr));
   }
 
+  /**
+   * Get data at the given index.
+   *
+   * @param index The index (starting from 0) to be fetched.
+   * @returns Julia data at the given index, wrapped in a `JuliaValue` object.
+   */
   get(index: number): JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_arrayref(this.ptr, index));
   }
 
+  /**
+   *
+   * @param index
+   * @param value Data to be set at the given index.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   set(index: number, value: any): void {
     let ptr: number;

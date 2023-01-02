@@ -1,5 +1,8 @@
 import { JuliaValue } from "./index.js";
 
+/**
+ * Wrapper for Julia `DataType`.
+ */
 export class JuliaDataType implements JuliaValue {
   ptr: number;
   name: string;

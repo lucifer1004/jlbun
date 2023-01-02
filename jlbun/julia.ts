@@ -17,6 +17,7 @@ import {
   JuliaModule,
   JuliaNamedTuple,
   JuliaNothing,
+  JuliaOptions,
   JuliaPair,
   JuliaSet,
   JuliaString,
@@ -34,25 +35,17 @@ import {
 } from "./index.js";
 
 export enum MIME {
-  String = "",
+  Default = "",
   TextPlain = "text/plain",
   TextHTML = "text/html",
   TextLaTeX = "text/latex",
   TextMarkdown = "text/markdown",
 }
 
-interface JuliaOptions {
-  bindir: string;
-  sysimage: string;
-  project: string | null;
-  reprMIME: MIME;
-}
-
 const DEFAULT_JULIA_OPTIONS = {
   bindir: "",
   sysimage: "",
   project: "",
-  reprMIME: MIME.TextPlain,
 };
 
 export class Julia {
@@ -95,6 +88,11 @@ export class Julia {
     }
   }
 
+  /**
+   * Initialize the Julia runtime. All other methods need to be called after this.
+   *
+   * @param extraOptions Extra options for initialization.
+   */
   public static init(extraOptions: Partial<JuliaOptions> = {}): void {
     Julia.options = { ...Julia.options, ...extraOptions };
 
@@ -221,18 +219,40 @@ export class Julia {
     );
   }
 
+  /**
+   * Sava an object to the global scope maintained by `jlbun`.
+   *
+   * @param name Name to use.
+   * @param obj Object to be saved.
+   */
   public static setGlobal(name: string, obj: JuliaValue): void {
     Julia.globals.set(name, obj);
   }
 
+  /**
+   * Retrieve an object from the global scope maintained by `jlbun`.
+   *
+   * @param name Name of the object to be retrieved.
+   */
   public static getGlobal(name: string): JuliaValue {
     return Julia.globals.get(name);
   }
 
+  /**
+   * Delete an object from the global scope maintained by `jlbun`.
+   *
+   * @param name Name of the object to be deleted.
+   * @returns Whether the object was deleted.
+   */
   public static deleteGlobal(name: string): boolean {
     return Julia.globals.delete(name);
   }
 
+  /**
+   * Get the string representation of a Julia value's type.
+   *
+   * @param ptr Pointer to a Julia object, or a `JuliaValue` object.
+   */
   public static getTypeStr(ptr: number | JuliaValue): string {
     if (typeof ptr === "number") {
       return jlbun.symbols.jl_typeof_str(ptr).toString();
@@ -241,6 +261,11 @@ export class Julia {
     }
   }
 
+  /**
+   * Wrap a JS value as a `JuliaValue` object.
+   *
+   * @param value Value to be wrapped.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static autoWrap(value: any): JuliaValue {
     if (
@@ -280,6 +305,12 @@ export class Julia {
     }
   }
 
+  /**
+   * Fetch a Julia function from the given module.
+   *
+   * @param module Module to be fetched from.
+   * @param name Name of the function to be fetched.
+   */
   public static getFunction(module: JuliaModule, name: string): JuliaFunction {
     const cName = safeCString(name);
     return new JuliaFunction(
@@ -288,6 +319,11 @@ export class Julia {
     );
   }
 
+  /**
+   * Wrap a pointer as a `JuliaValue` object.
+   *
+   * @param ptr Pointer to the Julia object.
+   */
   public static wrapPtr(ptr: number): JuliaValue {
     const typeStr = Julia.getTypeStr(ptr);
     if (typeStr === "String") {
@@ -406,6 +442,12 @@ export class Julia {
     }
   }
 
+  /**
+   * Call a Julia function with variable arguments.
+   *
+   * @param func The Julia function to be called.
+   * @param args The arguments to be passed to the function. Non-`JuliaValue` objects will be automatically wrapped by `Julia.autoWrap`. Since the automatic wrapping does not work perfectly all the time, be sure to wrap the objects yourself in order to feed the function with the exact types.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static call(func: JuliaFunction, ...args: any[]): JuliaValue {
     const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
@@ -436,6 +478,13 @@ export class Julia {
     return Julia.wrapPtr(ret);
   }
 
+  /**
+   * Call a Julia function with keyword arguments and variable arguments.
+   *
+   * @param func The Julia function to be called.
+   * @param kwargs Keyword arguments to be passed to the function. If a plain object is provided, it will be automatically wrapped as a `JuliaNamedTuple`. Be sure to wrap it yourself to get exact typing.
+   * @param args Variable arguments to be passed to the function. Non-`JuliaValue` objects will be automatically wrapped by. Be sure to wrap it yourself to get exact typing.
+   */
   public static callWithKwargs(
     func: JuliaFunction,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -475,6 +524,11 @@ export class Julia {
     return Julia.wrapPtr(ret);
   }
 
+  /**
+   * Evaluate a Julia code fragment and get the result as a `JuliaValue`.
+   *
+   * @param code Julia code to be evaluated.
+   */
   public static eval(code: string): JuliaValue {
     const cCode = safeCString(code);
     const ret = jlbun.symbols.jl_eval_string(cCode);
@@ -482,6 +536,11 @@ export class Julia {
     return Julia.wrapPtr(ret);
   }
 
+  /**
+   * Import a module and get a `JuliaModule` object referring to that module.
+   *
+   * @param name Name of the module to be imported.
+   */
   public static import(name: string): JuliaModule {
     Julia.eval(`import ${name}`);
     const module = new JuliaModule(Julia.Main[name].ptr, `Main.${name}`);
@@ -489,27 +548,52 @@ export class Julia {
     return module;
   }
 
-  public static repr(value: JuliaValue): string {
-    if (Julia.options.reprMIME == "") {
+  /**
+   * Get a string representation of a `JuliaValue` using Julia's `repr()` function, with the given MIME.
+   *
+   * @param value Object to be represented.
+   * @param mime The MIME to use. Default to `MIME.Default`.
+   */
+  public static repr(value: JuliaValue, mime: MIME = MIME.Default): string {
+    if (mime == "") {
       return (Julia.Base.repr(value) as JuliaString).value;
     } else {
-      return (Julia.Base.repr(Julia.options.reprMIME, value) as JuliaString)
-        .value;
+      return (Julia.Base.repr(mime, value) as JuliaString).value;
     }
   }
 
+  /**
+   * Stringify a `JuliaValue` using Julia's `string()` function,
+   *
+   * @param value Object to be stringified.
+   */
   public static string(value: JuliaValue): string {
     return (Julia.Base.string(value) as JuliaString).value;
   }
 
+  /**
+   * Shortcut for `Julia.Base.print()`.
+   *
+   * @param value Object to be printed.
+   */
   public static print(value: JuliaValue): void {
     Julia.Base.print(value);
   }
 
+  /**
+   * Shortcut for `Julia.Base.println()`.
+   *
+   * @param value Object to be printed.
+   */
   public static println(value: JuliaValue): void {
     Julia.Base.println(value);
   }
 
+  /**
+   * Close the Julia runtime and also close the dynamic library.
+   *
+   * @param status Status code to be reported.
+   */
   public static close(status = 0) {
     jlbun.symbols.jl_atexit_hook(status);
     jlbun.close();

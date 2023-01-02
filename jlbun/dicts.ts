@@ -1,5 +1,8 @@
 import { Julia, JuliaNothing, JuliaValue } from "./index.js";
 
+/**
+ * Wrapper for Julia `Dict`.
+ */
 export class JuliaDict implements JuliaValue {
   ptr: number;
 

@@ -1,12 +1,15 @@
 import { jlbun, Julia, JuliaArray, JuliaSymbol, JuliaValue } from "./index.js";
 
+/**
+ * Wrapper for Julia `Tuple`.
+ */
 export class JuliaTuple implements JuliaValue {
   ptr: number;
   length: number;
 
   constructor(ptr: number) {
     this.ptr = ptr;
-    this.length = jlbun.symbols.jl_nfields_getter(this.ptr);
+    this.length = Number(jlbun.symbols.jl_nfields_getter(this.ptr));
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +31,9 @@ export class JuliaTuple implements JuliaValue {
   }
 }
 
+/**
+ * Wrapper for Julia `Pair`.
+ */
 export class JuliaPair implements JuliaValue {
   ptr: number;
 
@@ -58,6 +64,9 @@ export class JuliaPair implements JuliaValue {
   }
 }
 
+/**
+ * Wrapper for Julia `NamedTuple`.
+ */
 export class JuliaNamedTuple implements JuliaValue {
   ptr: number;
   length: number;

@@ -411,6 +411,7 @@ describe("JuliaTuple", () => {
     expect(tuple.get(0).value).toBe(1n);
     expect(tuple.get(1).value).toBe(2n);
     expect(tuple.get(2).value).toBe(3n);
+    expect(tuple.length).toBe(3);
     expect(tuple.toString()).toBe("(1, 2, 3)");
   });
 
@@ -419,6 +420,7 @@ describe("JuliaTuple", () => {
     expect(tuple.get(0).value).toBe(1n);
     expect(tuple.get(1).value).toBe(2n);
     expect(tuple.get(2).value).toBe("hello");
+    expect(tuple.length).toBe(3);
     expect(tuple.toString()).toBe('(1, 2, "hello")');
   });
 });
@@ -430,6 +432,7 @@ describe("JuliaNamedTuple", () => {
     expect(tuple.get(0).value).toBe(1n);
     expect(tuple.get(1).value).toBe(2n);
     expect(tuple.get(2).value).toBe(3n);
+    expect(tuple.length).toBe(3);
     expect(tuple.toString()).toBe("(a = 1, b = 2, c = 3)");
   });
 
@@ -438,6 +441,7 @@ describe("JuliaNamedTuple", () => {
     expect(tuple.get(0).value).toBe(1n);
     expect(tuple.get(1).value).toBe(2n);
     expect(tuple.get(2).value).toBe("hello");
+    expect(tuple.length).toBe(3);
     expect(tuple.toString()).toBe('(a = 1, b = 2, c = "hello")');
   });
 });

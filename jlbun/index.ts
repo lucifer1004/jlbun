@@ -5,11 +5,23 @@ export interface JuliaValue {
   toString(): string;
 }
 
+/**
+ * Options for Julia initialization.
+ *
+ * - `bindir` and `sysimage`: these two can be combined to use a pre-compiled sysimage to initialize Julia. This can save time for first execution.
+ * - `project`: specify the Julia project to use. Default to `""`, meaning to use the default Julia project. Setting to `null` will create a temporary directory and use it as the project root. Setting to other `string` values will use the string passed in as the root directory of the project. Note that the project directory does not relate to the working directory.
+ */
+export interface JuliaOptions {
+  bindir: string;
+  sysimage: string;
+  project: string | null;
+}
+
 export { JuliaArray } from "./arrays.js";
 export { JuliaDict } from "./dicts.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
 export { JuliaFunction } from "./functions.js";
-export { Julia } from "./julia.js";
+export { Julia, MIME } from "./julia.js";
 export { JuliaModule } from "./modules.js";
 export { JuliaSet } from "./sets.js";
 export { JuliaTask } from "./tasks.js";

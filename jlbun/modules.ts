@@ -6,6 +6,9 @@ import {
   MethodError,
 } from "./index.js";
 
+/**
+ * Wrapper for Julia `Module`.
+ */
 export class JuliaModule implements JuliaValue {
   ptr: number;
   name: string;

@@ -14,6 +14,9 @@ abstract class JuliaPrimitive implements JuliaValue {
   }
 }
 
+/**
+ * Wrapper for Julia `Int8`.
+ */
 export class JuliaInt8 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -28,6 +31,9 @@ export class JuliaInt8 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `UInt8`.
+ */
 export class JuliaUInt8 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -42,6 +48,9 @@ export class JuliaUInt8 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Int16`.
+ */
 export class JuliaInt16 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -56,6 +65,9 @@ export class JuliaInt16 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia UInt16.
+ */
 export class JuliaUInt16 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -70,6 +82,9 @@ export class JuliaUInt16 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Int32`.
+ */
 export class JuliaInt32 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -84,6 +99,9 @@ export class JuliaInt32 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `UInt32`.
+ */
 export class JuliaUInt32 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -98,6 +116,9 @@ export class JuliaUInt32 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Int64`.
+ */
 export class JuliaInt64 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -112,6 +133,9 @@ export class JuliaInt64 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `UInt64`.
+ */
 export class JuliaUInt64 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -126,6 +150,9 @@ export class JuliaUInt64 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Float32`.
+ */
 export class JuliaFloat32 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -140,6 +167,9 @@ export class JuliaFloat32 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Float64`.
+ */
 export class JuliaFloat64 extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -154,6 +184,9 @@ export class JuliaFloat64 extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Bool`.
+ */
 export class JuliaBool extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -168,6 +201,9 @@ export class JuliaBool extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Char`.
+ */
 export class JuliaChar extends JuliaPrimitive {
   name: string;
 
@@ -188,6 +224,9 @@ export class JuliaChar extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `String`.
+ */
 export class JuliaString extends JuliaPrimitive {
   constructor(ptr: number) {
     super(ptr);
@@ -202,6 +241,9 @@ export class JuliaString extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia `Symbol`.
+ */
 export class JuliaSymbol extends JuliaPrimitive {
   name: string;
 
@@ -221,6 +263,9 @@ export class JuliaSymbol extends JuliaPrimitive {
   }
 }
 
+/**
+ * Singleton wrapper for Julia `Nothing`.
+ */
 export class JuliaNothing extends JuliaPrimitive {
   static instance: JuliaNothing;
 
@@ -242,20 +287,18 @@ export class JuliaNothing extends JuliaPrimitive {
   }
 }
 
+/**
+ * Wrapper for Julia objects not handled yet.
+ */
 export class JuliaAny implements JuliaValue {
   ptr: number;
-  display?: string;
 
   constructor(ptr: number) {
     this.ptr = ptr;
-    this.display = undefined;
   }
 
   get value(): string {
-    if (this.display === undefined) {
-      this.display = Julia.string(this);
-    }
-    return this.display;
+    return this.toString();
   }
 
   toString(): string {

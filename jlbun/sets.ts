@@ -1,5 +1,8 @@
 import { Julia, JuliaValue } from "./index.js";
 
+/**
+ * Wrapper for Julia `Set`s.
+ */
 export class JuliaSet implements JuliaValue {
   ptr: number;
 
