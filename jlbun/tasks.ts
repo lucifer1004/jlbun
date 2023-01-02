@@ -24,8 +24,24 @@ export class JuliaTask implements JuliaValue {
 
   /**
    * Wrap a 0-arg `JuliaFunction` as a `JuliaTask`.
+   * To use functions with more arguments, first wrap
+   * them with `Julia.wrapFunctionCall`.
    *
    * @param func The function to be wrapped.
+   *
+   * @example
+   *
+   * Wrap `sum([1, 2, 3])` as a `JuliaTask`:
+   *
+   * ```ts
+   * const func = Julia.wrapFunctionCall(
+   *   Julia.Base.sum,
+   *   {},
+   *   new Int32Array([1, 2, 3]),
+   * );
+   * const task = JuliaTask.from(func);
+   * const result = await task.value;
+   * ```
    */
   static from(func: JuliaFunction): JuliaTask {
     const task = Julia.Base.Task(func);

@@ -98,6 +98,10 @@ export class JuliaNamedTuple implements JuliaValue {
     obj: Record<string, any>,
   ): JuliaNamedTuple {
     const keys = Array.from(Object.keys(obj));
+    if (keys.length === 0) {
+      return Julia.Core.NamedTuple() as JuliaNamedTuple;
+    }
+
     const tupleType = Julia.eval(
       `NamedTuple{(${keys.map((key) => `Symbol("${key}")`).join(",")},)}`,
     );

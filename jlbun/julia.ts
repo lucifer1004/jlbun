@@ -1,3 +1,4 @@
+import { ptr } from "bun:ffi";
 import { randomUUID } from "crypto";
 import {
   InexactError,
@@ -411,6 +412,46 @@ export class Julia {
     return new JuliaAny(ptr);
   }
 
+  /**
+   * Wrap a function with several arguments so that it can be run in a `JuliaTask`.
+   *
+   * @param func Function to be wrapped.
+   * @param kwargs Keyword arguments.
+   * @param args Variable arguments.
+   */
+  public static wrapFunctionCall(
+    func: JuliaFunction,
+    kwargs: JuliaNamedTuple | Record<string, unknown>,
+    ...args: unknown[]
+  ): JuliaFunction {
+    const kwsorter = Julia.Core.kwfunc(func);
+    const wrappedKwargs =
+      kwargs instanceof JuliaNamedTuple ? kwargs : JuliaNamedTuple.from(kwargs);
+    const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
+
+    if (wrappedKwargs.length > 0) {
+      wrappedArgs.splice(0, 0, wrappedKwargs.ptr, func.ptr);
+    }
+
+    const bigArgs = new BigInt64Array(wrappedArgs.map(BigInt));
+    const funcPtr = wrappedKwargs.length === 0 ? func.ptr : kwsorter.ptr;
+    const interpolated = `
+      function ()
+        ptr = ccall(:jl_call, 
+          Ptr{Nothing}, 
+          (Ptr{Nothing}, Ptr{Nothing}, Cint),
+          convert(Ptr{Nothing}, ${funcPtr}),
+          convert(Ptr{Nothing}, ${ptr(bigArgs as unknown as TypedArray)}),
+          ${wrappedArgs.length},
+        )
+        
+        unsafe_pointer_to_objref(ptr)
+      end
+    `;
+
+    return Julia.eval(interpolated) as JuliaFunction;
+  }
+
   private static handleEvalException(code: string): void {
     const errPtr = jlbun.symbols.jl_exception_occurred();
     if (errPtr !== null) {
@@ -420,6 +461,8 @@ export class Julia {
       } else if (errType == "InexactError") {
         throw new InexactError(code);
       } else {
+        console.log(Julia.getTypeStr(errPtr));
+        console.log(Julia.string(Julia.wrapPtr(errPtr)));
         throw new UnknownJuliaError(errType);
       }
     }

@@ -618,6 +618,24 @@ describe("JuliaTask", () => {
     expect((await promise).value).toBe(5050n);
   });
 
+  it("can be created from JS", async () => {
+    const func = Julia.wrapFunctionCall(
+      Julia.Base.sum,
+      {},
+      new Int32Array([1, 2, 3]),
+    );
+    const task = JuliaTask.from(func);
+    expect((await task.value).value).toBe(6n);
+
+    const func2 = Julia.wrapFunctionCall(Julia.Base.sort, { rev: true }, [
+      "foo",
+      "bar",
+      "hello",
+    ]);
+    const task2 = JuliaTask.from(func2);
+    expect((await task2.value).value).toEqual(["hello", "foo", "bar"]);
+  });
+
   it("can be scheduled to different threads", async () => {
     const func = Julia.eval("() -> sum(i for i in 1:100)") as JuliaFunction;
     const nthreads = Julia.nthreads;
