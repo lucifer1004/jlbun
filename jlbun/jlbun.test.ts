@@ -38,6 +38,15 @@ describe("Julia", () => {
     const Dates = Julia.import("Dates");
     expect(Dates.monthname(1).value).toBe("January");
   });
+
+  it("supports tag template strings", () => {
+    const hello = "hello";
+    const world = ["w", "o", "r", "l", "d"];
+    expect(Julia.tagEval`" "`.value).toBe(" ");
+    expect(Julia.tagEval`${hello} * " " * join(${world})`.value).toBe(
+      "hello world",
+    );
+  });
 });
 
 describe("JuliaInt8", () => {

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import {
   InexactError,
   jlbun,
@@ -288,20 +289,32 @@ export class Julia {
       return JuliaBool.from(value);
     } else if (typeof value === "undefined") {
       return JuliaNothing.getInstance();
+    } else if (
+      value instanceof Int8Array ||
+      value instanceof Uint8Array ||
+      value instanceof Int16Array ||
+      value instanceof Uint16Array ||
+      value instanceof Int32Array ||
+      value instanceof Uint32Array ||
+      value instanceof Float32Array ||
+      value instanceof Float64Array ||
+      value instanceof Uint8ClampedArray ||
+      value instanceof BigInt64Array ||
+      value instanceof BigUint64Array
+    ) {
+      return JuliaArray.from(value);
     } else if (Array.isArray(value)) {
-      try {
-        return JuliaArray.from(
-          value as unknown as TypedArray | BigInt64Array | BigUint64Array,
-        );
-      } catch (_) {
-        const arr = JuliaArray.init(Julia.Any, 0);
-        for (const v of value) {
-          arr.push(Julia.autoWrap(v));
-        }
-        return arr;
+      const arr = JuliaArray.init(Julia.Any, 0);
+      for (const v of value) {
+        arr.push(Julia.autoWrap(v));
       }
+      return arr;
     } else {
-      throw new MethodError(`Cannot convert to Julia value: ${value}`);
+      try {
+        return JuliaNamedTuple.from(value);
+      } catch (_) {
+        throw new MethodError(`Cannot convert to Julia value: ${value}`);
+      }
     }
   }
 
@@ -534,6 +547,31 @@ export class Julia {
     const ret = jlbun.symbols.jl_eval_string(cCode);
     Julia.handleEvalException(code);
     return Julia.wrapPtr(ret);
+  }
+
+  /**
+   * Evaluate a Julia code fragment and get the result as a `JuliaValue`.
+   * This method supports value-interpolation, meaning that the tagged
+   * values will be automatically wrapped and interpolated into the code.
+   *
+   * @param strings Strings separated by tagged values
+   * @param values Tagged values to be interpolated
+   */
+  public static tagEval(
+    strings: TemplateStringsArray,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...values: any[]
+  ): JuliaValue {
+    const uuids = Array.from({ length: values.length }, () => randomUUID());
+    for (let i = 0; i < values.length; i++) {
+      Julia.setGlobal(uuids[i], Julia.autoWrap(values[i]));
+    }
+    const codeParts: string[] = strings.slice(0, 1);
+    for (let i = 0; i < strings.length - 1; i++) {
+      codeParts.push(`__jlbun_globals__["${uuids[i]}"]`);
+      codeParts.push(strings[i + 1]);
+    }
+    return Julia.eval(codeParts.join(""));
   }
 
   /**

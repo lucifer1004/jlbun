@@ -5,6 +5,7 @@
 - [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
   - [Installation](#installation)
   - [Usage](#usage)
+    - [Evaluate Julia code](#evaluate-julia-code)
     - [Pass a Bun array to Julia](#pass-a-bun-array-to-julia)
     - [Pass a Julia Array to Bun](#pass-a-julia-array-to-bun)
     - [Do some linear algebra](#do-some-linear-algebra)
@@ -23,6 +24,29 @@ npm install jlbun
 ```
 
 ## Usage
+
+### Evaluate Julia code
+
+`jlbun` provides `Julia.eval()` and `Julia.tagEval()`. The former accepts a string, while the latter accepts a tagged template literal.
+
+```typescript
+import { Julia } from "jlbun";
+
+Julia.init();
+
+Julia.eval('println("Hello from Julia")'); // "Hello from Julia"
+
+const arr = [1, 2, "hello"];
+Julia.tagEval`println(${arr})`; // "Any[1, 2, "hello"]"
+
+const arr2 = new Uint8Array([1, 2, 3]);
+Julia.tagEval`println(${arr2})`; // "UInt8[0x01, 0x02, 0x03]"
+
+const obj = { foo: 0, bar: false, bal: [1, 2, 3] }
+Julia.tagEval`println(${obj})`; // "(foo = 0, bar = false, bal = Any[1, 2, 3])"
+
+Julia.close();
+```
 
 ### Pass a Bun array to Julia
 
