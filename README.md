@@ -1,5 +1,7 @@
 # jlbun - Using Julia in Bun
 
+![Logo of jlbun](https://user-images.githubusercontent.com/13583761/210193825-4b898ddf-b4b2-4e21-a691-c05240bb81e3.png)
+
 - [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
   - [Installation](#installation)
   - [Usage](#usage)
