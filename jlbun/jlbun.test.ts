@@ -602,8 +602,7 @@ describe("JuliaDict", () => {
     expect(dict.size).toBe(2);
     expect(dict.get("c").value).toBe("hello");
     expect(dict.value).toEqual(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      new Map<string, any>([
+      new Map<string, unknown>([
         ["b", 3n],
         ["c", "hello"],
       ]),

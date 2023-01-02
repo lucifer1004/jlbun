@@ -472,8 +472,7 @@ export class Julia {
     func: JuliaFunction,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    kwargs: Record<string, any> = {},
+    kwargs: JuliaNamedTuple | Record<string, unknown> = {},
   ): void {
     const errPtr = jlbun.symbols.jl_exception_occurred();
     if (errPtr !== null) {
@@ -485,7 +484,9 @@ export class Julia {
         "; ",
       ];
       funcCallParts.push(
-        Object.entries(kwargs)
+        Object.entries(
+          kwargs instanceof JuliaNamedTuple ? kwargs.value : kwargs,
+        )
           .map(([key, value]) => `${key} = ${value}`)
           .join(", "),
       );
@@ -547,10 +548,8 @@ export class Julia {
    */
   public static callWithKwargs(
     func: JuliaFunction,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    kwargs: JuliaNamedTuple | Record<string, any>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...args: any[]
+    kwargs: JuliaNamedTuple | Record<string, unknown>,
+    ...args: unknown[]
   ): JuliaValue {
     const kwsorter = Julia.Core.kwfunc(func);
     const wrappedKwargs =

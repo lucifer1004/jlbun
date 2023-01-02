@@ -1,7 +1,6 @@
 export interface JuliaValue {
   ptr: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): any;
+  get value(): unknown;
   toString(): string;
 }
 

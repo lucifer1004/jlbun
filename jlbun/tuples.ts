@@ -12,8 +12,7 @@ export class JuliaTuple implements JuliaValue {
     this.length = Number(jlbun.symbols.jl_nfields_getter(this.ptr));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static from(...args: any[]): JuliaTuple {
+  static from(...args: unknown[]): JuliaTuple {
     return Julia.Core.tuple(...args);
   }
 
@@ -21,8 +20,7 @@ export class JuliaTuple implements JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): any[] {
+  get value(): unknown[] {
     return Array.from({ length: this.length }, (_, i) => this.get(i).value);
   }
 
@@ -41,8 +39,7 @@ export class JuliaPair implements JuliaValue {
     this.ptr = ptr;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static from(first: any, second: any): JuliaPair {
+  static from(first: unknown, second: unknown): JuliaPair {
     return Julia.Base.Pair(first, second);
   }
 
@@ -54,8 +51,7 @@ export class JuliaPair implements JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 1));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): [any, any] {
+  get value(): [unknown, unknown] {
     return [this.first.value, this.second.value];
   }
 
@@ -93,10 +89,7 @@ export class JuliaNamedTuple implements JuliaValue {
     }
   }
 
-  public static from(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    obj: Record<string, any>,
-  ): JuliaNamedTuple {
+  public static from(obj: Record<string, unknown>): JuliaNamedTuple {
     const keys = Array.from(Object.keys(obj));
     if (keys.length === 0) {
       return Julia.Core.NamedTuple() as JuliaNamedTuple;
@@ -115,12 +108,10 @@ export class JuliaNamedTuple implements JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): Record<string, any> {
+  get value(): Record<string, unknown> {
     const len = this.length;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const obj = {} as Record<string, any>;
+    const obj = {} as Record<string, unknown>;
     for (let i = 0; i < len; i++) {
       obj[this.fieldNames[i]] = this.get(i).value;
     }

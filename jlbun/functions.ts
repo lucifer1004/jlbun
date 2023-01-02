@@ -17,10 +17,8 @@ export class JuliaFunction extends Function implements JuliaValue {
   }
 
   callWithKwargs(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    kwargs: JuliaNamedTuple | Record<string, any>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...args: any[]
+    kwargs: JuliaNamedTuple | Record<string, unknown>,
+    ...args: unknown[]
   ): JuliaValue {
     return Julia.callWithKwargs(this, kwargs, ...args);
   }

@@ -187,8 +187,7 @@ export class JuliaArray implements JuliaValue {
     jlbun.symbols.jl_arrayset(this.ptr, ptr, index);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): BunArray | any[] {
+  get value(): BunArray | unknown[] {
     const rawPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
 
     if (this.elType.isEqual(Julia.Int8)) {
@@ -220,8 +219,7 @@ export class JuliaArray implements JuliaValue {
     return `[JuliaArray ${Julia.string(this)}]`;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  push(...values: any[]): void {
+  push(...values: unknown[]): void {
     if (this.ndims === 1) {
       const wrappedValues = values.map((value) => Julia.autoWrap(value));
       for (const value of wrappedValues) {
@@ -247,8 +245,7 @@ export class JuliaArray implements JuliaValue {
     return new JuliaArray(arr.ptr, this.elType);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fill(value: any): void {
+  fill(value: unknown): void {
     Julia.Base["fill!"](this, value);
   }
 

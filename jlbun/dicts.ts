@@ -11,8 +11,7 @@ export class JuliaDict implements JuliaValue {
   }
 
   public static from(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    map: IterableIterator<[any, any]> | [any, any][],
+    map: IterableIterator<[unknown, unknown]> | [unknown, unknown][],
   ): JuliaDict {
     const dict = Julia.Base.Dict() as JuliaDict;
     for (const [key, value] of map) {
@@ -21,23 +20,19 @@ export class JuliaDict implements JuliaValue {
     return dict;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  has(key: any): boolean {
+  has(key: unknown): boolean {
     return Julia.Base.haskey(this, key).value;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get(key: any): JuliaValue {
+  get(key: unknown): JuliaValue {
     return Julia.Base.get(this, key, JuliaNothing.getInstance());
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  set(key: any, value: any): JuliaValue {
+  set(key: unknown, value: unknown): JuliaValue {
     return Julia.Base["setindex!"](this, value, key);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  delete(value: any): boolean {
+  delete(value: unknown): boolean {
     if (this.has(value)) {
       Julia.Base["pop!"](this, value);
       return true;
@@ -50,8 +45,7 @@ export class JuliaDict implements JuliaValue {
     return Number(Julia.Base.length(this).value);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): Map<any, any> {
+  get value(): Map<unknown, unknown> {
     return new Map(Julia.Base.collect(this).value);
   }
 
@@ -64,7 +58,7 @@ export class JuliaDict implements JuliaValue {
   }
 
   entries(): [JuliaValue, JuliaValue][] {
-    return Array.from(this.value.entries());
+    return Array.from(this.value.entries()) as [JuliaValue, JuliaValue][];
   }
 
   toString(): string {
@@ -78,8 +72,7 @@ export class JuliaIdDict extends JuliaDict {
   }
 
   public static from(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    map: IterableIterator<[any, any]> | [any, any][],
+    map: IterableIterator<[unknown, unknown]> | [unknown, unknown][],
   ): JuliaIdDict {
     const dict = Julia.Base.IdDict() as JuliaIdDict;
     for (const [key, value] of map) {
