@@ -41,3 +41,25 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           bun install && JULIA_NUM_THREADS=auto bun test
+  docs:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.25.x'
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1.8'
+          arch: x64
+      - uses: xhyrom/setup-bun@v0.1.8
+        with:
+          bun-version: '0.4.0'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          bun install && bun typedoc
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
