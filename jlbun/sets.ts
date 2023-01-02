@@ -10,6 +10,17 @@ export class JuliaSet implements JuliaValue {
     this.ptr = ptr;
   }
 
+  public static from(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    values: IterableIterator<any> | any[],
+  ): JuliaSet {
+    const set = Julia.Base.Set() as JuliaSet;
+    for (const value of values) {
+      set.add(value);
+    }
+    return set;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   has(value: any): boolean {
     return Julia.Base.in(value, this).value;

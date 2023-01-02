@@ -10,6 +10,17 @@ export class JuliaDict implements JuliaValue {
     this.ptr = ptr;
   }
 
+  public static from(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    map: IterableIterator<[any, any]> | [any, any][],
+  ): JuliaDict {
+    const dict = Julia.Base.Dict() as JuliaDict;
+    for (const [key, value] of map) {
+      dict.set(key, value);
+    }
+    return dict;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   has(key: any): boolean {
     return Julia.Base.haskey(this, key).value;
@@ -58,5 +69,26 @@ export class JuliaDict implements JuliaValue {
 
   toString(): string {
     return `[JuliaDict ${Julia.string(this)}]`;
+  }
+}
+
+export class JuliaIdDict extends JuliaDict {
+  constructor(ptr: number) {
+    super(ptr);
+  }
+
+  public static from(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    map: IterableIterator<[any, any]> | [any, any][],
+  ): JuliaIdDict {
+    const dict = Julia.Base.IdDict() as JuliaIdDict;
+    for (const [key, value] of map) {
+      dict.set(key, value);
+    }
+    return dict;
+  }
+
+  toString(): string {
+    return `[JuliaIdDict ${Julia.string(this)}]`;
   }
 }

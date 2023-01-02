@@ -103,5 +103,11 @@ size_t jl_array_dim_getter(jl_array_t *a, int32_t i) {
 }
 
 // GC
-void jl_gc_push1(jl_value_t *x) { JL_GC_PUSH1(x); }
+void jl_gc_push1(jl_value_t *x) { JL_GC_PUSH1(&x); }
+void jl_gc_push2(jl_value_t *x, jl_value_t *y) { JL_GC_PUSH2(&x, &y); }
+void jl_gc_push3(jl_value_t *x, jl_value_t *y, jl_value_t *z) {
+  JL_GC_PUSH3(&x, &y, &z);
+}
+void jl_gc_push(jl_value_t **args, int32_t n) { JL_GC_PUSHARGS(args, n); }
+
 void jl_gc_pop() { JL_GC_POP(); }

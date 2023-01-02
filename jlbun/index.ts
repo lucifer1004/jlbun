@@ -18,7 +18,7 @@ export interface JuliaOptions {
 }
 
 export { JuliaArray } from "./arrays.js";
-export { JuliaDict } from "./dicts.js";
+export { JuliaDict, JuliaIdDict } from "./dicts.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
 export { JuliaFunction } from "./functions.js";
 export { Julia, MIME } from "./julia.js";

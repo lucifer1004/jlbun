@@ -11,6 +11,7 @@ import {
   JuliaFloat32,
   JuliaFloat64,
   JuliaFunction,
+  JuliaIdDict,
   JuliaInt8,
   JuliaInt16,
   JuliaInt32,
@@ -51,7 +52,7 @@ const DEFAULT_JULIA_OPTIONS = {
 
 export class Julia {
   private static options: JuliaOptions = DEFAULT_JULIA_OPTIONS;
-  private static globals: JuliaDict;
+  private static globals: JuliaIdDict;
   public static nthreads: number;
 
   public static Core: JuliaModule;
@@ -204,11 +205,12 @@ export class Julia {
       }
 
       Julia.nthreads = Number(Julia.eval("Threads.nthreads()").value);
-      Julia.globals = Julia.eval("Dict()") as JuliaDict;
-      jlbun.symbols.jl_set_global(
-        Julia.Main.ptr,
-        JuliaSymbol.from("__jlbun_globals__").ptr,
-        Julia.globals.ptr,
+      Julia.eval("__jlbun_globals__ = IdDict()");
+      Julia.globals = new JuliaIdDict(
+        jlbun.symbols.jl_get_global(
+          Julia.Main.ptr,
+          JuliaSymbol.from("__jlbun_globals__").ptr,
+        ),
       );
     }
   }
@@ -312,7 +314,7 @@ export class Julia {
     } else {
       try {
         return JuliaNamedTuple.from(value);
-      } catch (_) {
+      } catch (e) {
         throw new MethodError(`Cannot convert to Julia value: ${value}`);
       }
     }
@@ -392,6 +394,8 @@ export class Julia {
       return new JuliaSet(ptr);
     } else if (typeStr === "Dict") {
       return new JuliaDict(ptr);
+    } else if (typeStr === "IdDict") {
+      return new JuliaIdDict(ptr);
     } else if (typeStr[0] === "#") {
       let funcName: string;
       if (typeStr[1] >= "0" && typeStr[1] <= "9") {
@@ -408,9 +412,9 @@ export class Julia {
   }
 
   private static handleEvalException(code: string): void {
-    const err = jlbun.symbols.jl_exception_occurred();
-    if (err !== null) {
-      const errType = Julia.getTypeStr(err);
+    const errPtr = jlbun.symbols.jl_exception_occurred();
+    if (errPtr !== null) {
+      const errType = Julia.getTypeStr(errPtr);
       if (errType == "MethodError") {
         throw new MethodError(code);
       } else if (errType == "InexactError") {
@@ -421,16 +425,16 @@ export class Julia {
     }
   }
 
-  private static handleCallException(
+  public static handleCallException(
     func: JuliaFunction,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     kwargs: Record<string, any> = {},
   ): void {
-    const err = jlbun.symbols.jl_exception_occurred();
-    if (err !== null) {
-      const errType = Julia.getTypeStr(err);
+    const errPtr = jlbun.symbols.jl_exception_occurred();
+    if (errPtr !== null) {
+      const errType = Julia.getTypeStr(errPtr);
       const funcCallParts = [
         func.name,
         "(",
@@ -450,7 +454,7 @@ export class Julia {
       } else if (errType == "InexactError") {
         throw new InexactError(funcCall);
       } else {
-        throw new UnknownJuliaError(Julia.string(Julia.wrapPtr(err)));
+        throw new UnknownJuliaError(Julia.string(Julia.wrapPtr(errPtr)));
       }
     }
   }
@@ -509,9 +513,6 @@ export class Julia {
     const wrappedKwargs =
       kwargs instanceof JuliaNamedTuple ? kwargs : JuliaNamedTuple.from(kwargs);
 
-    // FIXME: This is a temporary workaround to keep the kwargs from being GC'd
-    jlbun.symbols.jl_call1(Julia.Base.collect.ptr, wrappedKwargs.ptr);
-
     const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
 
     let ret: number;
@@ -562,7 +563,10 @@ export class Julia {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...values: any[]
   ): JuliaValue {
-    const uuids = Array.from({ length: values.length }, () => randomUUID());
+    const uuids = Array.from(
+      { length: values.length },
+      () => `tmp_${randomUUID()}`,
+    );
     for (let i = 0; i < values.length; i++) {
       Julia.setGlobal(uuids[i], Julia.autoWrap(values[i]));
     }

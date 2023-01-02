@@ -1,4 +1,4 @@
-import { jlbun, Julia, JuliaArray, JuliaSymbol, JuliaValue } from "./index.js";
+import { jlbun, Julia, JuliaFunction, JuliaValue } from "./index.js";
 
 /**
  * Wrapper for Julia `Tuple`.
@@ -72,30 +72,39 @@ export class JuliaNamedTuple implements JuliaValue {
   length: number;
   fieldNames: string[];
 
-  constructor(ptr: number) {
+  constructor(ptr: number, fieidNames?: string[]) {
     this.ptr = ptr;
-    this.length = Number(jlbun.symbols.jl_nfields_getter(this.ptr));
-    const fieldNamesStr: string = Julia.Base.fieldnames(
-      Julia.Base.typeof(this),
-    ).toString();
-    const fieldNamesStrTrimmed = fieldNamesStr.substring(
-      1,
-      fieldNamesStr.length - 1,
-    );
-    this.fieldNames = fieldNamesStrTrimmed
-      .split(", ")
-      .map((s) => s.substring(1, s.length));
+
+    if (fieidNames === undefined) {
+      this.length = Number(jlbun.symbols.jl_nfields_getter(this.ptr));
+      const fieldNamesStr: string = Julia.Base.fieldnames(
+        Julia.Base.typeof(this),
+      ).toString();
+      const fieldNamesStrTrimmed = fieldNamesStr.substring(
+        1,
+        fieldNamesStr.length - 1,
+      );
+      this.fieldNames = fieldNamesStrTrimmed
+        .split(", ")
+        .map((s) => s.substring(1, s.length));
+    } else {
+      this.length = fieidNames.length;
+      this.fieldNames = fieidNames;
+    }
   }
 
   public static from(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     obj: Record<string, any>,
   ): JuliaNamedTuple {
-    const arr = JuliaArray.init(Julia.Any, 0);
-    for (const k of Object.keys(obj)) {
-      arr.push(JuliaPair.from(JuliaSymbol.from(k), obj[k]));
-    }
-    return Julia.Core.NamedTuple(arr);
+    const keys = Array.from(Object.keys(obj));
+    const tupleType = Julia.eval(
+      `NamedTuple{(${keys.map((key) => `Symbol("${key}")`).join(",")},)}`,
+    );
+    const values = JuliaTuple.from(...keys.map((key) => obj[key]));
+    const ptr = jlbun.symbols.jl_call1(tupleType.ptr, values.ptr);
+    Julia.handleCallException(tupleType as JuliaFunction, [values]);
+    return new JuliaNamedTuple(ptr, keys);
   }
 
   get(index: number): JuliaValue {
@@ -103,13 +112,13 @@ export class JuliaNamedTuple implements JuliaValue {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get value(): Map<string, any> {
+  get value(): Record<string, any> {
     const len = this.length;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const obj = new Map<string, any>();
+    const obj = {} as Record<string, any>;
     for (let i = 0; i < len; i++) {
-      obj.set(this.fieldNames[i], this.get(i).value);
+      obj[this.fieldNames[i]] = this.get(i).value;
     }
     return obj;
   }

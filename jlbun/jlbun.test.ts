@@ -46,6 +46,11 @@ describe("Julia", () => {
     expect(Julia.tagEval`${hello} * " " * join(${world})`.value).toBe(
       "hello world",
     );
+
+    expect(Julia.tagEval`${{ foo: 1, bar: 2 }}`.value).toEqual({
+      foo: 1n,
+      bar: 2n,
+    });
   });
 });
 
@@ -482,6 +487,33 @@ describe("JuliaSet", () => {
     expect(set.has(4)).toBe(true);
     expect(set.value).toEqual(new Set([1n, 3n, 4n]));
   });
+
+  it("can be created from JS", () => {
+    const set = JuliaSet.from([1n, 2n, 3n]);
+    expect(set.size).toBe(3);
+    expect(set.has(1)).toBe(true);
+    expect(set.has(2)).toBe(true);
+    expect(set.has(3)).toBe(true);
+    expect(set.has(4)).toBe(false);
+    expect(set.value).toEqual(new Set([1n, 2n, 3n]));
+
+    expect(set.delete(2)).toBe(true);
+    expect(set.delete(4)).toBe(false);
+    expect(set.size).toBe(2);
+    expect(set.has(1)).toBe(true);
+    expect(set.has(2)).toBe(false);
+    expect(set.has(3)).toBe(true);
+    expect(set.has(4)).toBe(false);
+    expect(set.value).toEqual(new Set([1n, 3n]));
+
+    set.add(4);
+    expect(set.size).toBe(3);
+    expect(set.has(1)).toBe(true);
+    expect(set.has(2)).toBe(false);
+    expect(set.has(3)).toBe(true);
+    expect(set.has(4)).toBe(true);
+    expect(set.value).toEqual(new Set([1n, 3n, 4n]));
+  });
 });
 
 describe("JuliaDict", () => {
@@ -489,6 +521,53 @@ describe("JuliaDict", () => {
     const dict = Julia.eval(
       'Dict{String, Any}("a" => 1, "b" => 2)',
     ) as JuliaDict;
+    expect(dict.size).toBe(2);
+    expect(dict.has("a")).toBe(true);
+    expect(dict.has("b")).toBe(true);
+    expect(dict.has("c")).toBe(false);
+    expect(dict.get("a").value).toBe(1n);
+    expect(dict.get("b").value).toBe(2n);
+    expect(dict.get("c").value).toBe(null);
+    expect(dict.value).toEqual(
+      new Map([
+        ["a", 1n],
+        ["b", 2n],
+      ]),
+    );
+
+    expect(dict.delete("a")).toBe(true);
+    expect(dict.delete("c")).toBe(false);
+    expect(dict.size).toBe(1);
+    expect(dict.has("a")).toBe(false);
+    expect(dict.has("b")).toBe(true);
+    expect(dict.has("c")).toBe(false);
+    expect(dict.get("a").value).toBe(null);
+    expect(dict.get("b").value).toBe(2n);
+    expect(dict.get("c").value).toBe(null);
+    expect(dict.value).toEqual(new Map([["b", 2n]]));
+
+    dict.set("b", 3);
+    expect(dict.size).toBe(1);
+    expect(dict.get("b").value).toBe(3n);
+    expect(dict.value).toEqual(new Map([["b", 3n]]));
+
+    dict.set("c", "hello");
+    expect(dict.size).toBe(2);
+    expect(dict.get("c").value).toBe("hello");
+    expect(dict.value).toEqual(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      new Map<string, any>([
+        ["b", 3n],
+        ["c", "hello"],
+      ]),
+    );
+  });
+
+  it("can be created from JS", () => {
+    const dict = JuliaDict.from([
+      ["a", 1n],
+      ["b", 2n],
+    ]);
     expect(dict.size).toBe(2);
     expect(dict.has("a")).toBe(true);
     expect(dict.has("b")).toBe(true);

@@ -302,6 +302,6 @@ export class JuliaAny implements JuliaValue {
   }
 
   toString(): string {
-    return `[JuliaValue ${this.value}]`;
+    return `[JuliaValue ${Julia.string(this)}]`;
   }
 }
