@@ -20,7 +20,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "install": "bun build-lib",
-    "build-lib": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
+    "build-lib": "rimraf ./build && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
     "typedoc": "typedoc --tsconfig tsconfig.typedoc.json",
     "fmt": "prettier --write './**/*.{ts,tsx,cjs,js,jsx,json}'",
     "lint": "eslint '**/*.{js,ts}' '*.{js,ts,cjs}' package.json --fix",
