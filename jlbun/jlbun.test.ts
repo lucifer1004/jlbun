@@ -1,3 +1,4 @@
+import { CString, JSCallback, ptr } from "bun:ffi";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   Julia,
@@ -23,6 +24,7 @@ import {
   JuliaUInt16,
   JuliaUInt32,
   JuliaUInt64,
+  safeCString,
 } from "./index.js";
 
 beforeAll(() => Julia.init({ project: null }));
@@ -333,6 +335,52 @@ describe("JuliaFunction", () => {
     ) as JuliaFunction;
     expect(f3_3.callWithKwargs({ a: 1, b: 2, c: 3 }, 1, 2, 3).value).toBe(36n);
   });
+
+  it("can be created from a JS function", () => {
+    const jsFunc = (x: number, y: number) => {
+      const str = `${new CString(y).toString()} ${x}`;
+      return ptr(safeCString(str));
+    };
+
+    const cb = JuliaFunction.from(jsFunc, {
+      returns: "cstring",
+      args: ["i32", "cstring"],
+    });
+
+    expect(cb(42, "Hello").value).toBe("Hello 42");
+    cb.close();
+
+    const cb2 = JuliaFunction.from((x: number, y: number) => x + y, {
+      returns: "i32",
+      args: ["i32", "i32"],
+    });
+    expect(cb2(1, 2).value).toBe(3);
+    cb2.close();
+
+    const cb3 = JuliaFunction.from((x: number) => -x, {
+      returns: "i32",
+      args: ["i32"],
+    });
+    const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
+    const neg = arr.map(cb3);
+    expect(neg.value).toEqual(new Int32Array([-1, -10, -20, -30, -100]));
+  });
+
+  it("can be created from a JS function and then used as a function parameter", () => {
+    const jsFunc = (x: number) => {
+      return ptr(safeCString(x.toString()));
+    };
+
+    const cb = JuliaFunction.from(jsFunc, {
+      returns: "cstring",
+      args: ["i32"],
+    });
+
+    const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
+    Julia.Base["sort!"].callWithKwargs({ by: cb, rev: true }, arr);
+    expect(arr.value).toEqual(new Int32Array([30, 20, 100, 10, 1]));
+    cb.close();
+  });
 });
 
 describe("JuliaArray", () => {
@@ -440,23 +488,25 @@ describe("JuliaTuple", () => {
 });
 
 describe("JuliaNamedTuple", () => {
+  // TODO: find a proper way to keep the tuples alive
   it("can be created from Julia", () => {
-    const tuple = Julia.eval("(a = 1, b = 2, c = 3)") as JuliaNamedTuple;
-    expect(tuple.fieldNames).toEqual(["a", "b", "c"]);
-    expect(tuple.get(0).value).toBe(1n);
-    expect(tuple.get(1).value).toBe(2n);
-    expect(tuple.get(2).value).toBe(3n);
-    expect(tuple.length).toBe(3);
-    expect(tuple.toString()).toBe("(a = 1, b = 2, c = 3)");
+    const tuple = () => Julia.eval("(a = 1, b = 2, c = 3)") as JuliaNamedTuple;
+    expect(tuple().fieldNames).toEqual(["a", "b", "c"]);
+    expect(tuple().get(0).value).toBe(1n);
+    expect(tuple().get(1).value).toBe(2n);
+    expect(tuple().get(2).value).toBe(3n);
+    expect(tuple().length).toBe(3);
+    expect(tuple().toString()).toBe("(a = 1, b = 2, c = 3)");
   });
 
   it("can be created from JS", () => {
-    const tuple = JuliaNamedTuple.from({ a: 1, b: 2, c: "hello" });
-    expect(tuple.get(0).value).toBe(1n);
-    expect(tuple.get(1).value).toBe(2n);
-    expect(tuple.get(2).value).toBe("hello");
-    expect(tuple.length).toBe(3);
-    expect(tuple.toString()).toBe('(a = 1, b = 2, c = "hello")');
+    const tuple = () => JuliaNamedTuple.from({ a: 1, b: 2, c: "hello" });
+    expect(tuple().fieldNames).toEqual(["a", "b", "c"]);
+    expect(tuple().get(0).value).toBe(1n);
+    expect(tuple().get(1).value).toBe(2n);
+    expect(tuple().get(2).value).toBe("hello");
+    expect(tuple().length).toBe(3);
+    expect(tuple().toString()).toBe('(a = 1, b = 2, c = "hello")');
   });
 });
 
@@ -602,7 +652,8 @@ describe("JuliaDict", () => {
     expect(dict.size).toBe(2);
     expect(dict.get("c").value).toBe("hello");
     expect(dict.value).toEqual(
-      new Map<string, unknown>([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      new Map<string, any>([
         ["b", 3n],
         ["c", "hello"],
       ]),

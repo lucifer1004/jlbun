@@ -179,3 +179,7 @@ docs
 julia.h
 bun.lockb
 Manifest.toml
+
+# Ignore deno-related files for now
+packages
+julia/codegen-deno.jl

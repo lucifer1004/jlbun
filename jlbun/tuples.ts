@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { jlbun, Julia, JuliaFunction, JuliaValue } from "./index.js";
 
 /**
@@ -12,7 +13,7 @@ export class JuliaTuple implements JuliaValue {
     this.length = Number(jlbun.symbols.jl_nfields_getter(this.ptr));
   }
 
-  static from(...args: unknown[]): JuliaTuple {
+  static from(...args: any[]): JuliaTuple {
     return Julia.Core.tuple(...args);
   }
 
@@ -20,7 +21,7 @@ export class JuliaTuple implements JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
-  get value(): unknown[] {
+  get value(): any[] {
     return Array.from({ length: this.length }, (_, i) => this.get(i).value);
   }
 
@@ -39,7 +40,7 @@ export class JuliaPair implements JuliaValue {
     this.ptr = ptr;
   }
 
-  static from(first: unknown, second: unknown): JuliaPair {
+  static from(first: any, second: any): JuliaPair {
     return Julia.Base.Pair(first, second);
   }
 
@@ -51,7 +52,7 @@ export class JuliaPair implements JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 1));
   }
 
-  get value(): [unknown, unknown] {
+  get value(): [any, any] {
     return [this.first.value, this.second.value];
   }
 
@@ -89,7 +90,7 @@ export class JuliaNamedTuple implements JuliaValue {
     }
   }
 
-  public static from(obj: Record<string, unknown>): JuliaNamedTuple {
+  public static from(obj: Record<string, any>): JuliaNamedTuple {
     const keys = Array.from(Object.keys(obj));
     if (keys.length === 0) {
       return Julia.Core.NamedTuple() as JuliaNamedTuple;
@@ -108,10 +109,10 @@ export class JuliaNamedTuple implements JuliaValue {
     return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
   }
 
-  get value(): Record<string, unknown> {
+  get value(): Record<string, any> {
     const len = this.length;
 
-    const obj = {} as Record<string, unknown>;
+    const obj = {} as Record<string, any>;
     for (let i = 0; i < len; i++) {
       obj[this.fieldNames[i]] = this.get(i).value;
     }

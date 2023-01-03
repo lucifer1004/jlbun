@@ -315,7 +315,7 @@ export class Julia {
     } else {
       try {
         return JuliaNamedTuple.from(value);
-      } catch (e) {
+      } catch (_) {
         throw new MethodError(`Cannot convert to Julia value: ${value}`);
       }
     }
@@ -421,8 +421,10 @@ export class Julia {
    */
   public static wrapFunctionCall(
     func: JuliaFunction,
-    kwargs: JuliaNamedTuple | Record<string, unknown>,
-    ...args: unknown[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: JuliaNamedTuple | Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
   ): JuliaFunction {
     const kwsorter = Julia.Core.kwfunc(func);
     const wrappedKwargs =
@@ -472,7 +474,8 @@ export class Julia {
     func: JuliaFunction,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
-    kwargs: JuliaNamedTuple | Record<string, unknown> = {},
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: JuliaNamedTuple | Record<string, any> = {},
   ): void {
     const errPtr = jlbun.symbols.jl_exception_occurred();
     if (errPtr !== null) {
@@ -548,8 +551,10 @@ export class Julia {
    */
   public static callWithKwargs(
     func: JuliaFunction,
-    kwargs: JuliaNamedTuple | Record<string, unknown>,
-    ...args: unknown[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: JuliaNamedTuple | Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
   ): JuliaValue {
     const kwsorter = Julia.Core.kwfunc(func);
     const wrappedKwargs =

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Julia, JuliaNothing, JuliaValue } from "./index.js";
 
 /**
@@ -11,7 +12,7 @@ export class JuliaDict implements JuliaValue {
   }
 
   public static from(
-    map: IterableIterator<[unknown, unknown]> | [unknown, unknown][],
+    map: IterableIterator<[any, any]> | [any, any][],
   ): JuliaDict {
     const dict = Julia.Base.Dict() as JuliaDict;
     for (const [key, value] of map) {
@@ -20,19 +21,19 @@ export class JuliaDict implements JuliaValue {
     return dict;
   }
 
-  has(key: unknown): boolean {
+  has(key: any): boolean {
     return Julia.Base.haskey(this, key).value;
   }
 
-  get(key: unknown): JuliaValue {
+  get(key: any): JuliaValue {
     return Julia.Base.get(this, key, JuliaNothing.getInstance());
   }
 
-  set(key: unknown, value: unknown): JuliaValue {
+  set(key: any, value: any): JuliaValue {
     return Julia.Base["setindex!"](this, value, key);
   }
 
-  delete(value: unknown): boolean {
+  delete(value: any): boolean {
     if (this.has(value)) {
       Julia.Base["pop!"](this, value);
       return true;
@@ -45,7 +46,7 @@ export class JuliaDict implements JuliaValue {
     return Number(Julia.Base.length(this).value);
   }
 
-  get value(): Map<unknown, unknown> {
+  get value(): Map<any, any> {
     return new Map(Julia.Base.collect(this).value);
   }
 
@@ -72,7 +73,7 @@ export class JuliaIdDict extends JuliaDict {
   }
 
   public static from(
-    map: IterableIterator<[unknown, unknown]> | [unknown, unknown][],
+    map: IterableIterator<[any, any]> | [any, any][],
   ): JuliaIdDict {
     const dict = Julia.Base.IdDict() as JuliaIdDict;
     for (const [key, value] of map) {

@@ -11,6 +11,7 @@
     - [Do some linear algebra](#do-some-linear-algebra)
     - [Install and use new packages](#install-and-use-new-packages)
     - [Function calls with keyword arguments](#function-calls-with-keyword-arguments)
+    - [Call JS functions from Julia](#call-js-functions-from-julia)
     - [Run Julia with multiple threads](#run-julia-with-multiple-threads)
   - [TODO](#todo)
 
@@ -145,6 +146,53 @@ const rawArray = new Int32Array([1, 10, 20, 30, 100]);
 const arr = JuliaArray.from(rawArray);
 Julia.Base["sort!"].callWithKwargs({ by: Julia.Base.string, rev: true }, arr);
 console.log(rawArray); // Int32Array(5) [ 30, 20, 100, 10, 1 ]
+
+Julia.close();
+```
+
+### Call JS functions from Julia
+
+```typescript
+import { Julia, JuliaArray, JuliaFunction } from "jlbun";
+
+Julia.init();
+
+const jsFunc = (x: number) => -x;
+
+const cb = JuliaFunction.from(jsFunc, {
+  returns: "i32",
+  args: ["i32"],
+});
+
+const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
+const neg = arr.map(cb);
+Julia.println(neg); // Int32[-1, -10, -20, -30, -100]
+cb.close();
+
+Julia.close();
+```
+
+To deal with strings requires some tricks, see the example below:
+
+```typescript
+import { ptr } from "bun:ffi";
+import { Julia, JuliaArray, JuliaFunction, safeCString } from "jlbun";
+
+Julia.init();
+
+const jsFunc = (x: number) => {
+  return ptr(safeCString(x.toString()));
+};
+
+const cb = JuliaFunction.from(jsFunc, {
+  returns: "cstring",
+  args: ["i32"],
+});
+
+const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
+Julia.Base["sort!"].callWithKwargs({ by: cb, rev: true }, arr);
+Julia.println(arr); // Int32[30, 20, 100, 10, 1]
+cb.close();
 
 Julia.close();
 ```

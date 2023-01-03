@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Julia, JuliaValue } from "./index.js";
 
 /**
@@ -10,7 +11,7 @@ export class JuliaSet implements JuliaValue {
     this.ptr = ptr;
   }
 
-  public static from(values: IterableIterator<unknown> | unknown[]): JuliaSet {
+  public static from(values: IterableIterator<any> | any[]): JuliaSet {
     const set = Julia.Base.Set() as JuliaSet;
     for (const value of values) {
       set.add(value);
@@ -18,15 +19,15 @@ export class JuliaSet implements JuliaValue {
     return set;
   }
 
-  has(value: unknown): boolean {
+  has(value: any): boolean {
     return Julia.Base.in(value, this).value;
   }
 
-  add(value: unknown): void {
+  add(value: any): void {
     Julia.Base["push!"](this, value);
   }
 
-  delete(value: unknown): boolean {
+  delete(value: any): boolean {
     if (this.has(value)) {
       Julia.Base["pop!"](this, value);
       return true;
@@ -39,7 +40,7 @@ export class JuliaSet implements JuliaValue {
     return Number(Julia.Base.length(this).value);
   }
 
-  get value(): Set<unknown> {
+  get value(): Set<any> {
     return new Set(Julia.Base.collect(this).value);
   }
 
