@@ -292,6 +292,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr],
     returns: FFIType.f64,
   },
+  jl_unbox_voidpointer: {
+    args: [FFIType.ptr],
+    returns: FFIType.ptr,
+  },
   jl_get_nth_field: {
     args: [FFIType.ptr, FFIType.i32],
     returns: FFIType.ptr,

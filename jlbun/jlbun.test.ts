@@ -1,4 +1,4 @@
-import { CString, toArrayBuffer } from "bun:ffi";
+import { CString, ptr, toArrayBuffer } from "bun:ffi";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   Julia,
@@ -364,6 +364,7 @@ describe("JuliaFunction", () => {
     const arr3 = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
     const neg = arr3.map(cb3);
     expect(neg.value).toEqual(new Int32Array([-1, -10, -20, -30, -100]));
+    cb3.close();
 
     const jsFunc4 = (ptr: number, length: number) =>
       safeCString(new Int32Array(toArrayBuffer(ptr, 0, length * 4)).join(", "));
@@ -373,7 +374,21 @@ describe("JuliaFunction", () => {
     });
     const arr4 = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
     expect(cb4(arr4, arr4.length).value).toBe("1, 10, 20, 30, 100");
-    cb.close();
+    cb4.close();
+
+    const jsFunc5 = (length: number) => {
+      const arr = new Int32Array(length);
+      arr.fill(100);
+      return ptr(arr);
+    };
+    const cb5 = JuliaFunction.from(jsFunc5, {
+      returns: "ptr",
+      args: ["i32"],
+    });
+    expect(new Int32Array(toArrayBuffer(cb5(5).value, 0, 5 * 4))).toEqual(
+      new Int32Array([100, 100, 100, 100, 100]),
+    );
+    cb5.close();
   });
 
   it("can be created from a JS function and then used as a function parameter", () => {

@@ -288,6 +288,19 @@ export class JuliaNothing extends JuliaPrimitive {
 }
 
 /**
+ * Wrapper for Julia `Ptr`.
+ */
+export class JuliaPtr extends JuliaPrimitive {
+  constructor(ptr: number) {
+    super(ptr);
+  }
+
+  get value(): number {
+    return jlbun.symbols.jl_unbox_voidpointer(this.ptr);
+  }
+}
+
+/**
  * Wrapper for Julia objects not handled yet.
  */
 export class JuliaAny implements JuliaValue {

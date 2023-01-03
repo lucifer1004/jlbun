@@ -39,6 +39,7 @@ export {
   JuliaInt32,
   JuliaInt64,
   JuliaNothing,
+  JuliaPtr,
   JuliaString,
   JuliaSymbol,
   JuliaUInt8,

@@ -22,6 +22,7 @@ import {
   JuliaNothing,
   JuliaOptions,
   JuliaPair,
+  JuliaPtr,
   JuliaSet,
   JuliaString,
   JuliaSymbol,
@@ -407,6 +408,8 @@ export class Julia {
       return new JuliaFunction(ptr, funcName);
     } else if (typeStr === "Task") {
       return new JuliaTask(ptr);
+    } else if (typeStr === "Ptr") {
+      return new JuliaPtr(ptr);
     }
 
     return new JuliaAny(ptr);

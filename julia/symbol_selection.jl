@@ -45,6 +45,7 @@ INCLUDED = Set([
     "jl_unbox_float32",
     "jl_unbox_float64",
     "jl_unbox_bool",
+    "jl_unbox_voidpointer",
     "jl_cstr_to_string",
     "jl_string_ptr",
     "jl_symbol",
