@@ -1,7 +1,7 @@
-import { FFIType, FFITypeOrString } from "bun:ffi";
+import { FFIType, FFITypeOrString, ptr } from "bun:ffi";
 
-export function safeCString(s: string): Buffer {
-  return Buffer.from(s + "\x00");
+export function safeCString(s: string): number {
+  return ptr(Buffer.from(s + "\x00"));
 }
 
 export function mapFFITypeToJulia(type: FFITypeOrString): string {

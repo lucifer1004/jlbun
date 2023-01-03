@@ -1,4 +1,4 @@
-import { CString, JSCallback, ptr } from "bun:ffi";
+import { CString } from "bun:ffi";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   Julia,
@@ -339,7 +339,7 @@ describe("JuliaFunction", () => {
   it("can be created from a JS function", () => {
     const jsFunc = (x: number, y: number) => {
       const str = `${new CString(y).toString()} ${x}`;
-      return ptr(safeCString(str));
+      return safeCString(str);
     };
 
     const cb = JuliaFunction.from(jsFunc, {
@@ -368,7 +368,7 @@ describe("JuliaFunction", () => {
 
   it("can be created from a JS function and then used as a function parameter", () => {
     const jsFunc = (x: number) => {
-      return ptr(safeCString(x.toString()));
+      return safeCString(x.toString());
     };
 
     const cb = JuliaFunction.from(jsFunc, {

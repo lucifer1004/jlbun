@@ -175,13 +175,12 @@ Julia.close();
 To deal with strings requires some tricks, see the example below:
 
 ```typescript
-import { ptr } from "bun:ffi";
 import { Julia, JuliaArray, JuliaFunction, safeCString } from "jlbun";
 
 Julia.init();
 
 const jsFunc = (x: number) => {
-  return ptr(safeCString(x.toString()));
+  return safeCString(x.toString());
 };
 
 const cb = JuliaFunction.from(jsFunc, {
