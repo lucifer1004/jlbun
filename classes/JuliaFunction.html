@@ -20,6 +20,9 @@
 <h1>Class JuliaFunction</h1></div>
 <section class="tsd-panel tsd-comment">
 <div class="tsd-comment tsd-typography"><p>Wrapper for Julia <code>Function</code>.</p>
+<p>If the <code>JuliaFunction</code> comes from a JS function, you can use the
+<code>.rawCB</code> field to get the raw <code>JSCallback</code> and use <code>cb.close()</code>
+if the function will no longer be used.</p>
 </div></section>
 <section class="tsd-panel tsd-hierarchy">
 <h4>Hierarchy</h4>
@@ -32,7 +35,7 @@
 <ul class="tsd-hierarchy">
 <li><a href="../interfaces/JuliaValue.html" class="tsd-signature-type" data-tsd-kind="Interface">JuliaValue</a></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/eed8e3a/jlbun/functions.ts#L6">jlbun/functions.ts:6</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L12">jlbun/functions.ts:12</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-index-accordion" open><summary class="tsd-accordion-summary tsd-index-summary">
@@ -50,6 +53,7 @@
 <a href="JuliaFunction.html#name" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>name</span></a>
 <a href="JuliaFunction.html#prototype" class="tsd-index-link tsd-kind-property tsd-parent-kind-class tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>prototype</span></a>
 <a href="JuliaFunction.html#ptr" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>ptr</span></a>
+<a href="JuliaFunction.html#rawCB" class="tsd-index-link tsd-kind-property tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg><span>rawCB?</span></a>
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading">Accessors</h3>
@@ -62,7 +66,9 @@
 <a href="JuliaFunction.html#bind" class="tsd-index-link tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>bind</span></a>
 <a href="JuliaFunction.html#call" class="tsd-index-link tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>call</span></a>
 <a href="JuliaFunction.html#callWithKwargs" class="tsd-index-link tsd-kind-method tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>call<wbr/>With<wbr/>Kwargs</span></a>
+<a href="JuliaFunction.html#close" class="tsd-index-link tsd-kind-method tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>close</span></a>
 <a href="JuliaFunction.html#toString" class="tsd-index-link tsd-kind-method tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>to<wbr/>String</span></a>
+<a href="JuliaFunction.html#from" class="tsd-index-link tsd-kind-method tsd-parent-kind-class"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg><span>from</span></a>
 </div></section></div></details></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Constructors</h2>
@@ -81,7 +87,7 @@
 <h4 class="tsd-returns-title">Returns <a href="JuliaFunction.html" class="tsd-signature-type" data-tsd-kind="Class">JuliaFunction</a></h4><aside class="tsd-sources">
 <p>Overrides Function.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/eed8e3a/jlbun/functions.ts#L10">jlbun/functions.ts:10</a></li></ul></aside></li></ul></section></section>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L17">jlbun/functions.ts:17</a></li></ul></aside></li></ul></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Properties</h2>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a id="arguments" class="tsd-anchor"></a>
@@ -107,7 +113,7 @@
 <div class="tsd-signature">name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <p>Overrides Function.name</p>
 <ul>
-<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/eed8e3a/jlbun/functions.ts#L8">jlbun/functions.ts:8</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L14">jlbun/functions.ts:14</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a id="prototype" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>prototype</span><a href="#prototype" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <div class="tsd-signature">prototype<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">any</span></div><aside class="tsd-sources">
@@ -119,7 +125,12 @@
 <div class="tsd-signature">ptr<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/JuliaValue.html">JuliaValue</a>.<a href="../interfaces/JuliaValue.html#ptr">ptr</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/eed8e3a/jlbun/functions.ts#L7">jlbun/functions.ts:7</a></li></ul></aside></section></section>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L13">jlbun/functions.ts:13</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class"><a id="rawCB" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>rawCB</span><a href="#rawCB" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
+<div class="tsd-signature">rawCB<span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">JSCallback</span></div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L15">jlbun/functions.ts:15</a></li></ul></aside></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Accessors</h2>
 <section class="tsd-panel tsd-member tsd-kind-accessor tsd-parent-kind-class"><a id="value" class="tsd-anchor"></a>
@@ -130,7 +141,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4><aside class="tsd-sources">
 <p>Implementation of JuliaValue.value</p>
 <ul>
-<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/eed8e3a/jlbun/functions.ts#L26">jlbun/functions.ts:26</a></li></ul></aside></li></ul></section></section>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L94">jlbun/functions.ts:94</a></li></ul></aside></li></ul></section></section>
 <section class="tsd-panel-group tsd-member-group">
 <h2>Methods</h2>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a id="_hasInstance_" class="tsd-anchor"></a>
@@ -149,7 +160,7 @@ as a constructor function.</p>
 <li>
 <h5>value: <span class="tsd-signature-type">any</span></h5></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
-<p>Inherited from Function.__@hasInstance@735</p>
+<p>Inherited from Function.__@hasInstance@844</p>
 <ul>
 <li>Defined in node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts:162</li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a id="apply" class="tsd-anchor"></a>
@@ -228,18 +239,34 @@ The this object of the bound function is associated with the specified object, a
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="callWithKwargs" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>call<wbr/>With<wbr/>Kwargs</span><a href="#callWithKwargs" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-<li class="tsd-signature tsd-anchor-link" id="callWithKwargs.callWithKwargs-1">call<wbr/>With<wbr/>Kwargs<span class="tsd-signature-symbol">(</span>kwargs<span class="tsd-signature-symbol">: </span><a href="JuliaNamedTuple.html" class="tsd-signature-type" data-tsd-kind="Class">JuliaNamedTuple</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span>, <span class="tsd-signature-symbol">...</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/JuliaValue.html" class="tsd-signature-type" data-tsd-kind="Interface">JuliaValue</a><a href="#callWithKwargs.callWithKwargs-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
+<li class="tsd-signature tsd-anchor-link" id="callWithKwargs.callWithKwargs-1">call<wbr/>With<wbr/>Kwargs<span class="tsd-signature-symbol">(</span>kwargs<span class="tsd-signature-symbol">: </span><a href="JuliaNamedTuple.html" class="tsd-signature-type" data-tsd-kind="Class">JuliaNamedTuple</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span>, <span class="tsd-signature-symbol">...</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/JuliaValue.html" class="tsd-signature-type" data-tsd-kind="Interface">JuliaValue</a><a href="#callWithKwargs.callWithKwargs-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
 <li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Call the function with keyword arguments.</p>
+</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li>
-<h5>kwargs: <a href="JuliaNamedTuple.html" class="tsd-signature-type" data-tsd-kind="Class">JuliaNamedTuple</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span></h5></li>
+<h5>kwargs: <a href="JuliaNamedTuple.html" class="tsd-signature-type" data-tsd-kind="Class">JuliaNamedTuple</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span></h5>
+<div class="tsd-comment tsd-typography"><p>Keyword arguments, can either be a <code>JuliaNamedTuple</code> or a JS object.</p>
+</div></li>
 <li>
-<h5><code class="tsd-tag ts-flagRest">Rest</code> <span class="tsd-signature-symbol">...</span>args: <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">[]</span></h5></li></ul></div>
+<h5><code class="tsd-tag ts-flagRest">Rest</code> <span class="tsd-signature-symbol">...</span>args: <span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span></h5>
+<div class="tsd-comment tsd-typography"><p>Other arguments.</p>
+</div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="../interfaces/JuliaValue.html" class="tsd-signature-type" data-tsd-kind="Interface">JuliaValue</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/eed8e3a/jlbun/functions.ts#L19">jlbun/functions.ts:19</a></li></ul></aside></li></ul></section>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L76">jlbun/functions.ts:76</a></li></ul></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="close" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>close</span><a href="#close" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+<li class="tsd-signature tsd-anchor-link" id="close.close-1">close<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span><a href="#close.close-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Free the underlying <code>JSCallback</code> if this function is created from one.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L88">jlbun/functions.ts:88</a></li></ul></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="toString" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>to<wbr/>String</span><a href="#toString" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
@@ -249,7 +276,40 @@ The this object of the bound function is associated with the specified object, a
 <p>Implementation of <a href="../interfaces/JuliaValue.html">JuliaValue</a>.<a href="../interfaces/JuliaValue.html#toString">toString</a></p>
 <p>Overrides Function.toString</p>
 <ul>
-<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/eed8e3a/jlbun/functions.ts#L30">jlbun/functions.ts:30</a></li></ul></aside></li></ul></section></section></div>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L98">jlbun/functions.ts:98</a></li></ul></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class"><a id="from" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagStatic">Static</code> <span>from</span><a href="#from" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+<li class="tsd-signature tsd-anchor-link" id="from.from-1">from<span class="tsd-signature-symbol">(</span>jsFunc<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">...</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">)</span>, definition<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">FFIFunction</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="JuliaFunction.html" class="tsd-signature-type" data-tsd-kind="Class">JuliaFunction</a><a href="#from.from-1" aria-label="Permalink" class="tsd-anchor-icon"><svg class="icon icon-tabler icon-tabler-link" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><use href="#icon-anchor-a"></use><use href="#icon-anchor-b"></use><use href="#icon-anchor-c"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Create a <code>JuliaFunction</code> from a JS function.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5>jsFunc: <span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">...</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">)</span></h5>
+<div class="tsd-comment tsd-typography"><p>The JS function to be wrapped.</p>
+</div>
+<ul class="tsd-parameters">
+<li class="tsd-parameter-signature">
+<ul class="tsd-signatures tsd-kind-type-literal">
+<li class="tsd-signature"><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">...</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">any</span></li>
+<li class="tsd-description">
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><code class="tsd-tag ts-flagRest">Rest</code> <span class="tsd-signature-symbol">...</span>args: <span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">[]</span></h5></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">any</span></h4></li></ul></li></ul></li>
+<li>
+<h5>definition: <span class="tsd-signature-type">FFIFunction</span></h5>
+<div class="tsd-comment tsd-typography"><p>Type definition of the JS function. It follows
+Bun&#39;s <code>JSCallback</code>.</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="JuliaFunction.html" class="tsd-signature-type" data-tsd-kind="Class">JuliaFunction</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/lucifer1004/jlbun/blob/a80bd27/jlbun/functions.ts#L33">jlbun/functions.ts:33</a></li></ul></aside></li></ul></section></section></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
 <details class="tsd-index-accordion"><summary class="tsd-accordion-summary">
@@ -282,13 +342,16 @@ The this object of the bound function is associated with the specified object, a
 <li class="tsd-kind-property tsd-parent-kind-class"><a href="JuliaFunction.html#name" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>name</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a href="JuliaFunction.html#prototype" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>prototype</a></li>
 <li class="tsd-kind-property tsd-parent-kind-class"><a href="JuliaFunction.html#ptr" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>ptr</a></li>
+<li class="tsd-kind-property tsd-parent-kind-class"><a href="JuliaFunction.html#rawCB" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-1024-path"></use><use href="#icon-1024-text"></use></svg>rawCB?</a></li>
 <li class="tsd-kind-accessor tsd-parent-kind-class"><a href="JuliaFunction.html#value" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-262144-path"></use><use href="#icon-262144-text"></use></svg>value</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a href="JuliaFunction.html#_hasInstance_" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>[has<wbr/>Instance]</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a href="JuliaFunction.html#apply" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>apply</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a href="JuliaFunction.html#bind" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>bind</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited tsd-is-external"><a href="JuliaFunction.html#call" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>call</a></li>
 <li class="tsd-kind-method tsd-parent-kind-class"><a href="JuliaFunction.html#callWithKwargs" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>call<wbr/>With<wbr/>Kwargs</a></li>
-<li class="tsd-kind-method tsd-parent-kind-class"><a href="JuliaFunction.html#toString" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>to<wbr/>String</a></li></ul></li></ul></nav></div></div>
+<li class="tsd-kind-method tsd-parent-kind-class"><a href="JuliaFunction.html#close" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>close</a></li>
+<li class="tsd-kind-method tsd-parent-kind-class"><a href="JuliaFunction.html#toString" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>to<wbr/>String</a></li>
+<li class="tsd-kind-method tsd-parent-kind-class"><a href="JuliaFunction.html#from" class="tsd-index-link"><svg class="tsd-kind-icon" width="24" height="24" viewBox="0 0 24 24"><use href="#icon-2048-path"></use><use href="#icon-2048-text"></use></svg>from</a></li></ul></li></ul></nav></div></div>
 <div class="container tsd-generator">
 <p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
 <div class="overlay"></div><script src="../assets/main.js"></script></body></html>
