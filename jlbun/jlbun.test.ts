@@ -1,4 +1,4 @@
-import { CString } from "bun:ffi";
+import { CString, toArrayBuffer } from "bun:ffi";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   Julia,
@@ -361,9 +361,19 @@ describe("JuliaFunction", () => {
       returns: "i32",
       args: ["i32"],
     });
-    const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
-    const neg = arr.map(cb3);
+    const arr3 = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
+    const neg = arr3.map(cb3);
     expect(neg.value).toEqual(new Int32Array([-1, -10, -20, -30, -100]));
+
+    const jsFunc4 = (ptr: number, length: number) =>
+      safeCString(new Int32Array(toArrayBuffer(ptr, 0, length * 4)).join(", "));
+    const cb4 = JuliaFunction.from(jsFunc4, {
+      returns: "cstring",
+      args: ["ptr", "i32"],
+    });
+    const arr4 = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
+    expect(cb4(arr4, arr4.length).value).toBe("1, 10, 20, 30, 100");
+    cb.close();
   });
 
   it("can be created from a JS function and then used as a function parameter", () => {
