@@ -154,10 +154,6 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr, FFIType.cstring],
     returns: FFIType.ptr,
   },
-  jl_kwfunc_getter: {
-    args: [FFIType.ptr],
-    returns: FFIType.ptr,
-  },
 
   // Arrays
   jl_array_len_getter: {
@@ -206,10 +202,6 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   },
   jl_symbol: {
     args: [FFIType.cstring],
-    returns: FFIType.ptr,
-  },
-  jl_get_kwsorter: {
-    args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
   jl_box_bool: {

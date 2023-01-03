@@ -53,9 +53,6 @@ JL_MODULE_GETTER(top)
 jl_function_t *jl_function_getter(jl_module_t *m, const char *name) {
   return jl_get_function(m, name);
 }
-jl_function_t *jl_kwfunc_getter(jl_function_t *f) {
-  return jl_get_kwsorter(jl_typeof(f));
-}
 
 // Builtins
 int8_t jl_hasproperty(jl_value_t *v, const char *name) {

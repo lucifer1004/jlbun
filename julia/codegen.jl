@@ -49,7 +49,6 @@ INCLUDED = Set([
     "jl_get_global",
     "jl_set_global",
     "jl_get_nth_field",
-    "jl_get_kwsorter",
     "jl_box_int8",
     "jl_box_uint8",
     "jl_box_int16",
@@ -313,10 +312,6 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     // Functions
     jl_function_getter: {
         args: [FFIType.ptr, FFIType.cstring],
-        returns: FFIType.ptr,
-    },
-    jl_kwfunc_getter: {
-        args: [FFIType.ptr],
         returns: FFIType.ptr,
     },
     
