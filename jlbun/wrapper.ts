@@ -196,6 +196,18 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   },
 
   // Auto generated wrappers
+  jl_gc_enable: {
+    args: [FFIType.i32],
+    returns: FFIType.i32,
+  },
+  jl_gc_is_enabled: {
+    args: [],
+    returns: FFIType.i32,
+  },
+  jl_gc_collect: {
+    args: [FFIType.i32],
+    returns: FFIType.void,
+  },
   jl_typeof_str: {
     args: [FFIType.ptr],
     returns: FFIType.cstring,

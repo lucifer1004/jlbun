@@ -51,6 +51,9 @@ INCLUDED = Set([
     "jl_symbol",
     "jl_new_task",
     "jl_set_task_tid",
+    "jl_gc_enable",
+    "jl_gc_is_enabled",
+    "jl_gc_collect",
 ])
 
 # EXCLUDED = Set([
