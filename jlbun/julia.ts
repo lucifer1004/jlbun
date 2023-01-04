@@ -308,11 +308,7 @@ export class Julia {
     ) {
       return JuliaArray.from(value);
     } else if (Array.isArray(value)) {
-      const arr = JuliaArray.init(Julia.Any, 0);
-      for (const v of value) {
-        arr.push(Julia.autoWrap(v));
-      }
-      return arr;
+      return JuliaArray.fromAny(value);
     } else {
       try {
         return JuliaNamedTuple.from(value);
@@ -432,29 +428,18 @@ export class Julia {
     const kwsorter = Julia.Core.kwfunc(func);
     const wrappedKwargs =
       kwargs instanceof JuliaNamedTuple ? kwargs : JuliaNamedTuple.from(kwargs);
-    const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
-
+    const wrappedArgs = args.map(Julia.autoWrap);
     if (wrappedKwargs.length > 0) {
-      wrappedArgs.splice(0, 0, wrappedKwargs.ptr, func.ptr);
+      wrappedArgs.splice(0, 0, wrappedKwargs, func);
     }
 
-    const bigArgs = new BigInt64Array(wrappedArgs.map(BigInt));
-    const funcPtr = wrappedKwargs.length === 0 ? func.ptr : kwsorter.ptr;
-    const interpolated = `
-      function ()
-        ptr = ccall(:jl_call, 
-          Ptr{Nothing}, 
-          (Ptr{Nothing}, Ptr{Nothing}, Cint),
-          convert(Ptr{Nothing}, ${funcPtr}),
-          convert(Ptr{Nothing}, ${ptr(bigArgs as unknown as TypedArray)}),
-          ${wrappedArgs.length},
-        )
-        
-        unsafe_pointer_to_objref(ptr)
-      end
-    `;
-
-    return Julia.eval(interpolated) as JuliaFunction;
+    const wrappedFunc = Julia.tagEval`
+      let
+          func = ${wrappedKwargs.length > 0 ? kwsorter : func}
+          args = collect(${wrappedArgs})
+          return () -> func(args...)
+      end` as JuliaFunction;
+    return wrappedFunc;
   }
 
   private static handleEvalException(code: string): void {
@@ -466,8 +451,6 @@ export class Julia {
       } else if (errType == "InexactError") {
         throw new InexactError(code);
       } else {
-        console.log(Julia.getTypeStr(errPtr));
-        console.log(Julia.string(Julia.wrapPtr(errPtr)));
         throw new UnknownJuliaError(errType);
       }
     }
@@ -615,7 +598,7 @@ export class Julia {
   ): JuliaValue {
     const uuids = Array.from(
       { length: values.length },
-      () => `tmp_${randomUUID()}`,
+      () => `${randomUUID()}`,
     );
     for (let i = 0; i < values.length; i++) {
       Julia.setGlobal(uuids[i], Julia.autoWrap(values[i]));

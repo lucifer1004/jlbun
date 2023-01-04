@@ -107,6 +107,20 @@ export class JuliaArray implements JuliaValue {
   }
 
   /**
+   * Create a `JuliaArray` from a JS `Array` with arbitrary types.
+   *
+   * @param values
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static fromAny(values: any[]): JuliaArray {
+    const arr = JuliaArray.init(Julia.Any, 0);
+    for (const v of values) {
+      arr.push(Julia.autoWrap(v));
+    }
+    return arr;
+  }
+
+  /**
    * Length of the array.
    */
   get length(): number {

@@ -1,10 +1,7 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-jill switch 1.6
-bun build-lib
-bun test
-jill switch 1.8
-bun build-lib
-bun test
+jill switch 1.6 && bun build-lib && bun test
+jill switch 1.9 && bun build-lib && bun test
+jill switch 1.8 && bun build-lib && bun test
 bun lint-staged
