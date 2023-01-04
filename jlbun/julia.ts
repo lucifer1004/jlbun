@@ -436,7 +436,7 @@ export class Julia {
     const wrappedFunc = Julia.tagEval`
       let
           func = ${wrappedKwargs.length > 0 ? kwsorter : func}
-          args = collect(${wrappedArgs})
+          args = ${wrappedArgs}
           return () -> func(args...)
       end` as JuliaFunction;
     return wrappedFunc;
