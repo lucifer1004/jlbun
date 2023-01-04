@@ -13,7 +13,7 @@
     - [Function calls with keyword arguments](#function-calls-with-keyword-arguments)
     - [Call JS functions from Julia](#call-js-functions-from-julia)
     - [Run Julia with multiple threads](#run-julia-with-multiple-threads)
-  - [TODO](#todo)
+  - [Star History](#star-history)
 
 ## Installation
 
@@ -240,12 +240,6 @@ console.log(results); // [ 500500n, 500500n, 500500n, 500500n, 500500n, 500500n,
 Julia.close();
 ```
 
-## TODO
+## Star History
 
-- [x] Tuple
-- [x] NamedTuple
-  - [x] Keyword arguments of Julia functions
-- [ ] Range
-- [x] Dict
-- [x] Set
-- [x] Pair
+[![Star History Chart](https://api.star-history.com/svg?repos=lucifer1004/jlbun&type=Date)](https://star-history.com/#lucifer1004/jlbun&Date)
