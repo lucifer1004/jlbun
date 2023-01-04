@@ -11,6 +11,7 @@ import {
   JuliaInt16,
   JuliaInt32,
   JuliaInt64,
+  JuliaNothing,
   JuliaString,
   JuliaSymbol,
   JuliaUInt8,
@@ -131,6 +132,13 @@ export class JuliaArray implements JuliaValue {
   }
 
   /**
+   * Get the raw pointer of the array.
+   */
+  get rawPtr(): number {
+    return jlbun.symbols.jl_array_data_getter(this.ptr);
+  }
+
+  /**
    * Get data at the given index.
    *
    * @param index The index (starting from 0) to be fetched.
@@ -189,7 +197,7 @@ export class JuliaArray implements JuliaValue {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get value(): BunArray | any[] {
-    const rawPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
+    const rawPtr = this.rawPtr;
 
     if (this.elType.isEqual(Julia.Int8)) {
       return new Int8Array(toArrayBuffer(rawPtr, 0, this.length));
@@ -221,12 +229,10 @@ export class JuliaArray implements JuliaValue {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  push(...values: any[]): void {
+  push(...values: any[]): number {
     if (this.ndims === 1) {
-      const wrappedValues = values.map((value) => Julia.autoWrap(value));
-      for (const value of wrappedValues) {
-        jlbun.symbols.jl_array_ptr_1d_push(this.ptr, value.ptr);
-      }
+      Julia.Base["push!"](this, ...values);
+      return values.length;
     } else {
       throw new MethodError(
         "`push` is not implemented for arrays with two or more dimensions.",
@@ -234,24 +240,56 @@ export class JuliaArray implements JuliaValue {
     }
   }
 
-  pop(): JuliaValue {
-    return Julia.Base["pop!"](this);
+  /**
+   * Pop the last element of the array and return it.
+   */
+  pop(): JuliaValue | undefined {
+    if (this.ndims === 1) {
+      if (this.length === 0) {
+        return undefined;
+      }
+      return Julia.Base["pop!"](this);
+    } else {
+      throw new MethodError(
+        "`pop` is not implemented for arrays with two or more dimensions.",
+      );
+    }
   }
 
+  /**
+   * Reverse the array in place.
+   */
   reverse(): void {
     Julia.Base["reverse!"](this);
   }
 
+  /**
+   * Reshape the array with the given shape and get a new array.
+   *
+   * Note that the new array shares the underlying memory with the original array.
+   * So if you have reshaped an array, you cannot perform `pop()` or `push()` operations
+   * on it since this will affect the arrays that share data with the current array.
+   */
   reshape(...shape: number[]): JuliaArray {
     const arr = Julia.Base.reshape(this, ...shape);
     return new JuliaArray(arr.ptr, this.elType);
   }
 
+  /**
+   * Fill the array with the given value.
+   *
+   * @param value Value to be filled.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fill(value: any): void {
     Julia.Base["fill!"](this, value);
   }
 
+  /**
+   * Map the given function to the array and get a new array.
+   *
+   * @param f Function to be mapped.
+   */
   map(f: JuliaFunction): JuliaArray {
     const arr = Julia.Base.map(f, this);
     const elType = jlbun.symbols.jl_array_eltype(arr.ptr);

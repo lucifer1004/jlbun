@@ -49,7 +49,13 @@ function (${Array.from({ length: argTypes.length }, (_, i) => `x${i}`).join(
     convert(Ptr{Nothing}, ${cb.ptr}),
     ${returnType},
     (${argTypes.join(", ")},),
-    ${Array.from({ length: argTypes.length }, (_, i) => `x${i}`).join(", ")}
+    ${Array.from({ length: argTypes.length }, (_, i) => {
+      if (argTypes[i] === "Ptr{Nothing}") {
+        return `pointer_from_objref(x${i})`;
+      } else {
+        return `x${i}`;
+      }
+    }).join(", ")}
   )
 
   ${returnType === "Cstring" ? "ret = unsafe_string(ret)" : ""}

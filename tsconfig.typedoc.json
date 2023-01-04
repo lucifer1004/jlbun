@@ -23,7 +23,8 @@
     "benchmarks/**/*",
     "dist/**/*",
     "build/**/*",
-    "docs/**/*"
+    "docs/**/*",
+    "packages/**/*"
   ],
   "typedocOptions": {
     "entryPoints": ["jlbun/index.ts"],

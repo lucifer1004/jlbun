@@ -366,14 +366,14 @@ describe("JuliaFunction", () => {
     expect(neg.value).toEqual(new Int32Array([-1, -10, -20, -30, -100]));
     cb3.close();
 
-    const jsFunc4 = (ptr: number, length: number) =>
-      safeCString(new Int32Array(toArrayBuffer(ptr, 0, length * 4)).join(", "));
+    const jsFunc4 = (ptr: number) =>
+      safeCString(Julia.wrapPtr(ptr).value.join(", "));
     const cb4 = JuliaFunction.from(jsFunc4, {
       returns: "cstring",
-      args: ["ptr", "i32"],
+      args: ["ptr"],
     });
     const arr4 = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
-    expect(cb4(arr4, arr4.length).value).toBe("1, 10, 20, 30, 100");
+    expect(cb4(arr4).value).toBe("1, 10, 20, 30, 100");
     cb4.close();
 
     const jsFunc5 = (length: number) => {
@@ -428,14 +428,26 @@ describe("JuliaArray", () => {
       "[JuliaArray [10, 10, 10, 10, 20, 10, 10, 10, 10, 10]]",
     );
 
-    const reshapedArr = arr.reshape(2, 5);
-    expect(reshapedArr.length).toBe(10);
+    expect(arr.pop()?.value).toBe(10n);
+    expect(arr.pop()?.value).toBe(10n);
+    expect(arr.pop()?.value).toBe(10n);
+    expect(arr.pop()?.value).toBe(10n);
+    expect(arr.pop()?.value).toBe(10n);
+    expect(arr.pop()?.value).toBe(20n);
+
+    expect(arr.push(2, 3, 4, 5)).toBe(4);
+    expect(arr.value).toEqual(
+      new BigInt64Array([10n, 10n, 10n, 10n, 2n, 3n, 4n, 5n]),
+    );
+
+    const reshapedArr = arr.reshape(2, 4);
+    expect(reshapedArr.length).toBe(8);
     expect(reshapedArr.ndims).toBe(2);
-    expect(reshapedArr.size).toEqual([2, 5]);
+    expect(reshapedArr.size).toEqual([2, 4]);
 
     const bunArr = reshapedArr.value;
     expect(bunArr).toEqual(
-      new BigInt64Array([10n, 10n, 10n, 10n, 20n, 10n, 10n, 10n, 10n, 10n]),
+      new BigInt64Array([10n, 10n, 10n, 10n, 2n, 3n, 4n, 5n]),
     );
   });
 

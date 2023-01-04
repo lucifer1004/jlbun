@@ -641,6 +641,44 @@ export class Julia {
   }
 
   /**
+   * Shortcut for `Julia.Base.include`.
+   *
+   * @param file Relative path of the file to be included.
+   * @param target Module to include the file. Default to `Main`.
+   * @param mapFn Mapping function that will be applied to each `Expr` in the included file.
+   */
+  public static include(
+    file: string,
+    target: JuliaModule = Julia.Main,
+    mapFn?: JuliaFunction,
+  ): JuliaValue {
+    if (mapFn !== undefined) {
+      return Julia.Base.include(mapFn, target, file);
+    } else {
+      return Julia.Base.include(target, file);
+    }
+  }
+
+  /**
+   * Shortcut for `Julia.Base.include_string`.
+   *
+   * @param code Code string to be included.
+   * @param target Module to include the file. Default to `Main`.
+   * @param mapFn Mapping function that will be applied to each `Expr` in the included code string.
+   */
+  public static includeString(
+    code: string,
+    target: JuliaModule = Julia.Main,
+    mapFn?: JuliaFunction,
+  ): JuliaValue {
+    if (mapFn !== undefined) {
+      return Julia.Base.include_string(mapFn, target, code);
+    } else {
+      return Julia.Base.include_string(target, code);
+    }
+  }
+
+  /**
    * Get a string representation of a `JuliaValue` using Julia's `repr()` function, with the given MIME.
    *
    * @param value Object to be represented.
