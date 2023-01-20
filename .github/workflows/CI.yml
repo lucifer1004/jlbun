@@ -21,7 +21,7 @@ jobs:
           - '1.8'
           - '1.6'
         bun-version:
-          - '0.4.0'
+          - '0.5.0'
         os:
           - ubuntu-latest
         arch:
@@ -55,7 +55,7 @@ jobs:
           arch: x64
       - uses: xhyrom/setup-bun@v0.1.8
         with:
-          bun-version: '0.4.0'
+          bun-version: ${{ matrix.bun-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           bun install && bun typedoc
