@@ -35,7 +35,7 @@
     ]
   },
   "dependencies": {
-    "rimraf": "^4.0.0",
+    "rimraf": "^5.0.0",
     "mkdirp": "^2.0.0"
   },
   "devDependencies": {
