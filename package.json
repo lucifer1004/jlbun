@@ -50,7 +50,7 @@
     "eslint-plugin-simple-import-sort": "^9.0.0",
     "husky": "^8.0.2",
     "lint-staged": "^13.1.0",
-    "prettier": "^2.8.1",
+    "prettier": "^3.0.0",
     "rollup": "^3.9.0",
     "rollup-plugin-dts": "^5.1.0",
     "rollup-plugin-esbuild": "^5.0.0",
