@@ -1,4 +1,4 @@
-import { ptr } from "bun:ffi";
+import { Pointer } from "bun:ffi";
 import { randomUUID } from "crypto";
 import {
   InexactError,
@@ -110,86 +110,86 @@ export class Julia {
         );
       }
 
-      Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter(), "Any");
+      Julia.Any = new JuliaDataType(jlbun.symbols.jl_any_type_getter()!, "Any");
       Julia.Nothing = new JuliaDataType(
-        jlbun.symbols.jl_nothing_type_getter(),
+        jlbun.symbols.jl_nothing_type_getter()!,
         "Nothing",
       );
       Julia.Symbol = new JuliaDataType(
-        jlbun.symbols.jl_symbol_type_getter(),
+        jlbun.symbols.jl_symbol_type_getter()!,
         "Symbol",
       );
       Julia.Function = new JuliaDataType(
-        jlbun.symbols.jl_function_type_getter(),
+        jlbun.symbols.jl_function_type_getter()!,
         "Function",
       );
       Julia.String = new JuliaDataType(
-        jlbun.symbols.jl_string_type_getter(),
+        jlbun.symbols.jl_string_type_getter()!,
         "String",
       );
       Julia.Bool = new JuliaDataType(
-        jlbun.symbols.jl_bool_type_getter(),
+        jlbun.symbols.jl_bool_type_getter()!,
         "Bool",
       );
       Julia.Char = new JuliaDataType(
-        jlbun.symbols.jl_char_type_getter(),
+        jlbun.symbols.jl_char_type_getter()!,
         "Char",
       );
       Julia.Int8 = new JuliaDataType(
-        jlbun.symbols.jl_int8_type_getter(),
+        jlbun.symbols.jl_int8_type_getter()!,
         "Int8",
       );
       Julia.UInt8 = new JuliaDataType(
-        jlbun.symbols.jl_uint8_type_getter(),
+        jlbun.symbols.jl_uint8_type_getter()!,
         "UInt8",
       );
       Julia.Int16 = new JuliaDataType(
-        jlbun.symbols.jl_int16_type_getter(),
+        jlbun.symbols.jl_int16_type_getter()!,
         "Int16",
       );
       Julia.UInt16 = new JuliaDataType(
-        jlbun.symbols.jl_uint16_type_getter(),
+        jlbun.symbols.jl_uint16_type_getter()!,
         "UInt16",
       );
       Julia.Int32 = new JuliaDataType(
-        jlbun.symbols.jl_int32_type_getter(),
+        jlbun.symbols.jl_int32_type_getter()!,
         "Int32",
       );
       Julia.UInt32 = new JuliaDataType(
-        jlbun.symbols.jl_uint32_type_getter(),
+        jlbun.symbols.jl_uint32_type_getter()!,
         "UInt32",
       );
       Julia.Int64 = new JuliaDataType(
-        jlbun.symbols.jl_int64_type_getter(),
+        jlbun.symbols.jl_int64_type_getter()!,
         "Int64",
       );
       Julia.UInt64 = new JuliaDataType(
-        jlbun.symbols.jl_uint64_type_getter(),
+        jlbun.symbols.jl_uint64_type_getter()!,
         "UInt64",
       );
       Julia.Float16 = new JuliaDataType(
-        jlbun.symbols.jl_float16_type_getter(),
+        jlbun.symbols.jl_float16_type_getter()!,
         "Float16",
       );
       Julia.Float32 = new JuliaDataType(
-        jlbun.symbols.jl_float32_type_getter(),
+        jlbun.symbols.jl_float32_type_getter()!,
         "Float32",
       );
       Julia.Float64 = new JuliaDataType(
-        jlbun.symbols.jl_float64_type_getter(),
+        jlbun.symbols.jl_float64_type_getter()!,
         "Float64",
       );
 
       Julia.Core = new JuliaModule(
-        jlbun.symbols.jl_core_module_getter(),
+        jlbun.symbols.jl_core_module_getter()!,
         "Core",
       );
       Julia.Base = new JuliaModule(
-        jlbun.symbols.jl_base_module_getter(),
+        jlbun.symbols.jl_base_module_getter()!,
         "Base",
       );
       Julia.Main = new JuliaModule(
-        jlbun.symbols.jl_main_module_getter(),
+        jlbun.symbols.jl_main_module_getter()!,
         "Main",
       );
       Julia.Pkg = Julia.import("Pkg");
@@ -212,7 +212,7 @@ export class Julia {
         jlbun.symbols.jl_get_global(
           Julia.Main.ptr,
           JuliaSymbol.from("__jlbun_globals__").ptr,
-        ),
+        )!,
       );
     }
   }
@@ -258,12 +258,9 @@ export class Julia {
    *
    * @param ptr Pointer to a Julia object, or a `JuliaValue` object.
    */
-  public static getTypeStr(ptr: number | JuliaValue): string {
-    if (typeof ptr === "number") {
-      return jlbun.symbols.jl_typeof_str(ptr).toString();
-    } else {
-      return jlbun.symbols.jl_typeof_str(ptr.ptr).toString();
-    }
+  public static getTypeStr(ptr: Pointer | JuliaValue): string {
+    const actualPtr = typeof ptr === "object" ? ptr.ptr : ptr;
+    return jlbun.symbols.jl_typeof_str(actualPtr).toString();
   }
 
   /**
@@ -327,7 +324,7 @@ export class Julia {
   public static getFunction(module: JuliaModule, name: string): JuliaFunction {
     const cName = safeCString(name);
     return new JuliaFunction(
-      jlbun.symbols.jl_function_getter(module.ptr, cName),
+      jlbun.symbols.jl_function_getter(module.ptr, cName)!,
       name,
     );
   }
@@ -337,7 +334,7 @@ export class Julia {
    *
    * @param ptr Pointer to the Julia object.
    */
-  public static wrapPtr(ptr: number): JuliaValue {
+  public static wrapPtr(ptr: Pointer): JuliaValue {
     const typeStr = Julia.getTypeStr(ptr);
     if (typeStr === "String") {
       return new JuliaString(ptr);
@@ -370,7 +367,7 @@ export class Julia {
     } else if (typeStr === "Module") {
       return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
     } else if (typeStr === "Array") {
-      const elType = jlbun.symbols.jl_array_eltype(ptr);
+      const elType = jlbun.symbols.jl_array_eltype(ptr)!;
       const elTypeStr = Julia.getTypeStr(elType);
       return new JuliaArray(ptr, new JuliaDataType(elType, elTypeStr));
     } else if (typeStr === "Nothing") {
@@ -380,7 +377,7 @@ export class Julia {
     } else if (typeStr === "Symbol") {
       return new JuliaSymbol(
         ptr,
-        jlbun.symbols.jl_symbol_name_getter(ptr).toString(),
+        jlbun.symbols.jl_symbol_name_getter(ptr)!.toString(),
       );
     } else if (typeStr === "Tuple") {
       return new JuliaTuple(ptr);
@@ -487,7 +484,8 @@ export class Julia {
       } else if (errType == "InexactError") {
         throw new InexactError(funcCall);
       } else {
-        throw new UnknownJuliaError(Julia.string(Julia.wrapPtr(errPtr)));
+        // Avoid calling Julia functions during error handling to prevent recursive errors
+        throw new UnknownJuliaError(`Julia error in ${funcCall}: ${errType}`);
       }
     }
   }
@@ -500,28 +498,28 @@ export class Julia {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static call(func: JuliaFunction, ...args: any[]): JuliaValue {
-    const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
+    const wrappedArgs = args.map((arg) => Julia.autoWrap(arg).ptr);
 
-    let ret: number;
+    let ret: Pointer;
     if (args.length == 0) {
-      ret = jlbun.symbols.jl_call0(func.ptr);
+      ret = jlbun.symbols.jl_call0(func.ptr)!;
     } else if (args.length == 1) {
-      ret = jlbun.symbols.jl_call1(func.ptr, wrappedArgs[0]);
+      ret = jlbun.symbols.jl_call1(func.ptr, wrappedArgs[0])!;
     } else if (args.length == 2) {
-      ret = jlbun.symbols.jl_call2(func.ptr, wrappedArgs[0], wrappedArgs[1]);
+      ret = jlbun.symbols.jl_call2(func.ptr, wrappedArgs[0], wrappedArgs[1])!;
     } else if (args.length == 3) {
       ret = jlbun.symbols.jl_call3(
         func.ptr,
         wrappedArgs[0],
         wrappedArgs[1],
         wrappedArgs[2],
-      );
+      )!;
     } else {
       ret = jlbun.symbols.jl_call(
         func.ptr,
         new BigInt64Array(wrappedArgs.map(BigInt)),
         args.length,
-      );
+      )!;
     }
 
     Julia.handleCallException(func, args);
@@ -546,25 +544,25 @@ export class Julia {
     const wrappedKwargs =
       kwargs instanceof JuliaNamedTuple ? kwargs : JuliaNamedTuple.from(kwargs);
 
-    const wrappedArgs: number[] = args.map((arg) => Julia.autoWrap(arg).ptr);
+    const wrappedArgs = args.map((arg) => Julia.autoWrap(arg).ptr);
 
-    let ret: number;
+    let ret: Pointer;
     if (args.length == 0) {
-      ret = jlbun.symbols.jl_call2(kwsorter.ptr, wrappedKwargs.ptr, func.ptr);
+      ret = jlbun.symbols.jl_call2(kwsorter.ptr, wrappedKwargs.ptr, func.ptr)!;
     } else if (args.length == 1) {
       ret = jlbun.symbols.jl_call3(
         kwsorter.ptr,
         wrappedKwargs.ptr,
         func.ptr,
         wrappedArgs[0],
-      );
+      )!;
     } else {
       wrappedArgs.splice(0, 0, wrappedKwargs.ptr, func.ptr);
       ret = jlbun.symbols.jl_call(
         kwsorter.ptr,
         new BigInt64Array(wrappedArgs.map(BigInt)),
         args.length + 2,
-      );
+      )!;
     }
 
     Julia.handleCallException(func, args, kwargs);
@@ -578,7 +576,7 @@ export class Julia {
    */
   public static eval(code: string): JuliaValue {
     const cCode = safeCString(code);
-    const ret = jlbun.symbols.jl_eval_string(cCode);
+    const ret = jlbun.symbols.jl_eval_string(cCode)!;
     Julia.handleEvalException(code);
     return Julia.wrapPtr(ret);
   }

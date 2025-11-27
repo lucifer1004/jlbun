@@ -1,4 +1,4 @@
-import { FFIFunction, JSCallback } from "bun:ffi";
+import { FFIFunction, JSCallback, Pointer } from "bun:ffi";
 import { Julia, JuliaNamedTuple, JuliaValue } from "./index.js";
 import { mapFFITypeToJulia } from "./utils.js";
 
@@ -10,11 +10,11 @@ import { mapFFITypeToJulia } from "./utils.js";
  * if the function will no longer be used.
  */
 export class JuliaFunction extends Function implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
   name: string;
   rawCB?: JSCallback;
 
-  constructor(ptr: number, name: string) {
+  constructor(ptr: Pointer, name: string) {
     super();
     this.ptr = ptr;
     this.name = name;

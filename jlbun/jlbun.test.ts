@@ -436,6 +436,7 @@ describe("JuliaArray", () => {
     expect(arr.pop()?.value).toBe(20n);
 
     expect(arr.push(2, 3, 4, 5)).toBe(4);
+    expect(arr.length).toBe(8);
     expect(arr.value).toEqual(
       new BigInt64Array([10n, 10n, 10n, 10n, 2n, 3n, 4n, 5n]),
     );

@@ -1,5 +1,7 @@
+import { Pointer } from "bun:ffi";
+
 export interface JuliaValue {
-  ptr: number;
+  ptr: Pointer;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get value(): any;
   toString(): string;

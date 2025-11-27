@@ -173,6 +173,20 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     returns: FFIType.i64,
   },
 
+  // Array element access
+  jl_array_isboxed: {
+    args: [FFIType.ptr],
+    returns: FFIType.i8,
+  },
+  jl_array_ptr_ref_wrapper: {
+    args: [FFIType.ptr, FFIType.u64],
+    returns: FFIType.ptr,
+  },
+  jl_array_ptr_set_wrapper: {
+    args: [FFIType.ptr, FFIType.u64, FFIType.ptr],
+    returns: FFIType.void,
+  },
+
   // GC
   jl_gc_push1: {
     args: [FFIType.ptr],
@@ -324,14 +338,6 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.cstring],
     returns: FFIType.ptr,
   },
-  jl_arrayref: {
-    args: [FFIType.ptr, FFIType.i32],
-    returns: FFIType.ptr,
-  },
-  jl_arrayset: {
-    args: [FFIType.ptr, FFIType.ptr, FFIType.i32],
-    returns: FFIType.void,
-  },
   jl_array_grow_end: {
     args: [FFIType.ptr, FFIType.i32],
     returns: FFIType.void,
@@ -340,14 +346,14 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr, FFIType.i32],
     returns: FFIType.void,
   },
-  jl_array_grow_beg: {
-    args: [FFIType.ptr, FFIType.i32],
-    returns: FFIType.void,
-  },
-  jl_array_del_beg: {
-    args: [FFIType.ptr, FFIType.i32],
-    returns: FFIType.void,
-  },
+  // jl_array_grow_beg: {
+  //   args: [FFIType.ptr, FFIType.i32],
+  //   returns: FFIType.void,
+  // },
+  // jl_array_del_beg: {
+  //   args: [FFIType.ptr, FFIType.i32],
+  //   returns: FFIType.void,
+  // },
   jl_array_ptr_1d_push: {
     args: [FFIType.ptr, FFIType.ptr],
     returns: FFIType.void,

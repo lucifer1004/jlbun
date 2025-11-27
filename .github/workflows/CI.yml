@@ -18,48 +18,43 @@ jobs:
       fail-fast: false
       matrix:
         julia-version:
-          - '1.8'
-          - '1.6'
+          - '1.12'
+          - '1.10'
+          - 'nightly'
         bun-version:
-          - '0.5.0'
+          - 'latest'
         os:
           - ubuntu-latest
         arch:
           - x64
     steps:
       - uses: actions/checkout@v3
-      - uses: jwlawson/actions-setup-cmake@v1.13
-        with:
-          cmake-version: '3.25.x'
-      - uses: julia-actions/setup-julia@v1
+      - uses: jwlawson/actions-setup-cmake@v2
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.arch }}
-      - uses: xhyrom/setup-bun@v0.1.8
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ matrix.bun-version }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           bun install && JULIA_NUM_THREADS=auto bun test
   docs:
     name: Deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: jwlawson/actions-setup-cmake@v1.13
+      - uses: actions/checkout@v5
+      - uses: jwlawson/actions-setup-cmake@v2
+      - uses: julia-actions/setup-julia@v2
         with:
-          cmake-version: '3.25.x'
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: '1.8'
-          arch: x64
-      - uses: xhyrom/setup-bun@v0.1.8
+          version: ${{ matrix.julia-version }}
+          arch: ${{ matrix.arch }}
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ matrix.bun-version }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           bun install && bun typedoc
-      - uses: peaceiris/actions-gh-pages@v3
+      - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs

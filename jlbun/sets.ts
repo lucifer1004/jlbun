@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Pointer } from "bun:ffi";
 import { Julia, JuliaValue } from "./index.js";
 
 /**
  * Wrapper for Julia `Set`s.
  */
 export class JuliaSet implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
 
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     this.ptr = ptr;
   }
 

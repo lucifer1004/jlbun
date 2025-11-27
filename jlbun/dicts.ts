@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Pointer } from "bun:ffi";
 import { Julia, JuliaNothing, JuliaValue } from "./index.js";
 
 /**
  * Wrapper for Julia `Dict`.
  */
 export class JuliaDict implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
 
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     this.ptr = ptr;
   }
 
@@ -68,7 +69,7 @@ export class JuliaDict implements JuliaValue {
 }
 
 export class JuliaIdDict extends JuliaDict {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 

@@ -1,3 +1,4 @@
+import { Pointer } from "bun:ffi";
 import {
   jlbun,
   JuliaFunction,
@@ -10,13 +11,13 @@ import {
  * Wrapper for Julia `Module`.
  */
 export class JuliaModule implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
   name: string;
   cache: Map<string, JuliaFunction>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 
-  constructor(ptr: number, name: string) {
+  constructor(ptr: Pointer, name: string) {
     this.ptr = ptr;
     this.name = name;
     this.cache = new Map();

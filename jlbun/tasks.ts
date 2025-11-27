@@ -1,3 +1,4 @@
+import { Pointer } from "bun:ffi";
 import { nextTick } from "process";
 import {
   jlbun,
@@ -12,11 +13,11 @@ import {
  * Wrapper for Julia `Task`s.
  */
 export class JuliaTask implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
   canReschedule: boolean;
   scheduled: boolean;
 
-  constructor(ptr: number, canReschedule = false) {
+  constructor(ptr: Pointer, canReschedule = false) {
     this.ptr = ptr;
     this.canReschedule = canReschedule;
     this.scheduled = false;

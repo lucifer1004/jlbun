@@ -13,7 +13,7 @@ void jl_init0() { jl_init(); }
 
 void jl_init_with_image0(const char *julia_home_dir,
                          const char *image_relative_path) {
-  jl_init_with_image(julia_home_dir, image_relative_path);
+  jl_init_with_image_file(julia_home_dir, image_relative_path);
 }
 #endif
 
@@ -76,7 +76,7 @@ const char **jl_propertynames(jl_value_t *v) {
   size_t len = jl_array_len(properties);
   const char **names = (const char **)malloc(len * sizeof(char *));
   for (size_t i = 0; i < len; i++) {
-    jl_value_t *name = jl_arrayref(properties, i);
+    jl_value_t *name = jl_array_data(properties, jl_value_t);
     names[i] = jl_symbol_name((jl_sym_t *)name);
   }
   return names;
@@ -94,9 +94,23 @@ jl_datatype_t *jl_typeof_getter(jl_value_t *v) {
 // Arrays
 size_t jl_array_len_getter(jl_array_t *a) { return jl_array_len(a); }
 int32_t jl_array_ndims_getter(jl_array_t *a) { return jl_array_ndims(a); }
-void *jl_array_data_getter(jl_array_t *a) { return jl_array_data(a); }
+void *jl_array_data_getter(jl_array_t *a) { return jl_array_data_(a); }
 size_t jl_array_dim_getter(jl_array_t *a, int32_t i) {
   return jl_array_dim(a, i);
+}
+
+// Array utilities
+int jl_array_isboxed(jl_array_t *a) {
+  return ((jl_datatype_t *)jl_typetagof(a->ref.mem))
+      ->layout->flags.arrayelem_isboxed;
+}
+
+jl_value_t *jl_array_ptr_ref_wrapper(jl_array_t *a, size_t i) {
+  return jl_array_ptr_ref(a, i);
+}
+
+jl_value_t *jl_array_ptr_set_wrapper(jl_array_t *a, size_t i, jl_value_t *v) {
+  return jl_array_ptr_set(a, i, v);
 }
 
 // GC

@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Pointer } from "bun:ffi";
 import { jlbun, Julia, JuliaFunction, JuliaValue } from "./index.js";
 
 /**
  * Wrapper for Julia `Tuple`.
  */
 export class JuliaTuple implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
   length: number;
 
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     this.ptr = ptr;
     this.length = Number(jlbun.symbols.jl_nfields_getter(this.ptr));
   }
@@ -34,9 +35,9 @@ export class JuliaTuple implements JuliaValue {
  * Wrapper for Julia `Pair`.
  */
 export class JuliaPair implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
 
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     this.ptr = ptr;
   }
 
@@ -65,11 +66,11 @@ export class JuliaPair implements JuliaValue {
  * Wrapper for Julia `NamedTuple`.
  */
 export class JuliaNamedTuple implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
   length: number;
   fieldNames: string[];
 
-  constructor(ptr: number, fieidNames?: string[]) {
+  constructor(ptr: Pointer, fieidNames?: string[]) {
     this.ptr = ptr;
 
     if (fieidNames === undefined) {

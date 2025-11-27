@@ -1,6 +1,6 @@
-import { FFIType, FFITypeOrString, ptr } from "bun:ffi";
+import { FFIType, FFITypeOrString, Pointer, ptr } from "bun:ffi";
 
-export function safeCString(s: string): number {
+export function safeCString(s: string): Pointer {
   return ptr(Buffer.from(s + "\x00"));
 }
 

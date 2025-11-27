@@ -1,9 +1,10 @@
+import { Pointer } from "bun:ffi";
 import { jlbun, Julia, JuliaValue, MethodError, safeCString } from "./index.js";
 
 abstract class JuliaPrimitive implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
 
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     this.ptr = ptr;
   }
 
@@ -18,12 +19,12 @@ abstract class JuliaPrimitive implements JuliaValue {
  * Wrapper for Julia `Int8`.
  */
 export class JuliaInt8 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number): JuliaInt8 {
-    return new JuliaInt8(jlbun.symbols.jl_box_int8(value));
+    return new JuliaInt8(jlbun.symbols.jl_box_int8(value)!);
   }
 
   get value(): number {
@@ -35,12 +36,12 @@ export class JuliaInt8 extends JuliaPrimitive {
  * Wrapper for Julia `UInt8`.
  */
 export class JuliaUInt8 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number): JuliaUInt8 {
-    return new JuliaUInt8(jlbun.symbols.jl_box_uint8(value));
+    return new JuliaUInt8(jlbun.symbols.jl_box_uint8(value)!);
   }
 
   get value(): number {
@@ -52,12 +53,12 @@ export class JuliaUInt8 extends JuliaPrimitive {
  * Wrapper for Julia `Int16`.
  */
 export class JuliaInt16 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number): JuliaInt16 {
-    return new JuliaInt16(jlbun.symbols.jl_box_int16(value));
+    return new JuliaInt16(jlbun.symbols.jl_box_int16(value)!);
   }
 
   get value(): number {
@@ -69,12 +70,12 @@ export class JuliaInt16 extends JuliaPrimitive {
  * Wrapper for Julia UInt16.
  */
 export class JuliaUInt16 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number): JuliaUInt16 {
-    return new JuliaUInt16(jlbun.symbols.jl_box_uint16(value));
+    return new JuliaUInt16(jlbun.symbols.jl_box_uint16(value)!);
   }
 
   get value(): number {
@@ -86,12 +87,12 @@ export class JuliaUInt16 extends JuliaPrimitive {
  * Wrapper for Julia `Int32`.
  */
 export class JuliaInt32 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number): JuliaInt32 {
-    return new JuliaInt32(jlbun.symbols.jl_box_int32(value));
+    return new JuliaInt32(jlbun.symbols.jl_box_int32(value)!);
   }
 
   get value(): number {
@@ -103,12 +104,12 @@ export class JuliaInt32 extends JuliaPrimitive {
  * Wrapper for Julia `UInt32`.
  */
 export class JuliaUInt32 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number): JuliaUInt32 {
-    return new JuliaUInt32(jlbun.symbols.jl_box_uint32(value));
+    return new JuliaUInt32(jlbun.symbols.jl_box_uint32(value)!);
   }
 
   get value(): number {
@@ -120,12 +121,12 @@ export class JuliaUInt32 extends JuliaPrimitive {
  * Wrapper for Julia `Int64`.
  */
 export class JuliaInt64 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number | bigint): JuliaInt64 {
-    return new JuliaInt64(jlbun.symbols.jl_box_int64(value));
+    return new JuliaInt64(jlbun.symbols.jl_box_int64(value)!);
   }
 
   get value(): bigint {
@@ -137,12 +138,12 @@ export class JuliaInt64 extends JuliaPrimitive {
  * Wrapper for Julia `UInt64`.
  */
 export class JuliaUInt64 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number | bigint): JuliaUInt64 {
-    return new JuliaUInt64(jlbun.symbols.jl_box_uint64(value));
+    return new JuliaUInt64(jlbun.symbols.jl_box_uint64(value)!);
   }
 
   get value(): bigint {
@@ -154,12 +155,12 @@ export class JuliaUInt64 extends JuliaPrimitive {
  * Wrapper for Julia `Float32`.
  */
 export class JuliaFloat32 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number): JuliaFloat32 {
-    return new JuliaFloat32(jlbun.symbols.jl_box_float32(value));
+    return new JuliaFloat32(jlbun.symbols.jl_box_float32(value)!);
   }
 
   get value(): number {
@@ -171,12 +172,12 @@ export class JuliaFloat32 extends JuliaPrimitive {
  * Wrapper for Julia `Float64`.
  */
 export class JuliaFloat64 extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: number | bigint): JuliaFloat64 {
-    return new JuliaFloat64(jlbun.symbols.jl_box_float64(value));
+    return new JuliaFloat64(jlbun.symbols.jl_box_float64(Number(value))!);
   }
 
   get value(): number {
@@ -188,12 +189,12 @@ export class JuliaFloat64 extends JuliaPrimitive {
  * Wrapper for Julia `Bool`.
  */
 export class JuliaBool extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: boolean): JuliaBool {
-    return new JuliaBool(jlbun.symbols.jl_box_bool(value));
+    return new JuliaBool(jlbun.symbols.jl_box_bool(value ? 1 : 0)!);
   }
 
   get value(): boolean {
@@ -207,7 +208,7 @@ export class JuliaBool extends JuliaPrimitive {
 export class JuliaChar extends JuliaPrimitive {
   name: string;
 
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
     this.name = Julia.string(this);
   }
@@ -228,16 +229,16 @@ export class JuliaChar extends JuliaPrimitive {
  * Wrapper for Julia `String`.
  */
 export class JuliaString extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static from(value: string): JuliaString {
-    return new JuliaString(jlbun.symbols.jl_cstr_to_string(safeCString(value)));
+    return new JuliaString(jlbun.symbols.jl_cstr_to_string(safeCString(value))!);
   }
 
   get value(): string {
-    return jlbun.symbols.jl_string_ptr(this.ptr).toString();
+    return jlbun.symbols.jl_string_ptr(this.ptr)!.toString();
   }
 }
 
@@ -247,7 +248,7 @@ export class JuliaString extends JuliaPrimitive {
 export class JuliaSymbol extends JuliaPrimitive {
   name: string;
 
-  constructor(ptr: number, name: string) {
+  constructor(ptr: Pointer, name: string) {
     super(ptr);
     this.name = name;
   }
@@ -255,7 +256,7 @@ export class JuliaSymbol extends JuliaPrimitive {
   static from(value: string | symbol): JuliaSymbol {
     const name =
       typeof value === "string" ? value : (value.description as string);
-    return new JuliaSymbol(jlbun.symbols.jl_symbol(safeCString(name)), name);
+    return new JuliaSymbol(jlbun.symbols.jl_symbol(safeCString(name))!, name);
   }
 
   get value(): symbol {
@@ -269,14 +270,14 @@ export class JuliaSymbol extends JuliaPrimitive {
 export class JuliaNothing extends JuliaPrimitive {
   static instance: JuliaNothing;
 
-  private constructor(ptr: number) {
+  private constructor(ptr: Pointer) {
     super(ptr);
   }
 
   static getInstance(): JuliaNothing {
     if (!JuliaNothing.instance) {
       JuliaNothing.instance = new JuliaNothing(
-        jlbun.symbols.jl_nothing_getter(),
+        jlbun.symbols.jl_nothing_getter()!,
       );
     }
     return JuliaNothing.instance;
@@ -291,12 +292,12 @@ export class JuliaNothing extends JuliaPrimitive {
  * Wrapper for Julia `Ptr`.
  */
 export class JuliaPtr extends JuliaPrimitive {
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     super(ptr);
   }
 
-  get value(): number {
-    return jlbun.symbols.jl_unbox_voidpointer(this.ptr);
+  get value(): Pointer {
+    return jlbun.symbols.jl_unbox_voidpointer(this.ptr)!;
   }
 }
 
@@ -304,9 +305,9 @@ export class JuliaPtr extends JuliaPrimitive {
  * Wrapper for Julia objects not handled yet.
  */
 export class JuliaAny implements JuliaValue {
-  ptr: number;
+  ptr: Pointer;
 
-  constructor(ptr: number) {
+  constructor(ptr: Pointer) {
     this.ptr = ptr;
   }
 
