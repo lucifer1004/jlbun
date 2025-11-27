@@ -3,7 +3,8 @@ on:
   push:
     branches:
       - main
-    tags: '*'
+    tags:
+      - '*'
   pull_request:
 concurrency:
   # Skip intermediate builds: always.
@@ -19,7 +20,6 @@ jobs:
       matrix:
         julia-version:
           - '1.12'
-          - 'nightly'
         bun-version:
           - 'latest'
         os:
@@ -46,11 +46,11 @@ jobs:
       - uses: jwlawson/actions-setup-cmake@v2
       - uses: julia-actions/setup-julia@v2
         with:
-          version: ${{ matrix.julia-version }}
-          arch: ${{ matrix.arch }}
+          version: '1.12'
+          arch: x64
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: ${{ matrix.bun-version }}
+          bun-version: 'latest'
       - run: |
           bun install && bun typedoc
       - uses: peaceiris/actions-gh-pages@v4
