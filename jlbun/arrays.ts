@@ -1,4 +1,4 @@
-import { ptr, Pointer, toArrayBuffer } from "bun:ffi";
+import { Pointer, ptr, toArrayBuffer } from "bun:ffi";
 
 /**
  * A typed JS Array.
@@ -125,7 +125,8 @@ export class JuliaArray implements JuliaValue {
    * Length of the array.
    */
   get length(): number {
-    return Number(jlbun.symbols.jl_array_len_getter(this.ptr));
+    // Use Julia's length function since jl_array_len_getter seems to be returning the length of the underlying container.
+    return Number(Julia.Base.length(this).value);
   }
 
   /**

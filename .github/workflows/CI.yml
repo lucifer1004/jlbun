@@ -19,7 +19,6 @@ jobs:
       matrix:
         julia-version:
           - '1.12'
-          - '1.10'
           - 'nightly'
         bun-version:
           - 'latest'
