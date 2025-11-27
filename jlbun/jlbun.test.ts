@@ -1,4 +1,4 @@
-import { CString, ptr, toArrayBuffer } from "bun:ffi";
+import { CString, Pointer, ptr, toArrayBuffer } from "bun:ffi";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   Julia,
@@ -337,7 +337,7 @@ describe("JuliaFunction", () => {
   });
 
   it("can be created from a JS function", () => {
-    const jsFunc = (x: number, y: number) => {
+    const jsFunc = (x: number, y: Pointer) => {
       const str = `${new CString(y).toString()} ${x}`;
       return safeCString(str);
     };
@@ -366,7 +366,7 @@ describe("JuliaFunction", () => {
     expect(neg.value).toEqual(new Int32Array([-1, -10, -20, -30, -100]));
     cb3.close();
 
-    const jsFunc4 = (ptr: number) =>
+    const jsFunc4 = (ptr: Pointer) =>
       safeCString(Julia.wrapPtr(ptr).value.join(", "));
     const cb4 = JuliaFunction.from(jsFunc4, {
       returns: "cstring",

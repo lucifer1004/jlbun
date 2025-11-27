@@ -29,7 +29,7 @@
   "typedocOptions": {
     "entryPoints": ["jlbun/index.ts"],
     "out": "docs",
-    "readme": "docs.md",
+    "readme": "README.md",
     "searchInComments": true,
     "plugin": ["typedoc-plugin-katex"]
   }

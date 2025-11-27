@@ -25,8 +25,8 @@
     "fmt": "prettier --write './**/*.{ts,tsx,cjs,js,jsx,json}'",
     "lint": "eslint '**/*.{js,ts}' '*.{js,ts,cjs}' package.json --fix",
     "lint-staged": "lint-staged",
-    "prepare": "husky",
-    "prepublishOnly": "rollup -c rollup.config.js",
+    "prepare": "bun run husky",
+    "prepublishOnly": "bun run rollup -c rollup.config.js",
     "test": "bun test"
   },
   "lint-staged": {
