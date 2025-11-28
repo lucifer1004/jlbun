@@ -10,7 +10,7 @@ import { Julia, JuliaFunction, JuliaValue } from "./index.js";
  * GC roots dictionary when Julia multi-threading is enabled.
  */
 export class GCManager {
-  private static registry: FinalizationRegistry<string>;
+  private static registry: FinalizationRegistry<string> | null = null;
   private static roots: JuliaValue | null = null;
   private static setFn: JuliaFunction | null = null;
   private static deleteFn: JuliaFunction | null = null;
@@ -98,7 +98,7 @@ export class GCManager {
 
     const id = `__jlbun_gc_${this.counter++}`;
     Julia.call(this.setFn, id, value);
-    this.registry.register(value, id, value);
+    this.registry?.register(value, id, value);
     return id;
   }
 
@@ -117,7 +117,7 @@ export class GCManager {
     try {
       Julia.call(this.deleteFn, id);
       if (value) {
-        this.registry.unregister(value);
+        this.registry?.unregister(value);
       }
     } catch {
       // Ignore errors during cleanup
@@ -144,7 +144,6 @@ export class GCManager {
     this.roots = null;
     this.setFn = null;
     this.deleteFn = null;
-    // @ts-expect-error - Allow null assignment for cleanup
     this.registry = null;
     this.counter = 0;
   }
