@@ -17,6 +17,8 @@ export interface JuliaOptions {
   bindir: string;
   sysimage: string;
   project: string | null;
+  verbosity?: "quiet" | "normal" | "verbose";
+  prefetchFilter?: boolean;
 }
 
 export { JuliaArray } from "./arrays.js";

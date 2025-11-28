@@ -50,6 +50,7 @@ const DEFAULT_JULIA_OPTIONS = {
   bindir: "",
   sysimage: "",
   project: "",
+  verbosity: "normal" as const,
 };
 
 export class Julia {
@@ -84,12 +85,32 @@ export class Julia {
 
   private static prefetch(module: JuliaModule): void {
     const props = Julia.getModuleExports(module);
+    const failures: string[] = [];
+
     for (const prop of props) {
       try {
         module.get(prop);
       } catch (_) {
-        console.error(`Failed to prefetch ${prop} from ${module.name}!`);
+        failures.push(prop);
       }
+    }
+
+    if (failures.length > 0) {
+      const verbosity = Julia.options.verbosity ?? "quiet";
+
+      if (verbosity === "verbose") {
+        // Show first 5 failures as examples
+        const examples = failures.slice(0, 5);
+        console.warn(
+          `Failed to prefetch ${failures.length} properties from ${module.name}: ${examples.join(", ")}${failures.length > 5 ? ` (+${failures.length - 5} more)` : ""}`,
+        );
+      } else if (verbosity === "normal") {
+        // Just show count
+        console.warn(
+          `Failed to prefetch ${failures.length} properties from ${module.name}`,
+        );
+      }
+      // 'quiet' mode: no warnings
     }
   }
 
@@ -196,10 +217,10 @@ export class Julia {
       Julia.Pkg = Julia.import("Pkg");
 
       // Prefetch all the properties of Core, Base and Main
+      // Note: Pkg is already prefetched during import
       Julia.prefetch(Julia.Core);
       Julia.prefetch(Julia.Base);
       Julia.prefetch(Julia.Main);
-      Julia.prefetch(Julia.Pkg);
 
       if (Julia.options.project === null) {
         Julia.eval("Pkg.activate(; temp=true)");

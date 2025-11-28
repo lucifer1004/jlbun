@@ -31,7 +31,7 @@ import {
 } from "./index.js";
 
 beforeAll(() => {
-  Julia.init({ project: null });
+  Julia.init({ project: null, verbosity: "verbose" });
 });
 afterAll(() => Julia.close());
 
