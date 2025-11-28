@@ -18,6 +18,8 @@
     - [Function calls with keyword arguments](#function-calls-with-keyword-arguments)
     - [Call JS functions from Julia](#call-js-functions-from-julia)
     - [Run Julia with multiple threads](#run-julia-with-multiple-threads)
+    - [Automatic memory management with scope](#automatic-memory-management-with-scope)
+  - [Performance](#performance)
   - [Star History](#star-history)
 
 ## Installation
@@ -245,6 +247,43 @@ console.log(results); // [ 500500n, 500500n, 500500n, 500500n, 500500n, 500500n,
 
 Julia.close();
 ```
+
+### Automatic memory management with scope
+
+Use `Julia.scope()` to automatically manage Julia object lifecycle:
+
+```typescript
+import { Julia } from "jlbun";
+
+Julia.init();
+
+// All Julia objects created within the scope are automatically freed when the scope ends
+const result = Julia.scope((julia) => {
+  const a = julia.Base.rand(1000, 1000);
+  const b = julia.Base.rand(1000, 1000);
+  const c = julia.Base["*"](a, b);
+  return julia.Base.sum(c).value; // Return JS value, Julia objects auto-released
+});
+
+console.log(result); // A number
+
+// For async operations, use Julia.scopeAsync()
+const asyncResult = await Julia.scopeAsync(async (julia) => {
+  const func = julia.eval("() -> sum(1:1000000)");
+  const task = JuliaTask.from(func);
+  return (await task.value).value;
+});
+
+Julia.close();
+```
+
+## Performance
+
+jlbun uses several optimizations to minimize FFI overhead:
+
+- **Type Pointer Comparison**: For primitive types (Int64, Float64, String, etc.), type checking uses direct pointer comparison (O(1)) instead of string comparison
+- **Type String Cache**: Type strings are cached to avoid repeated FFI calls for the same Julia types
+- **Zero-Copy Arrays**: `JuliaArray.from()` shares memory with JavaScript `TypedArray` without copying
 
 ## Star History
 

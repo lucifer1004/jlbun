@@ -39,6 +39,9 @@ JL_DATATYPE_GETTER(uint64)
 JL_DATATYPE_GETTER(float16)
 JL_DATATYPE_GETTER(float32)
 JL_DATATYPE_GETTER(float64)
+JL_DATATYPE_GETTER(datatype)
+JL_DATATYPE_GETTER(module)
+JL_DATATYPE_GETTER(task)
 
 // Modules
 #define JL_MODULE_GETTER(x)                                                    \

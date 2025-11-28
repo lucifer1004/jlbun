@@ -302,12 +302,58 @@ For manual control without scopes, you can still use:
 
 **Note**: Manual management is discouraged. Prefer `Julia.scope()` for cleaner code and automatic cleanup.
 
+## Performance Optimizations
+
+### Type Pointer Comparison
+
+The `wrapPtr()` function uses pointer comparison for primitive types instead of string comparison:
+
+```typescript
+// Fast path: O(1) pointer comparison
+if (typePtr === Julia.Int64.ptr) {
+  return new JuliaInt64(ptr);
+} else if (typePtr === Julia.Float64.ptr) {
+  return new JuliaFloat64(ptr);
+}
+// ... etc
+```
+
+Supported fast-path types:
+- Primitives: String, Bool, Char, Int8/16/32/64, UInt8/16/32/64, Float16/32/64
+- Special: Nothing, Symbol, Module, Task, DataType
+
+### Type String Cache
+
+A `Map<Pointer, string>` cache avoids repeated FFI calls to `jl_typeof_str`:
+
+```typescript
+// Cache lookup before FFI call
+const cached = Julia.typeStrCache.get(typePtr);
+if (cached !== undefined) return cached;
+
+// Cache miss - get string and cache it
+const typeStr = jlbun.symbols.jl_typeof_str(ptr).toString();
+Julia.typeStrCache.set(typePtr, typeStr);
+```
+
+Pre-populated with 20 common types at initialization.
+
+### Zero-Copy Array Sharing
+
+`JuliaArray.from()` wraps TypedArray memory directly without copying:
+
+```typescript
+const bunArray = new Float64Array([1, 2, 3]);
+const juliaArray = JuliaArray.from(bunArray);
+// Both arrays share the same memory buffer
+```
+
 ## C Wrapper Layer (`c/wrapper.c`)
 
 The C layer wraps Julia C API with the following main functions:
 
 1. **Initialization**: `jl_init0`, `jl_init_with_image0`
-2. **Type Getters**: `jl_*_type_getter()` function series
+2. **Type Getters**: `jl_*_type_getter()` function series (including `datatype`, `module`, `task`, `array`)
 3. **Module Access**: `jl_*_module_getter()` function series
 4. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`
 5. **Property Queries**: `jl_hasproperty`, `jl_propertynames`, `jl_propertycount`
@@ -416,9 +462,12 @@ coveragePathIgnorePatterns = ["**/tests/**"]
 1. Add type getter function in `c/wrapper.c` (if needed)
 2. Declare FFI binding in `jlbun/wrapper.ts`
 3. Create new wrapper class file or extend `values.ts`
-4. Add type recognition logic in `wrapPtr()` in `jlbun/julia.ts`
-5. Export in `jlbun/index.ts`
-6. Add test cases
+4. Add type recognition logic in `wrapPtr()` in `jlbun/julia.ts`:
+   - For primitive types: add pointer comparison in fast path
+   - For parametric types: add string comparison in slow path
+5. If adding a primitive type, also add it to `typeStrCache` initialization
+6. Export in `jlbun/index.ts`
+7. Add test cases
 
 ### Modifying FFI Bindings
 

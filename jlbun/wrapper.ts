@@ -92,6 +92,18 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [],
     returns: FFIType.ptr,
   },
+  jl_datatype_type_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  jl_module_type_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  jl_task_type_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
 
   // Modules
   jl_main_module_getter: {
