@@ -1,5 +1,10 @@
 # jlbun - Using Julia in Bun
 
+[![Version](https://img.shields.io/badge/docs-latest-blue.svg)](https://lucifer1004.github.io/jlbun/)
+[![NPM](https://img.shields.io/npm/v/jlbun)](https://www.npmjs.com/package/jlbun)
+[![Build Status](https://github.com/lucifer1004/jlbun/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/lucifer1004/jlbun/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/lucifer1004/jlbun/branch/main/graph/badge.svg)](https://codecov.io/gh/lucifer1004/jlbun)
+
 ![Logo of jlbun](https://user-images.githubusercontent.com/13583761/210193825-4b898ddf-b4b2-4e21-a691-c05240bb81e3.png)
 
 - [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
