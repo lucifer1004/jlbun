@@ -25,6 +25,7 @@ import {
   JuliaUInt32,
   JuliaUInt64,
   safeCString,
+  UnknownJuliaError,
 } from "./index.js";
 
 beforeAll(() => Julia.init({ project: null }));
@@ -54,7 +55,21 @@ describe("Julia", () => {
       bar: 2n,
     });
   });
+
+  it("exposes the Julia version", () => {
+    const runtimeVersion = (Julia.eval("string(VERSION)") as JuliaString).value;
+    expect(Julia.version).toBe(runtimeVersion);
+  });
 });
+
+const canResizeSharedBuffers = (): boolean => {
+  const [major = "0", minor = "0"] = Julia.version
+    .split(".")
+    .map((part) => part.replace(/[^0-9].*/, ""));
+  const majorNum = Number(major);
+  const minorNum = Number(minor);
+  return majorNum > 1 || (majorNum === 1 && minorNum >= 11);
+};
 
 describe("JuliaInt8", () => {
   it("can be created from Julia", () => {
@@ -473,20 +488,39 @@ describe("JuliaArray", () => {
       "[JuliaArray Int32[10, 10, 10, 10, 20, 10, 10, 10, 10, 10]]",
     );
 
-    expect(arr.pop()?.value).toBe(10);
-    expect(arr.pop()?.value).toBe(10);
+    // Pop/Push behaviour depends on Julia version (>=1.11 allows resizing shared buffers)
+    if (canResizeSharedBuffers()) {
+      expect(arr.pop()?.value).toBe(10);
+      arr.push(30);
+      expect(arr.pop()?.value).toBe(30);
 
-    const reshapedArr = arr.reshape(2, 4);
-    expect(reshapedArr.length).toBe(8);
-    expect(reshapedArr.ndims).toBe(2);
-    expect(reshapedArr.size).toEqual([2, 4]);
-    expect(reshapedArr.value).toEqual(
-      new Int32Array([10, 10, 10, 10, 20, 10, 10, 10]),
-    );
+      const reshapedArr = arr.reshape(3, 3);
+      expect(reshapedArr.length).toBe(9);
+      expect(reshapedArr.ndims).toBe(2);
+      expect(reshapedArr.size).toEqual([3, 3]);
+      expect(reshapedArr.value).toEqual(
+        new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10]),
+      );
 
-    expect(rawArr).toEqual(
-      new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10, 10]),
-    );
+      expect(rawArr).toEqual(
+        new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10, 30]),
+      );
+    } else {
+      expect(() => arr.pop()).toThrow(UnknownJuliaError);
+      expect(() => arr.push(10)).toThrow(UnknownJuliaError);
+
+      const reshapedArr = arr.reshape(2, 5);
+      expect(reshapedArr.length).toBe(10);
+      expect(reshapedArr.ndims).toBe(2);
+      expect(reshapedArr.size).toEqual([2, 5]);
+      expect(reshapedArr.value).toEqual(
+        new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10, 10]),
+      );
+
+      expect(rawArr).toEqual(
+        new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10, 10]),
+      );
+    }
   });
 
   it("can be a general Julia array", () => {

@@ -256,6 +256,16 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
         returns: $size_t,
     },
 
+    // Array element access
+    jl_array_ptr_ref_wrapper: {
+        args: [FFIType.ptr, FFIType.u64],
+        returns: FFIType.ptr,
+    },
+    jl_array_ptr_set_wrapper: {
+        args: [FFIType.ptr, FFIType.u64, FFIType.ptr],
+        returns: FFIType.void,
+    },
+
     // GC
     jl_gc_push1: {
         args: [FFIType.ptr],
@@ -284,4 +294,44 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
 """
 
     write(joinpath(@__DIR__, "..", "jlbun", "wrapper.ts"), dlopen_template)
+end
+
+# Auto-run section: automatically find Julia and generate wrapper
+function find_julia_header()
+    # Use the same logic as FindJulia.cmake to locate julia.h
+    julia_bindir = Sys.BINDIR
+
+    # Calculate include directory using the same approach as CMake
+    julia_include_dir = joinpath(match(r"(.*)(bin)", julia_bindir).captures[1], "include", "julia")
+
+    # Check if the directory exists (installed Julia)
+    if !isdir(julia_include_dir)
+        # We're running directly from build, try alternative paths
+        julia_base_dir_aux = splitdir(splitdir(julia_bindir)[1])[1]  # useful for running-from-build
+        julia_include_dir = joinpath(julia_base_dir_aux, "usr", "include")
+        if !isdir(joinpath(julia_include_dir, "julia"))
+            julia_include_dir = joinpath(julia_base_dir_aux, "include", "julia")
+        end
+    end
+
+    header_path = joinpath(julia_include_dir, "julia.h")
+    if isfile(header_path)
+        return header_path
+    end
+
+    error("Could not find julia.h header file at $header_path. Please ensure Julia is properly installed.")
+end
+
+# Auto-run the codegen if this file is executed directly
+if abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    println("Auto-detecting Julia installation and generating wrapper...")
+    try
+        julia_header_path = find_julia_header()
+        println("Found julia.h at: $julia_header_path")
+        codegen(julia_header_path)
+        println("Successfully generated wrapper.ts")
+    catch e
+        println("Error during codegen: $e")
+        rethrow(e)
+    end
 end

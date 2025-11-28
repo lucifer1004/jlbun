@@ -174,10 +174,6 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   },
 
   // Array element access
-  jl_array_isboxed: {
-    args: [FFIType.ptr],
-    returns: FFIType.i8,
-  },
   jl_array_ptr_ref_wrapper: {
     args: [FFIType.ptr, FFIType.u64],
     returns: FFIType.ptr,

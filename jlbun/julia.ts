@@ -56,6 +56,7 @@ export class Julia {
   private static options: JuliaOptions = DEFAULT_JULIA_OPTIONS;
   private static globals: JuliaIdDict;
   public static nthreads: number;
+  public static version: string;
 
   public static Core: JuliaModule;
   public static Base: JuliaModule;
@@ -207,6 +208,7 @@ export class Julia {
       }
 
       Julia.nthreads = Number(Julia.eval("Threads.nthreads()").value);
+      Julia.version = (Julia.eval("string(VERSION)") as JuliaString).value;
       Julia.eval("__jlbun_globals__ = IdDict()");
       Julia.globals = new JuliaIdDict(
         jlbun.symbols.jl_get_global(
@@ -480,13 +482,29 @@ export class Julia {
       funcCallParts.push(")");
       const funcCall = funcCallParts.join("");
 
+      // Try to get the exception message by calling Julia's string() function
+      let errMsg = errType;
+      try {
+        // Create a Julia string from the exception
+        const stringFunc = Julia.Base["string"];
+        if (stringFunc) {
+          const errJuliaValue = new JuliaAny(errPtr);
+          const msgPtr = Julia.call(stringFunc, errJuliaValue);
+          if (msgPtr && msgPtr.ptr) {
+            errMsg = msgPtr.toString();
+          }
+        }
+      } catch {
+        // If we can't get the message, fall back to the type
+        errMsg = errType;
+      }
+
       if (errType == "MethodError") {
-        throw new MethodError(funcCall);
+        throw new MethodError(`${funcCall}: ${errMsg}`);
       } else if (errType == "InexactError") {
-        throw new InexactError(funcCall);
+        throw new InexactError(`${funcCall}: ${errMsg}`);
       } else {
-        // Avoid calling Julia functions during error handling to prevent recursive errors
-        throw new UnknownJuliaError(`Julia error in ${funcCall}: ${errType}`);
+        throw new UnknownJuliaError(`Julia error in ${funcCall}: ${errMsg}`);
       }
     }
   }
@@ -524,13 +542,10 @@ export class Julia {
     }
 
     if (ret === null) {
-      throw new Error(
-        `Julia function call failed: ${func.name || "unknown function"}`,
-      );
+      Julia.handleCallException(func, args);
+    } else {
+      return Julia.wrapPtr(ret);
     }
-
-    Julia.handleCallException(func, args);
-    return Julia.wrapPtr(ret);
   }
 
   /**

@@ -18,6 +18,7 @@
 ## Installation
 
 > - You need to have `Bun`, `CMake` and `Julia` installed to use this library.
+> - **Currently only supports Julia 1.10--1.12**
 > - `bun install` does not run the packages's `install` scripts, so `npm install` is used instead. 
 
 ```bash
