@@ -25,10 +25,13 @@ jobs:
           - 'nightly'
         bun-version:
           - 'latest'
-        os:
-          - ubuntu-latest
-        arch:
-          - x64
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+          - os: macos-latest
+            arch: arm64
     steps:
       - uses: actions/checkout@v6
       - uses: jwlawson/actions-setup-cmake@v2
