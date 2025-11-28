@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 jobs:
   test:
-    name: Test Bun-${{ matrix.bun-version }} + Julia-${{ matrix.julia-version }} on ${{ matrix.os }}
+    name: Bun-${{ matrix.bun-version }} + Julia-${{ matrix.julia-version }} on ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -23,15 +23,15 @@ jobs:
           - '1.11'
           - '1.12'
           - 'nightly'
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        arch:
+          - x64
+          - arm64
         bun-version:
           - 'latest'
-        include:
-          - os: windows-latest
-            arch: x64
-          - os: ubuntu-latest
-            arch: x64
-          - os: macos-latest
-            arch: arm64
     steps:
       - uses: actions/checkout@v6
       - uses: jwlawson/actions-setup-cmake@v2
@@ -43,7 +43,7 @@ jobs:
         with:
           bun-version: ${{ matrix.bun-version }}
       - run: |
-          bun install && JULIA_NUM_THREADS=auto bun test --coverage --coverage-reporter=lcov
+          bun install --silent && JULIA_NUM_THREADS=auto bun test --coverage --coverage-reporter=lcov
       - uses: codecov/codecov-action@v5
         with:
           disable_search: true
