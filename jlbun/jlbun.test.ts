@@ -2,6 +2,7 @@ import { CString, Pointer, ptr, toArrayBuffer } from "bun:ffi";
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   Julia,
+  JuliaAny,
   JuliaArray,
   JuliaBool,
   JuliaChar,
@@ -9,6 +10,7 @@ import {
   JuliaFloat32,
   JuliaFloat64,
   JuliaFunction,
+  JuliaIdDict,
   JuliaInt8,
   JuliaInt16,
   JuliaInt32,
@@ -28,18 +30,23 @@ import {
   UnknownJuliaError,
 } from "./index.js";
 
-beforeAll(() => Julia.init({ project: null }));
+beforeAll(() => {
+  Julia.init({ project: null });
+});
 afterAll(() => Julia.close());
 
 describe("Julia", () => {
   it("can import modules", () => {
-    Julia.import("Printf");
+    const Printf = Julia.import("Printf");
+    expect(Julia.typeof(Printf).value).toBe("Module");
+    expect(Printf.value).toBe("[JuliaModule Main.Printf]");
     expect(Julia.eval('Printf.@sprintf "%d %.2f" 10 2').value).toBe("10 2.00");
   });
 
   it("can call functions of imported modules", () => {
     const Dates = Julia.import("Dates");
     expect(Dates.monthname(1).value).toBe("January");
+    expect(Dates.monthname.value).toBe("[JuliaFunction monthname]");
   });
 
   it("supports tag template strings", () => {
@@ -59,6 +66,33 @@ describe("Julia", () => {
   it("exposes the Julia version", () => {
     const runtimeVersion = (Julia.eval("string(VERSION)") as JuliaString).value;
     expect(Julia.version).toBe(runtimeVersion);
+  });
+
+  it("supports global variable management", () => {
+    const testValue = Julia.eval("42");
+    Julia.setGlobal("testGlobal", testValue);
+    expect(Julia.getGlobal("testGlobal").value).toBe(testValue.value);
+    expect(Julia.deleteGlobal("testGlobal")).toBe(true);
+    expect(Julia.deleteGlobal("nonexistent")).toBe(false);
+  });
+
+  it("supports getFunction method", () => {
+    const func = Julia.getFunction(Julia.Base, "println");
+    expect(func).toBeInstanceOf(JuliaFunction);
+    expect(func.name).toBe("println");
+  });
+
+  it("supports repr method", () => {
+    const value = Julia.eval("42");
+    const reprStr = Julia.repr(value);
+    expect(typeof reprStr).toBe("string");
+    expect(reprStr).toContain("42");
+  });
+
+  it("supports print method", () => {
+    const value = Julia.eval("42");
+    // Just test that it doesn't throw
+    expect(() => Julia.print(value)).not.toThrow();
   });
 });
 
@@ -554,6 +588,7 @@ describe("JuliaTuple", () => {
     expect(tuple.get(2).value).toBe(3n);
     expect(() => tuple.get(3)).toThrow(RangeError);
     expect(tuple.length).toBe(3);
+    expect(tuple.value).toEqual([1n, 2n, 3n]);
     expect(tuple.toString()).toBe("(1, 2, 3)");
   });
 
@@ -563,6 +598,7 @@ describe("JuliaTuple", () => {
     expect(tuple.get(1).value).toBe(2n);
     expect(tuple.get(2).value).toBe("hello");
     expect(tuple.length).toBe(3);
+    expect(tuple.value).toEqual([1n, 2n, "hello"]);
     expect(tuple.toString()).toBe('(1, 2, "hello")');
   });
 });
@@ -740,6 +776,59 @@ describe("JuliaDict", () => {
       ]),
     );
   });
+
+  it("supports toString() method", () => {
+    const dict = JuliaDict.from([["a", 1n]]);
+    expect(typeof dict.toString()).toBe("string");
+    expect(dict.toString()).toContain("JuliaDict");
+  });
+
+  it("supports keys(), values(), and entries() methods", () => {
+    const dict = JuliaDict.from([
+      ["a", 1n],
+      ["b", 2n],
+    ]);
+
+    const keys = dict.keys();
+    expect(Array.isArray(keys)).toBe(true);
+    expect(keys).toContain("a");
+    expect(keys).toContain("b");
+
+    const values = dict.values();
+    expect(Array.isArray(values)).toBe(true);
+    expect(values).toContain(1n);
+    expect(values).toContain(2n);
+
+    const entries = dict.entries();
+    expect(Array.isArray(entries)).toBe(true);
+    expect(entries.length).toBe(2);
+    // entries() returns a Map converted to array, so check that it contains our entries
+    const entryMap = new Map(entries.map(([k, v]) => [k, v]));
+    expect(entryMap.get("a")).toBe(1n);
+    expect(entryMap.get("b")).toBe(2n);
+  });
+});
+
+describe("JuliaIdDict", () => {
+  it("can be created from JS", () => {
+    const dict = JuliaIdDict.from([
+      ["a", 1n],
+      ["b", 2n],
+    ]);
+    expect(dict.size).toBe(2);
+    expect(dict.has("a")).toBe(true);
+    expect(dict.has("b")).toBe(true);
+    expect(dict.has("c")).toBe(false);
+    expect(dict.get("a").value).toBe(1n);
+    expect(dict.get("b").value).toBe(2n);
+    expect(dict.get("c").value).toBe(null);
+  });
+
+  it("supports toString() method", () => {
+    const dict = JuliaIdDict.from([["a", 1n]]);
+    expect(typeof dict.toString()).toBe("string");
+    expect(dict.toString()).toContain("JuliaIdDict");
+  });
 });
 
 describe("JuliaTask", () => {
@@ -776,5 +865,13 @@ describe("JuliaTask", () => {
     }
     const results = (await Promise.all(promises)).map((x) => x.value);
     expect(results).toEqual(new Array(nthreads).fill(5050n));
+  });
+});
+
+describe("JuliaAny", () => {
+  it("is a fallback for unknown types", () => {
+    const one = JuliaInt32.from(1);
+    const myAny = new JuliaAny(one.ptr);
+    expect(myAny.value).toBe("[JuliaValue 1]");
   });
 });

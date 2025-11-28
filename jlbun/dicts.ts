@@ -51,16 +51,16 @@ export class JuliaDict implements JuliaValue {
     return new Map(Julia.Base.collect(this).value);
   }
 
-  keys(): JuliaValue[] {
-    return Julia.Base.keys(this).value;
+  keys(): any[] {
+    return Julia.Base.collect(Julia.Base.keys(this)).value;
   }
 
-  values(): JuliaValue[] {
-    return Julia.Base.values(this).value;
+  values(): any[] {
+    return Julia.Base.collect(Julia.Base.values(this)).value;
   }
 
-  entries(): [JuliaValue, JuliaValue][] {
-    return Array.from(this.value.entries()) as [JuliaValue, JuliaValue][];
+  entries(): [any, any][] {
+    return Array.from(this.value.entries()) as [any, any][];
   }
 
   toString(): string {

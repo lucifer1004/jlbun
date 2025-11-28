@@ -35,8 +35,8 @@ export function mapFFITypeToJulia(type: FFITypeOrString): string {
     type === FFIType.u64 ||
     type === FFIType.u64_fast ||
     type === "u64" ||
-    type === "uint64_t"
-    // || type === "usize" // TODO: add this after Bun upgrades
+    type === "uint64_t" ||
+    type === "usize"
   ) {
     return "UInt64";
   } else if (type === FFIType.f32 || type === "f32" || type === "float") {

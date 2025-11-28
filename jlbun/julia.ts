@@ -253,6 +253,18 @@ export class Julia {
   }
 
   /**
+   * Get the type of a Julia value.
+   *
+   * @param value Value to get the type of.
+   */
+  public static typeof(value: JuliaValue): JuliaDataType {
+    return new JuliaDataType(
+      jlbun.symbols.jl_typeof_getter(value.ptr)!,
+      Julia.getTypeStr(value.ptr),
+    );
+  }
+
+  /**
    * Get the string representation of a Julia value's type.
    *
    * @param ptr Pointer to a Julia object, or a `JuliaValue` object.
@@ -515,8 +527,10 @@ export class Julia {
    * @param func The Julia function to be called.
    * @param args The arguments to be passed to the function. Non-`JuliaValue` objects will be automatically wrapped by `Julia.autoWrap`. Since the automatic wrapping does not work perfectly all the time, be sure to wrap the objects yourself in order to feed the function with the exact types.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public static call(func: JuliaFunction, ...args: any[]): JuliaValue {
+  public static call(
+    func: JuliaFunction,
+    ...args: unknown[]
+  ): JuliaValue | undefined {
     const wrappedArgs = args.map((arg) => Julia.autoWrap(arg).ptr);
 
     let ret: Pointer | null;
@@ -543,6 +557,7 @@ export class Julia {
 
     if (ret === null) {
       Julia.handleCallException(func, args);
+      return undefined;
     } else {
       return Julia.wrapPtr(ret);
     }
