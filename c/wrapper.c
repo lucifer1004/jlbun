@@ -1,5 +1,11 @@
 #include <julia.h>
 
+#if JULIA_VERSION_MAJOR >= 1 && JULIA_VERSION_MINOR >= 14
+#define JL_FUNCTION_TYPE jl_value_t
+#else
+#define JL_FUNCTION_TYPE jl_function_t
+#endif
+
 void jl_init0() { jl_init(); }
 
 void jl_init_with_image0(const char *julia_home_dir,
@@ -44,19 +50,19 @@ JL_MODULE_GETTER(core)
 JL_MODULE_GETTER(top)
 
 // Functions
-jl_function_t *jl_function_getter(jl_module_t *m, const char *name) {
+JL_FUNCTION_TYPE *jl_function_getter(jl_module_t *m, const char *name) {
   return jl_get_function(m, name);
 }
 
 // Builtins
 int8_t jl_hasproperty(jl_value_t *v, const char *name) {
-  jl_function_t *hasproperty = jl_get_function(jl_base_module, "hasproperty");
+  JL_FUNCTION_TYPE *hasproperty = jl_get_function(jl_base_module, "hasproperty");
   jl_value_t *ret = jl_call2(hasproperty, v, (jl_value_t *)jl_symbol(name));
   return jl_unbox_bool(ret);
 }
 
 size_t jl_propertycount(jl_value_t *v) {
-  jl_function_t *propertynames =
+  JL_FUNCTION_TYPE *propertynames =
       jl_get_function(jl_base_module, "propertynames");
   jl_array_t *properties = (jl_array_t *)jl_call1(propertynames, v);
   size_t len = jl_array_len(properties);
@@ -64,7 +70,7 @@ size_t jl_propertycount(jl_value_t *v) {
 }
 
 const char **jl_propertynames(jl_value_t *v) {
-  jl_function_t *propertynames =
+  JL_FUNCTION_TYPE *propertynames =
       jl_get_function(jl_base_module, "propertynames");
   jl_array_t *properties = (jl_array_t *)jl_call1(propertynames, v);
   size_t len = jl_array_len(properties);
