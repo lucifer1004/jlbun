@@ -85,8 +85,8 @@ export class Julia {
     const props = Julia.getModuleExports(module);
     for (const prop of props) {
       try {
-        module[prop];
-      } catch (e) {
+        module.get(prop);
+      } catch (_) {
         console.error(`Failed to prefetch ${prop} from ${module.name}!`);
       }
     }
@@ -218,10 +218,7 @@ export class Julia {
   }
 
   private static getModuleExports(obj: JuliaValue): string[] {
-    return Julia.Base.names(obj).value.map(
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      (x: symbol) => x.description!,
-    );
+    return Julia.Base.names(obj).value.map((x: symbol) => x.description!);
   }
 
   /**
@@ -323,10 +320,11 @@ export class Julia {
    */
   public static getFunction(module: JuliaModule, name: string): JuliaFunction {
     const cName = safeCString(name);
-    return new JuliaFunction(
-      jlbun.symbols.jl_function_getter(module.ptr, cName)!,
-      name,
-    );
+    const funcPtr = jlbun.symbols.jl_function_getter(module.ptr, cName);
+    if (funcPtr === null) {
+      throw new Error(`Failed to get function '${name}' from Julia module`);
+    }
+    return new JuliaFunction(funcPtr, name);
   }
 
   /**
@@ -375,10 +373,13 @@ export class Julia {
     } else if (typeStr === "DataType") {
       return new JuliaDataType(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
     } else if (typeStr === "Symbol") {
-      return new JuliaSymbol(
-        ptr,
-        jlbun.symbols.jl_symbol_name_getter(ptr)!.toString(),
-      );
+      const namePtr = jlbun.symbols.jl_symbol_name_getter(ptr);
+      if (namePtr === null) {
+        throw new Error(
+          "Failed to get symbol name pointer from Julia symbol object",
+        );
+      }
+      return new JuliaSymbol(ptr, namePtr.toString());
     } else if (typeStr === "Tuple") {
       return new JuliaTuple(ptr);
     } else if (typeStr === "Pair") {
@@ -500,26 +501,32 @@ export class Julia {
   public static call(func: JuliaFunction, ...args: any[]): JuliaValue {
     const wrappedArgs = args.map((arg) => Julia.autoWrap(arg).ptr);
 
-    let ret: Pointer;
+    let ret: Pointer | null;
     if (args.length == 0) {
-      ret = jlbun.symbols.jl_call0(func.ptr)!;
+      ret = jlbun.symbols.jl_call0(func.ptr);
     } else if (args.length == 1) {
-      ret = jlbun.symbols.jl_call1(func.ptr, wrappedArgs[0])!;
+      ret = jlbun.symbols.jl_call1(func.ptr, wrappedArgs[0]);
     } else if (args.length == 2) {
-      ret = jlbun.symbols.jl_call2(func.ptr, wrappedArgs[0], wrappedArgs[1])!;
+      ret = jlbun.symbols.jl_call2(func.ptr, wrappedArgs[0], wrappedArgs[1]);
     } else if (args.length == 3) {
       ret = jlbun.symbols.jl_call3(
         func.ptr,
         wrappedArgs[0],
         wrappedArgs[1],
         wrappedArgs[2],
-      )!;
+      );
     } else {
       ret = jlbun.symbols.jl_call(
         func.ptr,
         new BigInt64Array(wrappedArgs.map(BigInt)),
         args.length,
-      )!;
+      );
+    }
+
+    if (ret === null) {
+      throw new Error(
+        `Julia function call failed: ${func.name || "unknown function"}`,
+      );
     }
 
     Julia.handleCallException(func, args);

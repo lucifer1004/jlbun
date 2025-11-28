@@ -234,11 +234,17 @@ export class JuliaString extends JuliaPrimitive {
   }
 
   static from(value: string): JuliaString {
-    return new JuliaString(jlbun.symbols.jl_cstr_to_string(safeCString(value))!);
+    return new JuliaString(
+      jlbun.symbols.jl_cstr_to_string(safeCString(value))!,
+    );
   }
 
   get value(): string {
-    return jlbun.symbols.jl_string_ptr(this.ptr)!.toString();
+    const strPtr = jlbun.symbols.jl_string_ptr(this.ptr);
+    if (strPtr === null) {
+      throw new Error("Failed to get string pointer from Julia string object");
+    }
+    return strPtr.toString();
   }
 }
 
@@ -297,7 +303,11 @@ export class JuliaPtr extends JuliaPrimitive {
   }
 
   get value(): Pointer {
-    return jlbun.symbols.jl_unbox_voidpointer(this.ptr)!;
+    const voidPtr = jlbun.symbols.jl_unbox_voidpointer(this.ptr);
+    if (voidPtr === null) {
+      throw new Error("Failed to unbox void pointer from Julia value");
+    }
+    return voidPtr;
   }
 }
 

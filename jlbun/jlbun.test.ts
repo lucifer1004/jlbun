@@ -417,6 +417,7 @@ describe("JuliaArray", () => {
 
     arr.fill(10);
     expect(arr.get(0).value).toBe(10n);
+    expect(() => arr.get(10)).toThrow(RangeError);
 
     arr.set(5, 20n);
     expect(arr.get(5).value).toBe(20n);
@@ -472,10 +473,16 @@ describe("JuliaArray", () => {
       "[JuliaArray Int32[10, 10, 10, 10, 20, 10, 10, 10, 10, 10]]",
     );
 
-    const reshapedArr = arr.reshape(2, 5);
-    expect(reshapedArr.length).toBe(10);
+    expect(arr.pop()?.value).toBe(10);
+    expect(arr.pop()?.value).toBe(10);
+
+    const reshapedArr = arr.reshape(2, 4);
+    expect(reshapedArr.length).toBe(8);
     expect(reshapedArr.ndims).toBe(2);
-    expect(reshapedArr.size).toEqual([2, 5]);
+    expect(reshapedArr.size).toEqual([2, 4]);
+    expect(reshapedArr.value).toEqual(
+      new Int32Array([10, 10, 10, 10, 20, 10, 10, 10]),
+    );
 
     expect(rawArr).toEqual(
       new Int32Array([10, 10, 10, 10, 20, 10, 10, 10, 10, 10]),
@@ -511,6 +518,7 @@ describe("JuliaTuple", () => {
     expect(tuple.get(0).value).toBe(1n);
     expect(tuple.get(1).value).toBe(2n);
     expect(tuple.get(2).value).toBe(3n);
+    expect(() => tuple.get(3)).toThrow(RangeError);
     expect(tuple.length).toBe(3);
     expect(tuple.toString()).toBe("(1, 2, 3)");
   });
@@ -533,6 +541,7 @@ describe("JuliaNamedTuple", () => {
     expect(tuple().get(0).value).toBe(1n);
     expect(tuple().get(1).value).toBe(2n);
     expect(tuple().get(2).value).toBe(3n);
+    expect(() => tuple().get(3)).toThrow(RangeError);
     expect(tuple().length).toBe(3);
     expect(tuple().toString()).toBe("(a = 1, b = 2, c = 3)");
   });

@@ -19,7 +19,14 @@ export class JuliaTuple implements JuliaValue {
   }
 
   get(index: number): JuliaValue {
-    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
+    if (index < 0 || index >= this.length) {
+      throw new RangeError(`Index out of bounds: ${index}`);
+    }
+    const fieldPtr = jlbun.symbols.jl_get_nth_field(this.ptr, index);
+    if (fieldPtr === null) {
+      throw new Error(`Failed to get field ${index} from Julia tuple`);
+    }
+    return Julia.wrapPtr(fieldPtr);
   }
 
   get value(): any[] {
@@ -46,11 +53,19 @@ export class JuliaPair implements JuliaValue {
   }
 
   get first(): JuliaValue {
-    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 0));
+    const fieldPtr = jlbun.symbols.jl_get_nth_field(this.ptr, 0);
+    if (fieldPtr === null) {
+      throw new Error("Failed to get first field from Julia pair");
+    }
+    return Julia.wrapPtr(fieldPtr);
   }
 
   get second(): JuliaValue {
-    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, 1));
+    const fieldPtr = jlbun.symbols.jl_get_nth_field(this.ptr, 1);
+    if (fieldPtr === null) {
+      throw new Error("Failed to get second field from Julia pair");
+    }
+    return Julia.wrapPtr(fieldPtr);
   }
 
   get value(): [any, any] {
@@ -102,12 +117,22 @@ export class JuliaNamedTuple implements JuliaValue {
     );
     const values = JuliaTuple.from(...keys.map((key) => obj[key]));
     const ptr = jlbun.symbols.jl_call1(tupleType.ptr, values.ptr);
+    if (ptr === null) {
+      throw new Error("Failed to create Julia named tuple from object");
+    }
     Julia.handleCallException(tupleType as JuliaFunction, [values]);
     return new JuliaNamedTuple(ptr, keys);
   }
 
   get(index: number): JuliaValue {
-    return Julia.wrapPtr(jlbun.symbols.jl_get_nth_field(this.ptr, index));
+    if (index < 0 || index >= this.length) {
+      throw new RangeError(`Index out of bounds: ${index}`);
+    }
+    const fieldPtr = jlbun.symbols.jl_get_nth_field(this.ptr, index);
+    if (fieldPtr === null) {
+      throw new Error(`Failed to get field ${index} from Julia named tuple`);
+    }
+    return Julia.wrapPtr(fieldPtr);
   }
 
   get value(): Record<string, any> {

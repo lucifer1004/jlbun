@@ -1,11 +1,17 @@
 import js from "@eslint/js";
+import eslintPluginJsonc from 'eslint-plugin-jsonc';
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
 import prettier from "eslint-plugin-prettier";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
 
 export default [
   js.configs.recommended,
+  ...eslintPluginJsonc.configs["flat/recommended-with-jsonc"],
+  {
+    ignores: ["dist/**", "global.d.ts", "docs/**", "build/**"],
+  },
   {
     files: ["**/*.{js,ts}"],
     languageOptions: {
@@ -17,6 +23,10 @@ export default [
           jsx: false,
         },
       },
+      globals: {
+        ...globals.node,
+        ...globals.bun,
+      },
     },
     plugins: {
       "@typescript-eslint": tseslint,
@@ -25,6 +35,7 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      "prettier/prettier": "error",
       "no-unused-vars": "off",
       "simple-import-sort/imports": [
         "error",
@@ -44,10 +55,12 @@ export default [
     },
   },
   {
-    ignores: ["dist/**", "global.d.ts"],
-  },
-  {
-    files: ["**/*.js"],
-    ...js.configs.recommended,
-  },
+    files: ["**/*.json"],
+    plugins: {
+      prettier: prettier,
+    },
+    rules: {
+      "prettier/prettier": "error",
+    }
+  }
 ];

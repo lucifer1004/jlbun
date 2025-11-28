@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "lib": ["ESNext"],
-    "module": "esnext",
+    "module": "NodeNext",
     "target": "esnext",
     "moduleResolution": "nodenext",
     "strict": true,
@@ -25,6 +25,8 @@
     "benchmarks/**/*",
     "dist/**/*",
     "build/**/*",
-    "docs/**/*"
+    "docs/**/*",
+    "eslint.config.mjs",
+    "rollup.config.js"
   ]
 }

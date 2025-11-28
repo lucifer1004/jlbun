@@ -3,7 +3,18 @@ import { Pointer, ptr, toArrayBuffer } from "bun:ffi";
 /**
  * A typed JS Array.
  */
-type BunArray = Uint8Array | Int8Array | Uint16Array | Int16Array | Uint32Array | Int32Array | Float32Array | Float64Array | Uint8ClampedArray | BigInt64Array | BigUint64Array;
+type BunArray =
+  | Uint8Array
+  | Int8Array
+  | Uint16Array
+  | Int16Array
+  | Uint32Array
+  | Int32Array
+  | Float32Array
+  | Float64Array
+  | Uint8ClampedArray
+  | BigInt64Array
+  | BigUint64Array;
 import {
   jlbun,
   Julia,
@@ -16,7 +27,6 @@ import {
   JuliaInt16,
   JuliaInt32,
   JuliaInt64,
-  JuliaNothing,
   JuliaString,
   JuliaSymbol,
   JuliaUInt8,
@@ -26,7 +36,6 @@ import {
   JuliaValue,
   MethodError,
 } from "./index.js";
-
 
 interface FromBunArrayOptions {
   juliaGC: boolean;
@@ -151,7 +160,11 @@ export class JuliaArray implements JuliaValue {
    * Get the raw pointer of the array.
    */
   get rawPtr(): Pointer {
-    return jlbun.symbols.jl_array_data_getter(this.ptr)!;
+    const dataPtr = jlbun.symbols.jl_array_data_getter(this.ptr);
+    if (dataPtr === null) {
+      throw new Error("Failed to get array data pointer from Julia array");
+    }
+    return dataPtr;
   }
 
   /**
@@ -161,14 +174,27 @@ export class JuliaArray implements JuliaValue {
    * @returns Julia data at the given index, wrapped in a `JuliaValue` object.
    */
   get(index: number): JuliaValue {
+    if (index < 0 || index >= this.length) {
+      throw new RangeError(`Index out of bounds: ${index}`);
+    }
+
     if (jlbun.symbols.jl_array_isboxed(this.ptr)) {
       // For boxed arrays, use direct C API
-      return Julia.wrapPtr(jlbun.symbols.jl_array_ptr_ref_wrapper(this.ptr, index)!);
+      const elementPtr = jlbun.symbols.jl_array_ptr_ref_wrapper(
+        this.ptr,
+        index,
+      );
+      if (elementPtr === null) {
+        throw new Error(`Failed to get element ${index} from Julia array`);
+      }
+      return Julia.wrapPtr(elementPtr);
     } else {
       // For unboxed arrays, we need to use Julia's getindex function
       // But Julia might not be fully initialized yet, so we need to check
       if (!Julia.Base) {
-        throw new Error("Cannot access unboxed array elements before Julia is fully initialized. Call Julia.init() first.");
+        throw new Error(
+          "Cannot access unboxed array elements before Julia is fully initialized. Call Julia.init() first.",
+        );
       }
       return Julia.Base.getindex(this, index + 1); // Julia uses 1-based indexing
     }
@@ -224,7 +250,9 @@ export class JuliaArray implements JuliaValue {
     } else {
       // For unboxed arrays, use Julia's setindex! function
       if (!Julia.Base) {
-        throw new Error("Cannot set unboxed array elements before Julia is fully initialized. Call Julia.init() first.");
+        throw new Error(
+          "Cannot set unboxed array elements before Julia is fully initialized. Call Julia.init() first.",
+        );
       }
       Julia.Base["setindex!"](this, value, index + 1); // Julia uses 1-based indexing
     }
