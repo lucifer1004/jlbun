@@ -1,0 +1,3 @@
+[test]
+# Exclude test setup files from coverage statistics
+coveragePathIgnorePatterns = ["**/tests/**"]

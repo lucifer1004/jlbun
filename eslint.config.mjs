@@ -25,7 +25,7 @@ export default [
       },
       globals: {
         ...globals.node,
-        ...globals.bun,
+        Bun: "readonly",
       },
     },
     plugins: {

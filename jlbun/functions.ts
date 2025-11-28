@@ -5,14 +5,29 @@ import { mapFFITypeToJulia } from "./utils.js";
 /**
  * Wrapper for Julia `Function`.
  *
- * If the `JuliaFunction` comes from a JS function, you can use the
- * `.rawCB` field to get the raw `JSCallback` and use `cb.close()`
- * if the function will no longer be used.
+ * If the `JuliaFunction` comes from a JS function, the underlying `JSCallback`
+ * will be automatically cleaned up when the function is garbage collected.
+ * You can also manually call `.close()` to release resources earlier.
  */
 export class JuliaFunction extends Function implements JuliaValue {
   ptr: Pointer;
   name: string;
   rawCB?: JSCallback;
+
+  /**
+   * FinalizationRegistry for automatic JSCallback cleanup.
+   * When a JuliaFunction with a JSCallback is garbage collected,
+   * the callback is automatically closed.
+   */
+  private static callbackRegistry = new FinalizationRegistry<JSCallback>(
+    (cb) => {
+      try {
+        cb.close();
+      } catch {
+        // Ignore errors during cleanup
+      }
+    },
+  );
 
   constructor(ptr: Pointer, name: string) {
     super();
@@ -25,6 +40,10 @@ export class JuliaFunction extends Function implements JuliaValue {
 
   /**
    * Create a `JuliaFunction` from a JS function.
+   *
+   * The underlying `JSCallback` will be automatically cleaned up when the
+   * returned `JuliaFunction` is garbage collected. You can also manually
+   * call `.close()` to release resources earlier.
    *
    * @param jsFunc The JS function to be wrapped.
    * @param definition Type definition of the JS function. It follows
@@ -64,6 +83,10 @@ end
 
     const func = Julia.eval(funcStr) as JuliaFunction;
     func.rawCB = cb;
+
+    // Register for automatic cleanup when func is garbage collected
+    JuliaFunction.callbackRegistry.register(func, cb, func);
+
     return func;
   }
 
@@ -84,10 +107,16 @@ end
 
   /**
    * Free the underlying `JSCallback` if this function is created from one.
+   * This is optional as callbacks are automatically cleaned up when the
+   * JuliaFunction is garbage collected, but can be used to release
+   * resources earlier.
    */
   close(): void {
     if (this.rawCB !== undefined) {
+      // Unregister from FinalizationRegistry to prevent double-close
+      JuliaFunction.callbackRegistry.unregister(this);
       this.rawCB.close();
+      this.rawCB = undefined;
     }
   }
 

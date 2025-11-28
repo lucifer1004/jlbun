@@ -1,0 +1,458 @@
+# AGENTS.md - AI Coding Assistant Guide
+
+## Project Overview
+
+**jlbun** is a Foreign Function Interface (FFI) library that enables using the Julia programming language within the Bun JavaScript runtime. It allows developers to call Julia functions directly from TypeScript/JavaScript code, enabling seamless data exchange and function calls between the two languages.
+
+## Technical Architecture
+
+### Core Components
+
+```text
+jlbun/
+├── c/wrapper.c          # C wrapper layer: wraps Julia C API
+├── jlbun/               # TypeScript source code
+│   ├── index.ts         # Entry point and type exports
+│   ├── julia.ts         # Julia runtime main class
+│   ├── wrapper.ts       # Bun FFI binding definitions
+│   ├── gc.ts            # GCManager for automatic lifecycle management
+│   ├── scope.ts         # JuliaScope for proxy-based auto-tracking
+│   ├── arrays.ts        # JuliaArray wrapper class
+│   ├── functions.ts     # JuliaFunction wrapper class
+│   ├── values.ts        # Primitive type wrappers (Int, Float, String, etc.)
+│   ├── tuples.ts        # Tuple/NamedTuple/Pair wrapper classes
+│   ├── sets.ts          # JuliaSet wrapper class
+│   ├── dicts.ts         # JuliaDict/JuliaIdDict wrapper classes
+│   ├── modules.ts       # JuliaModule wrapper class
+│   ├── tasks.ts         # JuliaTask multi-threading support
+│   ├── types.ts         # JuliaDataType type system
+│   ├── errors.ts        # Error type definitions
+│   ├── utils.ts         # Utility functions
+│   └── tests/           # Test files (organized by module)
+│       ├── setup.ts     # Shared test initialization
+│       ├── julia.test.ts
+│       ├── values.test.ts
+│       ├── functions.test.ts
+│       ├── arrays.test.ts
+│       ├── collections.test.ts
+│       ├── tasks.test.ts
+│       ├── scope.test.ts
+│       └── utils.test.ts
+├── cmake/               # CMake modules
+│   └── FindJulia.cmake  # Julia finder script
+├── CMakeLists.txt       # CMake build configuration
+├── bunfig.toml          # Bun configuration (test coverage settings)
+└── build/               # Build output directory
+    └── libjlbun.dylib   # Compiled dynamic library
+```
+
+### Technology Stack
+
+- **Runtime**: Bun (>=1.0)
+- **Language**: TypeScript (ES2022+)
+- **FFI**: `bun:ffi` module
+- **Build System**: CMake (>=3.15)
+- **Dependency**: Julia (>=1.10)
+
+## Core Classes and APIs
+
+### `Julia` Class (Static Class)
+
+Main entry point, providing the following functionality:
+
+```typescript
+Julia.init(options?)           // Initialize Julia runtime
+Julia.close()                  // Close Julia runtime
+Julia.eval(code: string)       // Execute Julia code
+Julia.tagEval`...`             // Template string execution (supports value interpolation)
+Julia.import(moduleName)       // Import Julia module
+Julia.call(func, ...args)      // Call Julia function
+Julia.callWithKwargs(func, kwargs, ...args)  // Call with keyword arguments
+Julia.autoWrap(value)          // Auto-wrap JS value as JuliaValue
+Julia.wrapPtr(ptr)             // Wrap pointer as JuliaValue
+Julia.scope(fn)                // Execute code with automatic GC management
+Julia.scopeAsync(fn)           // Async version of scope()
+```
+
+**Built-in Module Access**:
+- `Julia.Core` - Julia Core module
+- `Julia.Base` - Julia Base module  
+- `Julia.Main` - Julia Main module
+- `Julia.Pkg` - Julia package manager
+
+### Data Type Wrapper Classes
+
+| TypeScript Class | Julia Type | JS Value Type |
+|------------------|------------|---------------|
+| `JuliaInt8/16/32` | `Int8/16/32` | `number` |
+| `JuliaInt64` | `Int64` | `bigint` |
+| `JuliaUInt8/16/32` | `UInt8/16/32` | `number` |
+| `JuliaUInt64` | `UInt64` | `bigint` |
+| `JuliaFloat32/64` | `Float32/64` | `number` |
+| `JuliaString` | `String` | `string` |
+| `JuliaBool` | `Bool` | `boolean` |
+| `JuliaChar` | `Char` | `string` |
+| `JuliaSymbol` | `Symbol` | `Symbol` |
+| `JuliaArray` | `Array` | `TypedArray` / `any[]` |
+| `JuliaTuple` | `Tuple` | `any[]` |
+| `JuliaNamedTuple` | `NamedTuple` | `Record<string, any>` |
+| `JuliaPair` | `Pair` | access via `.first` / `.second` |
+| `JuliaSet` | `Set` | `Set<any>` |
+| `JuliaDict` | `Dict` | `Map<any, any>` |
+| `JuliaFunction` | `Function` | callable |
+| `JuliaModule` | `Module` | property accessible |
+| `JuliaTask` | `Task` | `Promise<JuliaValue>` |
+
+### `JuliaValue` Interface
+
+All Julia value wrapper classes implement this interface:
+
+```typescript
+interface JuliaValue {
+  ptr: Pointer;           // Raw pointer to Julia object
+  get value(): any;       // Get native JS value
+  toString(): string;     // String representation
+}
+```
+
+## Memory Model
+
+### Zero-Copy Array Sharing
+
+`JuliaArray` supports memory sharing with JavaScript `TypedArray`:
+
+```typescript
+const bunArray = new Float64Array([1, 2, 3]);
+const juliaArray = JuliaArray.from(bunArray);
+// bunArray and juliaArray share the same memory
+bunArray[0] = 100;  // Julia array will also see this change
+```
+
+### Automatic Lifecycle Management
+
+jlbun provides automatic garbage collection integration between JavaScript and Julia runtimes. The recommended approach is to use **scoped contexts** for automatic memory management.
+
+---
+
+## Scope API (Recommended)
+
+### `Julia.scope()` - Synchronous Scope
+
+The `Julia.scope()` method creates a managed context where all Julia objects are automatically tracked and released when the scope exits. This is the **recommended way** to work with Julia objects.
+
+```typescript
+import { Julia } from "jlbun";
+
+Julia.init();
+
+// Basic usage: return JS value, Julia objects auto-released
+const result = Julia.scope((julia) => {
+  const a = julia.Base.rand(1000, 1000);
+  const b = julia.Base.rand(1000, 1000);
+  const c = julia.Base["*"](a, b);
+  return julia.Base.sum(c).value; // Return JS number
+});
+
+console.log(result); // A number, all Julia matrices freed
+```
+
+### `Julia.scopeAsync()` - Asynchronous Scope
+
+For async operations (e.g., `JuliaTask`), use `Julia.scopeAsync()`:
+
+```typescript
+const result = await Julia.scopeAsync(async (julia) => {
+  const func = julia.eval("() -> sum(1:1000000)") as JuliaFunction;
+  const task = JuliaTask.from(func);
+  const value = await task.value;
+  return value.value;
+});
+
+console.log(result); // 500000500000n
+```
+
+### ScopedJulia Proxy API
+
+The callback receives a `ScopedJulia` proxy object that mirrors the `Julia` static class but automatically tracks all created objects.
+
+#### Available Properties and Methods
+
+| Property/Method | Description |
+|-----------------|-------------|
+| `julia.eval(code)` | Execute Julia code, track result |
+| `julia.tagEval\`...\`` | Template string evaluation |
+| `julia.import(name)` | Import Julia module |
+| `julia.call(func, ...args)` | Call function with tracking |
+| `julia.callWithKwargs(func, kwargs, ...args)` | Call with keyword args |
+| `julia.escape(value)` | Remove from tracking, return value |
+| `julia.Base` / `julia.Core` / `julia.Main` / `julia.Pkg` | Module access |
+| `julia.version` | Julia version string |
+| `julia.nthreads` | Number of Julia threads |
+| `julia.Int64` / `julia.Float64` / ... | Data type accessors |
+| `julia.typeof(value)` | Get Julia type |
+| `julia.getTypeStr(value)` | Get type as string |
+| `julia.autoWrap(jsValue)` | Auto-wrap JS value |
+| `julia.wrapPtr(ptr)` | Wrap raw pointer |
+
+#### Scoped Collection Constructors
+
+The scoped proxy also provides convenient constructors for collection types:
+
+```typescript
+Julia.scope((julia) => {
+  // Create arrays (auto-tracked)
+  const arr1 = julia.Array.init(julia.Float64, 1000);
+  const arr2 = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+
+  // Create dictionaries
+  const dict = julia.Dict.from([
+    ["a", 1],
+    ["b", 2],
+  ]);
+
+  // Create sets
+  const set = julia.Set.from([1, 2, 3, 4, 5]);
+
+  // Create tuples
+  const tuple = julia.Tuple.from([1, "hello", 3.14]);
+  const namedTuple = julia.NamedTuple.from({ x: 10, y: 20 });
+
+  // All objects are automatically released when scope ends
+  return julia.Base.sum(arr2).value;
+});
+```
+
+### Escaping Values from Scope
+
+By default, all Julia objects are released when the scope ends. To keep a Julia object alive:
+
+#### Method 1: Return the JuliaValue directly
+
+```typescript
+// Returned JuliaValue is auto-escaped
+const arr = Julia.scope((julia) => {
+  return julia.Base.rand(100); // Auto-escaped
+});
+// arr is still valid here
+console.log(arr.length); // 100
+```
+
+#### Method 2: Explicit escape
+
+```typescript
+const arr = Julia.scope((julia) => {
+  const temp = julia.Base.rand(100);
+  const sorted = julia.Base.sort(temp);
+  // Explicitly escape - removes from tracking
+  return julia.escape(sorted);
+});
+// sorted array survives, temp is freed
+```
+
+### Real-World Example: Matrix Operations
+
+```typescript
+function matrixMultiply(size: number): number {
+  return Julia.scope((julia) => {
+    // Create two random matrices
+    const A = julia.Array.init(julia.Float64, size, size);
+    const B = julia.Array.init(julia.Float64, size, size);
+
+    // Fill with random values
+    julia.Base["rand!"](A);
+    julia.Base["rand!"](B);
+
+    // Matrix multiplication
+    const C = julia.Base["*"](A, B);
+
+    // Compute sum of result
+    return julia.Base.sum(C).value;
+  });
+  // A, B, C are all automatically freed here
+}
+
+const result = matrixMultiply(1000);
+console.log(`Sum: ${result}`);
+```
+
+### Thread Safety
+
+The scope implementation uses Julia's `ReentrantLock` to protect the internal GC root dictionary, making it safe to use with multi-threaded Julia operations (`JuliaTask`).
+
+---
+
+### JSCallback Auto-Cleanup
+
+Callbacks created with `JuliaFunction.from()` are automatically cleaned up when garbage collected. Manual `.close()` is still available for early cleanup:
+
+```typescript
+const jlFunc = JuliaFunction.from(
+  (x: number) => x * 2,
+  { args: [FFIType.f64], returns: FFIType.f64 }
+);
+// Optional: call jlFunc.close() for early cleanup
+// Otherwise, cleaned up automatically when GC'd
+```
+
+### Manual Management (Legacy)
+
+For manual control without scopes, you can still use:
+- `Julia.setGlobal(name, obj)` - Keep Julia objects alive
+- `Julia.deleteGlobal(name)` - Allow Julia objects to be GC'd
+
+**Note**: Manual management is discouraged. Prefer `Julia.scope()` for cleaner code and automatic cleanup.
+
+## C Wrapper Layer (`c/wrapper.c`)
+
+The C layer wraps Julia C API with the following main functions:
+
+1. **Initialization**: `jl_init0`, `jl_init_with_image0`
+2. **Type Getters**: `jl_*_type_getter()` function series
+3. **Module Access**: `jl_*_module_getter()` function series
+4. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`
+5. **Property Queries**: `jl_hasproperty`, `jl_propertynames`, `jl_propertycount`
+
+## Build System
+
+### Build Commands
+
+```bash
+# Install dependencies (automatically builds C library)
+npm install
+
+# Manually build C library
+bun run build-lib
+
+# Run tests
+bun test
+
+# Generate type declarations
+bun run rollup -c rollup.config.js
+```
+
+### CMake Configuration
+
+- Uses `cmake/FindJulia.cmake` to locate Julia installation
+- Outputs shared library `libjlbun.dylib` (macOS) / `libjlbun.so` (Linux)
+- Compiles `c/wrapper.c` and links Julia library
+
+## Code Standards
+
+### TypeScript Standards
+
+- Uses ESLint + Prettier for formatting
+- `strict` mode enabled
+- Module system: ES Modules (`"type": "module"`)
+- Target: ES2022+ (supports `BigInt64Array`, etc.)
+
+### Naming Conventions
+
+- Julia wrapper classes: `Julia*` (e.g., `JuliaArray`, `JuliaFunction`)
+- Static methods: camelCase
+- Interfaces/Types: PascalCase
+- Private methods: use `private` keyword
+
+### Error Handling
+
+```typescript
+// Custom error types
+MethodError        // Julia method call error
+InexactError       // Type conversion precision loss error
+UnknownJuliaError  // Other Julia exceptions
+```
+
+## Testing
+
+Tests are organized by module in `jlbun/tests/`:
+
+```text
+jlbun/tests/
+├── setup.ts          # Shared test initialization
+├── julia.test.ts     # Julia static class tests
+├── values.test.ts    # Primitive type tests (Int, Float, String, etc.)
+├── functions.test.ts # JuliaFunction and callback tests
+├── arrays.test.ts    # JuliaArray operations
+├── collections.test.ts # Tuple, Dict, Set tests
+├── tasks.test.ts     # JuliaTask async tests
+├── scope.test.ts     # Scope and GCManager tests
+└── utils.test.ts     # Utility functions and error classes
+```
+
+### Running Tests
+
+```bash
+bun test              # Run all tests
+bun test --coverage   # Run with coverage report
+```
+
+### Test Coverage
+
+Current coverage: **~98%** (excluding cleanup code)
+
+Coverage includes:
+- All data type creation and conversion
+- Function calls (regular/keyword arguments)
+- Array operations (shared memory/reshape/map)
+- Collection operations (Set/Dict/Tuple)
+- Async tasks (JuliaTask)
+- Module imports
+- **Scoped lifecycle management** (Julia.scope/Julia.scopeAsync)
+- GCManager protection/unprotection
+- JSCallback auto-cleanup via FinalizationRegistry
+
+### Coverage Configuration
+
+Configure coverage exclusions in `bunfig.toml`:
+
+```toml
+[test]
+coveragePathIgnorePatterns = ["**/tests/**"]
+```
+
+## Common Development Tasks
+
+### Adding New Julia Type Support
+
+1. Add type getter function in `c/wrapper.c` (if needed)
+2. Declare FFI binding in `jlbun/wrapper.ts`
+3. Create new wrapper class file or extend `values.ts`
+4. Add type recognition logic in `wrapPtr()` in `jlbun/julia.ts`
+5. Export in `jlbun/index.ts`
+6. Add test cases
+
+### Modifying FFI Bindings
+
+1. Modify C function in `c/wrapper.c`
+2. Update FFI declaration in `jlbun/wrapper.ts`
+3. Rebuild: `bun run build-lib`
+
+### Debugging Tips
+
+- Use `Julia.init({ verbosity: "verbose" })` for detailed output
+- Check `Julia.getTypeStr(ptr)` to get Julia type string
+- Use `Julia.repr(value)` to view Julia representation
+
+## Version Compatibility
+
+- **Julia**: >=1.10 (1.11+ supports shared buffer resizing)
+- **Bun**: >=1.0
+- **Node.js**: Not supported (depends on `bun:ffi`)
+
+## Release Process
+
+1. Update version number in `package.json`
+2. Run `bun run prepublishOnly` to build release package
+3. Publish to npm: `npm publish`
+
+Release package contents (see `files` field):
+- `dist/**/*.js` - Compiled JS
+- `dist/**/*.d.ts` - Type declarations
+- `c/wrapper.c` - C source code
+- `cmake/FindJulia.cmake` - CMake module
+- `CMakeLists.txt` - Build configuration
+
+## Reference Resources
+
+- [Julia C API Documentation](https://docs.julialang.org/en/v1/manual/embedding/)
+- [Bun FFI Documentation](https://bun.sh/docs/api/ffi)
+- [Project Documentation](https://lucifer1004.github.io/jlbun/)

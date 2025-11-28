@@ -52,3 +52,7 @@ export {
   JuliaUInt64,
 } from "./values.js";
 export { jlbun } from "./wrapper.js";
+
+// Re-export types for external use (ScopedJulia is the interface for scope callbacks)
+export { GCManager } from "./gc.js";
+export { JuliaScope, type ScopedJulia } from "./scope.js";

@@ -1,6 +1,7 @@
 import { Pointer } from "bun:ffi";
 import { randomUUID } from "crypto";
 import {
+  GCManager,
   InexactError,
   jlbun,
   JuliaAny,
@@ -23,6 +24,7 @@ import {
   JuliaOptions,
   JuliaPair,
   JuliaPtr,
+  JuliaScope,
   JuliaSet,
   JuliaString,
   JuliaSymbol,
@@ -35,6 +37,7 @@ import {
   JuliaValue,
   MethodError,
   safeCString,
+  ScopedJulia,
   UnknownJuliaError,
 } from "./index.js";
 
@@ -237,6 +240,9 @@ export class Julia {
           JuliaSymbol.from("__jlbun_globals__").ptr,
         )!,
       );
+
+      // Initialize thread-safe GC manager
+      GCManager.init();
     }
   }
 
@@ -421,11 +427,11 @@ export class Julia {
       return new JuliaPair(ptr);
     } else if (typeStr === "NamedTuple") {
       return new JuliaNamedTuple(ptr);
-    } else if (typeStr === "Set") {
+    } else if (typeStr === "Set" || typeStr.startsWith("Set{")) {
       return new JuliaSet(ptr);
-    } else if (typeStr === "Dict") {
+    } else if (typeStr === "Dict" || typeStr.startsWith("Dict{")) {
       return new JuliaDict(ptr);
-    } else if (typeStr === "IdDict") {
+    } else if (typeStr === "IdDict" || typeStr.startsWith("IdDict{")) {
       return new JuliaIdDict(ptr);
     } else if (typeStr[0] === "#") {
       let funcName: string;
@@ -759,11 +765,104 @@ export class Julia {
   }
 
   /**
+   * Execute code within a scoped context where Julia objects are automatically
+   * tracked and released when the scope ends.
+   *
+   * Objects created through the scoped `julia` proxy are automatically tracked
+   * and released when the scope ends. This provides automatic memory management
+   * without manual `setGlobal()` or `deleteGlobal()` calls.
+   *
+   * @param fn A function that receives a ScopedJulia proxy and returns a value.
+   * @returns The return value of the function.
+   *
+   * @example
+   * ```typescript
+   * const result = Julia.scope((julia) => {
+   *   const a = julia.Base.rand(1000, 1000);
+   *   const b = julia.Base.rand(1000, 1000);
+   *   const c = julia.Base["*"](a, b);
+   *   return c.value; // Return JS value, Julia objects are auto-released
+   * });
+   * ```
+   *
+   * @example
+   * ```typescript
+   * // Return a Julia object that escapes the scope
+   * const arr = Julia.scope((julia) => {
+   *   const temp = julia.Base.rand(100);
+   *   const sorted = julia.Base.sort(temp);
+   *   return julia.escape(sorted); // Escape from scope
+   * });
+   * // arr is still valid here
+   * ```
+   */
+  public static scope<T>(fn: (julia: ScopedJulia) => T): T {
+    const scope = new JuliaScope();
+    try {
+      const result = fn(scope.julia);
+
+      // If result is a JuliaValue that wasn't escaped, escape it automatically
+      if (
+        result &&
+        typeof result === "object" &&
+        "ptr" in result &&
+        !scope.isDisposed
+      ) {
+        scope.escape(result as unknown as JuliaValue);
+      }
+
+      return result;
+    } finally {
+      scope.dispose();
+    }
+  }
+
+  /**
+   * Execute async code within a scoped context where Julia objects are
+   * automatically tracked and released when the scope ends.
+   *
+   * @param fn An async function that receives a ScopedJulia proxy.
+   * @returns A promise that resolves to the return value of the function.
+   *
+   * @example
+   * ```typescript
+   * const result = await Julia.scopeAsync(async (julia) => {
+   *   const task = JuliaTask.from(julia.eval("() -> sum(1:1000)"));
+   *   const value = await task.value;
+   *   return value.value;
+   * });
+   * ```
+   */
+  public static async scopeAsync<T>(
+    fn: (julia: ScopedJulia) => Promise<T>,
+  ): Promise<T> {
+    const scope = new JuliaScope();
+    try {
+      const result = await fn(scope.julia);
+
+      // If result is a JuliaValue that wasn't escaped, escape it automatically
+      if (
+        result &&
+        typeof result === "object" &&
+        "ptr" in result &&
+        !scope.isDisposed
+      ) {
+        scope.escape(result as unknown as JuliaValue);
+      }
+
+      return result;
+    } finally {
+      scope.dispose();
+    }
+  }
+
+  /**
    * Close the Julia runtime and also close the dynamic library.
    *
    * @param status Status code to be reported.
    */
   public static close(status = 0) {
+    GCManager.close();
     jlbun.symbols.jl_atexit_hook(status);
     jlbun.close();
   }
