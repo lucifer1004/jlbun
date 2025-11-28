@@ -41,7 +41,7 @@ jobs:
           bun-version: ${{ matrix.bun-version }}
       - run: |
           bun install && JULIA_NUM_THREADS=auto bun test --coverage --coverage-reporter=lcov
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           disable_search: true
           files: ./coverage/lcov.info
