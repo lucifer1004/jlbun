@@ -11,18 +11,19 @@
 
 ## ✨ What's New in v0.2
 
-> **Stack-Based GC & Safe Mode** - The v0.2 release brings a complete GC redesign with significantly improved performance and a new safe mode for closure-heavy code.
+> **Scope-Based GC & Concurrent Async Support** - The v0.2 release brings a complete GC redesign with scope isolation for safe concurrent async operations.
 
 | Feature | Description |
 |---------|-------------|
-| 🚀 **Stack-Based GC** | New C-layer root pool with O(1) track and batch release |
+| 🔀 **Concurrent Async Scopes** | Multiple `Julia.scopeAsync()` can run in parallel safely |
 | 🛡️ **Safe Mode** | `Julia.scope(fn, { safe: true })` for automatic closure safety |
-| ⚡ **~2x Faster Scopes** | Batch release eliminates per-object FFI calls |
-| 🔒 **Escape Registry** | FinalizationRegistry-backed lifetime for escaped objects |
+| 🔒 **Thread-Safe GC** | All C-layer operations protected by `pthread_mutex_t` |
+| 📦 **Scope Isolation** | Each scope has unique ID; release order doesn't matter |
 
 ### Breaking Changes from v0.1
 
 - Removed deprecated `GCManager.protect()` / `GCManager.unprotect()` APIs
+- Removed legacy `GCManager.mark()` / `GCManager.push()` / `GCManager.release()` APIs
 - Escaped objects now use FinalizationRegistry for automatic cleanup
 
 ### v0.1 Features (Still Available)
@@ -41,6 +42,8 @@
 
 - [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
   - [✨ What's New in v0.2](#-whats-new-in-v02)
+    - [Breaking Changes from v0.1](#breaking-changes-from-v01)
+    - [v0.1 Features (Still Available)](#v01-features-still-available)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
   - [Quick Start](#quick-start)

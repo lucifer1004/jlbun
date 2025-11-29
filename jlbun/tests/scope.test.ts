@@ -399,78 +399,116 @@ describe("GCManager API coverage", () => {
 
   it("size returns current stack size", () => {
     const sizeBefore = GCManager.size;
+    const scopeId = GCManager.scopeBegin();
     const arr = JuliaArray.init(Julia.Float64, 5);
-    GCManager.push(arr);
+    GCManager.pushScoped(arr, scopeId);
     expect(GCManager.size).toBe(sizeBefore + 1);
+    GCManager.scopeEnd(scopeId);
   });
 
-  it("mark returns current stack position", () => {
-    const mark1 = GCManager.mark();
-    expect(typeof mark1).toBe("number");
-
-    const arr = JuliaArray.init(Julia.Float64, 5);
-    GCManager.push(arr);
-
-    const mark2 = GCManager.mark();
-    expect(mark2).toBe(mark1 + 1);
+  it("scopeBegin returns unique scope IDs", () => {
+    const scope1 = GCManager.scopeBegin();
+    const scope2 = GCManager.scopeBegin();
+    expect(typeof scope1).toBe("bigint");
+    expect(scope1).not.toBe(scope2);
+    expect(scope1).not.toBe(0n); // 0 is reserved for global scope
+    expect(scope2).not.toBe(0n);
   });
 
-  it("release clears values from mark to top", () => {
-    const mark = GCManager.mark();
+  it("scopeEnd releases only values in that scope", () => {
+    const sizeBefore = GCManager.size;
+
+    const scope1 = GCManager.scopeBegin();
     const arr1 = JuliaArray.init(Julia.Float64, 3);
+    GCManager.pushScoped(arr1, scope1);
+
+    const scope2 = GCManager.scopeBegin();
     const arr2 = JuliaArray.init(Julia.Int64, 5);
-    GCManager.push(arr1);
-    GCManager.push(arr2);
+    GCManager.pushScoped(arr2, scope2);
 
-    expect(GCManager.size).toBe(mark + 2);
+    expect(GCManager.size).toBe(sizeBefore + 2);
 
-    GCManager.release(mark);
-    expect(GCManager.size).toBe(mark);
+    // Release scope2 first (out of order - testing concurrent safety)
+    GCManager.scopeEnd(scope2);
+
+    // scope1's value should still be protected
+    expect(GCManager.get(sizeBefore)).toBe(arr1.ptr);
+
+    // Release scope1
+    GCManager.scopeEnd(scope1);
   });
 
   it("get returns value at index", () => {
+    const scopeId = GCManager.scopeBegin();
     const arr = JuliaArray.init(Julia.Float64, 3);
-    const idx = GCManager.push(arr);
+    const idx = GCManager.pushScoped(arr, scopeId);
     const retrieved = GCManager.get(idx);
     // Retrieved should be the same pointer
     expect(retrieved).toBe(arr.ptr);
+    GCManager.scopeEnd(scopeId);
   });
 
   it("set can update value at index", () => {
+    const scopeId = GCManager.scopeBegin();
     const arr1 = JuliaArray.init(Julia.Float64, 3);
     const arr2 = JuliaArray.init(Julia.Int64, 5);
-    const idx = GCManager.push(arr1);
+    const idx = GCManager.pushScoped(arr1, scopeId);
     // Replace arr1 with arr2 at the same index
     GCManager.set(idx, arr2);
     // Verify by getting the pointer back
     const retrieved = GCManager.get(idx);
     expect(retrieved).toBe(arr2.ptr);
+    GCManager.scopeEnd(scopeId);
   });
 
-  it("swap exchanges values at two indices", () => {
-    const arr1 = JuliaArray.init(Julia.Float64, 3);
-    const arr2 = JuliaArray.init(Julia.Int64, 5);
-    const idx1 = GCManager.push(arr1);
-    const idx2 = GCManager.push(arr2);
+  it("transfer moves value to different scope", () => {
+    const scope1 = GCManager.scopeBegin();
+    const scope2 = GCManager.scopeBegin();
 
-    // Before swap
-    expect(GCManager.get(idx1)).toBe(arr1.ptr);
-    expect(GCManager.get(idx2)).toBe(arr2.ptr);
+    const arr = JuliaArray.init(Julia.Float64, 3);
+    const idx = GCManager.pushScoped(arr, scope1);
 
-    // Swap
-    GCManager.swap(idx1, idx2);
+    // Initially in scope1
+    expect(GCManager.getScope(idx)).toBe(scope1);
 
-    // After swap
-    expect(GCManager.get(idx1)).toBe(arr2.ptr);
-    expect(GCManager.get(idx2)).toBe(arr1.ptr);
+    // Transfer to scope2
+    GCManager.transfer(idx, scope2);
+    expect(GCManager.getScope(idx)).toBe(scope2);
+
+    // End scope1 - arr should still be valid (it's in scope2)
+    GCManager.scopeEnd(scope1);
+    expect(GCManager.get(idx)).toBe(arr.ptr);
+
+    // End scope2
+    GCManager.scopeEnd(scope2);
+  });
+
+  it("transfer to global scope (0n) prevents auto-release", () => {
+    const scopeId = GCManager.scopeBegin();
+    const arr = JuliaArray.init(Julia.Float64, 5);
+    arr.set(0, 42);
+    const idx = GCManager.pushScoped(arr, scopeId);
+
+    // Transfer to global scope
+    GCManager.transfer(idx, 0n);
+    expect(GCManager.getScope(idx)).toBe(0n);
+
+    // End scope - arr should still be valid
+    GCManager.scopeEnd(scopeId);
+    expect(arr.get(0).value).toBe(42);
+
+    // Register for cleanup via FinalizationRegistry
+    GCManager.registerEscape(arr, idx);
   });
 
   it("registerEscape and unregisterEscape work correctly", () => {
+    const scopeId = GCManager.scopeBegin();
     const arr = JuliaArray.init(Julia.Float64, 5);
     arr.set(0, 42);
-    const idx = GCManager.push(arr);
+    const idx = GCManager.pushScoped(arr, scopeId);
 
-    // Register escape - value should still be accessible
+    // Transfer to global scope and register for cleanup
+    GCManager.transfer(idx, 0n);
     GCManager.registerEscape(arr, idx);
     expect(arr.get(0).value).toBe(42);
     expect(GCManager.get(idx)).toBe(arr.ptr);
@@ -482,6 +520,8 @@ describe("GCManager API coverage", () => {
     // Can re-register without issues
     GCManager.registerEscape(arr, idx);
     expect(arr.get(0).value).toBe(42);
+
+    GCManager.scopeEnd(scopeId);
   });
 });
 
@@ -509,8 +549,13 @@ describe("JuliaSubArray and JuliaRange scope compatibility", () => {
     // Verify tracking increased size
     expect(scope.size).toBe(sizeBefore + 1);
 
-    // Track same value again - in stack model, this pushes again
+    // Track same value again - in scope model, same value is deduplicated
     scope.track(sub);
+    expect(scope.size).toBe(sizeBefore + 1); // Still 1, not 2
+
+    // Track a different value
+    const sub2 = arr.view([0, 2]);
+    scope.track(sub2);
     expect(scope.size).toBe(sizeBefore + 2);
 
     // Verify functionality
@@ -560,8 +605,13 @@ describe("JuliaSubArray and JuliaRange scope compatibility", () => {
     // Verify tracking increased size
     expect(scope.size).toBe(sizeBefore + 1);
 
-    // Track same value again - in stack model, this pushes again
+    // Track same value again - in scope model, same value is deduplicated
     scope.track(range);
+    expect(scope.size).toBe(sizeBefore + 1); // Still 1, not 2
+
+    // Track a different value
+    const range2 = JuliaRange.from(1, 5);
+    scope.track(range2);
     expect(scope.size).toBe(sizeBefore + 2);
 
     // Verify functionality

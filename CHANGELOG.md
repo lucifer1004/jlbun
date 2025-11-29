@@ -11,27 +11,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Stack-Based GC Root Pool**: New C-layer implementation using `Vector{Any}` for O(1) object tracking and batch release
-- **Safe Mode for Scopes**: `Julia.scope(fn, { safe: true })` automatically manages Julia object lifetimes with `FinalizationRegistry`, making it safe to capture objects in closures
-- **GCManager APIs**: New methods `mark()`, `push()`, `release()`, `swap()`, `get()`, `set()`, `size`, `capacity`
-- **Escape Registry**: Escaped objects are now registered with `FinalizationRegistry` for automatic cleanup when JavaScript GC runs
-- **Thread Safety**: C-layer GC operations are protected by `pthread_mutex_t`
+- **Scope-Based GC Root Management**: New C-layer implementation using `Vector{Any}` with scope isolation for concurrent async operations
+- **Concurrent Async Scope Support**: Scopes can now be released in any order, enabling safe use of `Promise.all()` with multiple `Julia.scopeAsync()` calls
+- **Safe Mode for Scopes**: `Julia.scope(fn, { safe: true })` manages Julia object lifetimes with `FinalizationRegistry`, making it safe to capture objects in closures
+- **New GCManager APIs**: 
+  - `scopeBegin()` - Create a new scope, returns unique scope_id
+  - `pushScoped(value, scopeId)` - Push value to specific scope
+  - `scopeEnd(scopeId)` - Release all values in scope
+  - `transfer(idx, newScopeId)` - Move value to another scope (for escape)
+  - `getScope(idx)` - Get scope_id of value at index
+- **Escape Registry**: Escaped objects are registered with `FinalizationRegistry` for automatic cleanup when JavaScript GC runs
+- **Thread Safety**: All C-layer GC operations are protected by `pthread_mutex_t`
 - **Benchmark Suite**: Added `benchmarks/scope/gc-modes.ts` for comparing GC mode performance
 
 ### Changed
 
-- **GCManager Architecture**: Complete redesign from Julia `IdDict`-based to C-layer stack-based root pool
-- **Scope Disposal**: Now uses single `release()` FFI call instead of per-object `unprotect()` calls (~2x faster)
-- **Escaped Objects**: Now use `FinalizationRegistry` instead of manual tracking
+- **GCManager Architecture**: Complete redesign from stack-based LIFO to scope-based isolation
+- **Scope Disposal**: Uses `scopeEnd(scopeId)` for targeted release instead of stack-based `release(mark)`
+- **Escaped Objects**: Use `transfer(idx, 0n)` to move to global scope, then registered with `FinalizationRegistry`
 - **Julia 1.12 Compatibility**: Added explicit global variable declaration for `__jlbun_gc_stack__`
+- **Scope Tracking**: Same value tracked multiple times is now deduplicated (Map-based tracking)
 
 ### Removed
 
+- **Legacy Stack-Based APIs**: Removed `GCManager.mark()`, `GCManager.push()`, `GCManager.release()`, `GCManager.swap()`
 - **Deprecated APIs**: Removed `GCManager.protect()`, `GCManager.unprotect()`, `GCManager.protectedCount`
 - **IdDict-based GC**: Removed Julia-side `IdDict` for GC root management
 
 ### Fixed
 
+- **Concurrent Async Scope Bug**: Fixed race condition where parallel async scopes could release each other's values
 - **Segmentation Fault on Close**: Fixed segfault when `Julia.close()` was called while `FinalizationRegistry` callbacks were pending
 - **Julia 1.12 Global Binding**: Fixed `"Global Main.__jlbun_gc_stack__ does not exist"` error
 

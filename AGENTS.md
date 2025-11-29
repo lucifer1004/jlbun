@@ -355,7 +355,29 @@ console.log(`Sum: ${result}`);
 
 ### Thread Safety
 
-The scope implementation uses Julia's `ReentrantLock` to protect the internal GC root dictionary, making it safe to use with multi-threaded Julia operations (`JuliaTask`).
+The scope implementation uses C-layer `pthread_mutex_t` to protect the GC root pool, making it safe to use with multi-threaded Julia operations (`JuliaTask`).
+
+### Concurrent Async Scopes
+
+Multiple async scopes can run concurrently without interfering with each other:
+
+```typescript
+// ✅ Safe: each scope has its own scope_id
+const [r1, r2] = await Promise.all([
+  Julia.scopeAsync(async (julia) => {
+    const arr = julia.Array.init(julia.Float64, 1000);
+    await someAsyncOperation();
+    return julia.Base.sum(arr).value;
+  }),
+  Julia.scopeAsync(async (julia) => {
+    const arr = julia.Array.init(julia.Float64, 1000);
+    await someOtherAsyncOperation();
+    return julia.Base.sum(arr).value;
+  }),
+]);
+```
+
+**How it works**: Each scope gets a unique `scope_id`. When a scope ends, only values belonging to that `scope_id` are released, regardless of the order scopes were created or disposed.
 
 ### `julia.untracked()` - Performance Optimization
 
@@ -671,6 +693,16 @@ The C layer wraps Julia C API with the following main functions:
 5. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`, `jl_alloc_array_2d`, `jl_alloc_array_3d`, `jl_alloc_array_nd_wrapper`
 6. **Pointer Operations**: `jl_ptr_eltype` (get element type from `Ptr{T}`), `jl_is_ptr_type` (type check helper)
 7. **Property Queries**: `jl_hasproperty`, `jl_propertynames`, `jl_propertycount`
+8. **Scope-based GC Management** (thread-safe, mutex protected):
+   - `jlbun_gc_init(capacity)` - Initialize GC root pool
+   - `jlbun_gc_scope_begin()` - Create new scope, returns unique `scope_id`
+   - `jlbun_gc_push_scoped(value, scope_id)` - Push value to specific scope
+   - `jlbun_gc_scope_end(scope_id)` - Release all values in scope
+   - `jlbun_gc_transfer(idx, new_scope_id)` - Move value to another scope
+   - `jlbun_gc_get_scope(idx)` - Get scope_id of value at index
+   - `jlbun_gc_get(idx)`, `jlbun_gc_set(idx, value)` - Direct slot access
+   - `jlbun_gc_size()`, `jlbun_gc_capacity()` - Pool statistics
+   - `jlbun_gc_close()` - Cleanup
 
 ## Build System
 

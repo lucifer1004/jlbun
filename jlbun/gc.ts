@@ -1,21 +1,24 @@
 import { jlbun, JuliaValue } from "./index.js";
 
 /**
- * Stack-based GC Manager for automatic lifecycle management of Julia objects.
+ * Scope-based GC Manager for automatic lifecycle management of Julia objects.
  *
  * This module provides efficient garbage collection integration between
- * JavaScript and Julia runtimes using a stack-based root pool.
+ * JavaScript and Julia runtimes using scope-based isolation.
  *
  * Design:
  *   - Uses a Julia Vector{Any} as backing storage
- *   - Stack-based: push values, release by mark (scope exit)
+ *   - Scope-based: each value belongs to a scope_id, scopes can be released independently
  *   - Thread-safe: protected by mutex in C layer
- *   - Efficient: O(1) push, O(1) mark, O(n) release (batch)
+ *   - Concurrent-safe: scopes can be released in any order (safe for async)
+ *   - Efficient: O(1) push, O(n) release (only touches scope's values)
  *   - FinalizationRegistry fallback: escaped objects are auto-cleaned when JS GC runs
  *
- * Comparison with previous IdDict-based approach:
- *   - Old: Each protect/unprotect required FFI → Julia function call
- *   - New: Direct array operations via FFI, ~10-50x faster
+ * API:
+ *   - scopeBegin(): Create a new scope, returns unique scope_id
+ *   - pushScoped(value, scopeId): Push value to specific scope
+ *   - scopeEnd(scopeId): Release all values in scope
+ *   - transfer(idx, newScopeId): Move value to another scope (for escape)
  */
 export class GCManager {
   private static readonly DEFAULT_CAPACITY = 1024;
@@ -65,54 +68,76 @@ export class GCManager {
     return jlbun.symbols.jlbun_gc_is_initialized() !== 0;
   }
 
+  // ============================================================================
+  // Scope-based API (recommended for async/concurrent scopes)
+  // ============================================================================
+
   /**
-   * Get the current stack position as a mark.
-   * Used to record the stack state before a scope begins.
+   * Begin a new scope and get a unique scope ID.
+   * Values pushed with this scope_id will be released together when scopeEnd is called.
    *
-   * @returns The current stack top position
+   * This is the recommended API for async scopes that may run concurrently.
+   *
+   * @returns A unique scope ID (never 0, which is reserved for global scope)
    */
-  static mark(): number {
-    return Number(jlbun.symbols.jlbun_gc_mark());
+  static scopeBegin(): bigint {
+    return jlbun.symbols.jlbun_gc_scope_begin();
   }
 
   /**
-   * Push a Julia value onto the GC root stack.
-   * The value will be protected from garbage collection until released.
-   *
-   * This operation is thread-safe and O(1).
+   * Push a Julia value with explicit scope ownership.
+   * The value will be protected until scopeEnd(scopeId) is called.
    *
    * @param value The Julia value to protect
+   * @param scopeId The scope this value belongs to
    * @returns The index in the stack where the value was stored
    */
-  static push(value: JuliaValue): number {
-    return Number(jlbun.symbols.jlbun_gc_push(value.ptr));
+  static pushScoped(value: JuliaValue, scopeId: bigint): number {
+    return Number(jlbun.symbols.jlbun_gc_push_scoped(value.ptr, scopeId));
   }
 
   /**
-   * Release all values from the given mark to the current stack top.
-   * This is called when a scope exits to release all values created within it.
+   * End a scope and release all values belonging to it.
+   * This is safe to call even if other scopes are still active.
    *
-   * This operation is thread-safe.
-   *
-   * @param mark The stack position to release to (from a previous mark() call)
+   * @param scopeId The scope to release
    */
-  static release(mark: number): void {
-    jlbun.symbols.jlbun_gc_release(BigInt(mark));
+  static scopeEnd(scopeId: bigint): void {
+    jlbun.symbols.jlbun_gc_scope_end(scopeId);
   }
 
   /**
-   * Swap values at two indices in the stack.
-   * Used for escape: move a value to a lower scope's range before release.
+   * Transfer a value to a different scope (for escape).
+   * The value will now be released when the new scope ends.
    *
-   * @param fromIdx Source index
-   * @param toIdx Target index
+   * @param idx The index of the value to transfer
+   * @param newScopeId The new scope to transfer to (use 0n for global/permanent)
+   * @returns The same index, or -1 on error
    */
-  static swap(fromIdx: number, toIdx: number): void {
-    jlbun.symbols.jlbun_gc_swap(BigInt(fromIdx), BigInt(toIdx));
+  static transfer(idx: number, newScopeId: bigint): number {
+    const result = Number(
+      jlbun.symbols.jlbun_gc_transfer(BigInt(idx), newScopeId),
+    );
+    // SIZE_MAX (2^64-1) indicates error, convert to -1
+    return result === Number.MAX_SAFE_INTEGER || result < 0 ? -1 : result;
   }
 
   /**
-   * Get the value at a specific index (for debugging/escape).
+   * Get the scope ID of a value at the given index.
+   *
+   * @param idx The index to query
+   * @returns The scope ID (0 for global scope or unassigned)
+   */
+  static getScope(idx: number): bigint {
+    return jlbun.symbols.jlbun_gc_get_scope(BigInt(idx));
+  }
+
+  // ============================================================================
+  // Utility methods
+  // ============================================================================
+
+  /**
+   * Get the value at a specific index (for debugging).
    *
    * @param idx The index to read
    * @returns The pointer at that index
@@ -123,7 +148,7 @@ export class GCManager {
 
   /**
    * Set a value at a specific index.
-   * Used for escape: place a value in a specific slot.
+   * Used internally for clearing slots.
    *
    * @param idx The index to write
    * @param value The value to store
