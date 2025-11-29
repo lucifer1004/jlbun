@@ -128,6 +128,42 @@ const juliaArray = JuliaArray.from(bunArray);
 bunArray[0] = 100;  // Julia array will also see this change
 ```
 
+### Multi-Dimensional Arrays
+
+`JuliaArray.init()` supports creating arrays with arbitrary dimensions:
+
+```typescript
+// Create arrays with different dimensions
+const arr1d = JuliaArray.init(Julia.Float64, 100);        // 1D
+const matrix = JuliaArray.init(Julia.Float64, 10, 20);    // 2D (10 rows, 20 cols)
+const tensor = JuliaArray.init(Julia.Float64, 3, 4, 5);   // 3D
+const arr4d = JuliaArray.init(Julia.Float64, 2, 3, 4, 5); // 4D+
+```
+
+**Column-Major Order**: Julia uses column-major order (like Fortran). Elements are stored column-by-column:
+
+```
+Julia 2x3 matrix:     Memory layout: [a00, a10, a01, a11, a02, a12]
+[ a00  a01  a02 ]
+[ a10  a11  a12 ]
+```
+
+For multi-dimensional indexing, use `getAt()` and `setAt()`:
+
+```typescript
+const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 cols
+
+// Multi-dimensional access (0-based indices)
+matrix.setAt(row, col, value);
+const val = matrix.getAt(row, col);
+
+// For 3D arrays
+tensor.setAt(i, j, k, value);
+const val3d = tensor.getAt(i, j, k);
+```
+
+Linear indexing with `get(index)` and `set(index, value)` follows column-major order.
+
 ### Automatic Lifecycle Management
 
 jlbun provides automatic garbage collection integration between JavaScript and Julia runtimes. The recommended approach is to use **scoped contexts** for automatic memory management.
@@ -200,8 +236,10 @@ The scoped proxy also provides convenient constructors for collection types:
 
 ```typescript
 Julia.scope((julia) => {
-  // Create arrays (auto-tracked)
-  const arr1 = julia.Array.init(julia.Float64, 1000);
+  // Create arrays (auto-tracked) - supports multi-dimensional
+  const arr1d = julia.Array.init(julia.Float64, 1000);
+  const matrix = julia.Array.init(julia.Float64, 100, 100);  // 2D matrix
+  const tensor = julia.Array.init(julia.Float64, 10, 10, 10); // 3D tensor
   const arr2 = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
 
   // Create dictionaries
@@ -255,12 +293,8 @@ const arr = Julia.scope((julia) => {
 function matrixMultiply(size: number): number {
   return Julia.scope((julia) => {
     // Create two random matrices
-    const A = julia.Array.init(julia.Float64, size, size);
-    const B = julia.Array.init(julia.Float64, size, size);
-
-    // Fill with random values
-    julia.Base["rand!"](A);
-    julia.Base["rand!"](B);
+    const A = julia.Base.rand(size, size);
+    const B = julia.Base.rand(size, size);
 
     // Matrix multiplication
     const C = julia.Base["*"](A, B);
@@ -348,6 +382,57 @@ const juliaArray = JuliaArray.from(bunArray);
 // Both arrays share the same memory buffer
 ```
 
+### Array Creation Best Practices
+
+Based on benchmarks, here are the recommended approaches for array creation:
+
+| Use Case | Recommended Method | Performance |
+|----------|-------------------|-------------|
+| Zero-initialized | `Julia.Base.zeros(Julia.Float64, m, n)` | Fastest (uses `calloc`) |
+| Filled with value | `Julia.Base.fill(value, m, n)` | Clean API, good performance |
+| Will overwrite all | `JuliaArray.init(Julia.Float64, m, n)` | Fastest (no init) |
+| From JS TypedArray | `JuliaArray.from(typedArray)` | Zero-copy |
+
+**Performance comparison** (1000x1000 Float64 matrix):
+- `JuliaArray.init()` FFI: ~0.6 µs
+- `Julia.eval("Array{...}(undef,...)")`: ~5 µs (**~8x slower**)
+
+```typescript
+// ❌ Slow: avoid eval() in hot paths
+const arr = Julia.eval("zeros(1000, 1000)");
+
+// ✅ Fast: direct FFI calls
+const arr = Julia.Base.zeros(Julia.Float64, 1000, 1000);
+
+// ✅ Fastest: uninitialized allocation
+const arr = JuliaArray.init(Julia.Float64, 1000, 1000);
+arr.fill(42.0);  // Then fill as needed
+```
+
+**Key insight**: `Julia.eval()` has string parsing overhead. Cache function references and use direct FFI calls for performance-critical code.
+
+## JuliaArray API Reference
+
+| Method | Description |
+|--------|-------------|
+| `JuliaArray.init(elType, ...dims)` | Create array with element type and dimensions |
+| `JuliaArray.from(typedArray)` | Create from TypedArray (zero-copy) |
+| `JuliaArray.fromAny(values)` | Create from arbitrary JS array |
+| `arr.get(linearIndex)` | Get element at linear index (column-major) |
+| `arr.set(linearIndex, value)` | Set element at linear index |
+| `arr.getAt(...indices)` | Get element at multi-dimensional indices |
+| `arr.setAt(...indices, value)` | Set element at multi-dimensional indices |
+| `arr.length` | Total number of elements |
+| `arr.ndims` | Number of dimensions |
+| `arr.size` | Array of dimension sizes |
+| `arr.value` | Get as TypedArray or JS array |
+| `arr.reshape(...shape)` | Reshape array (shares memory) |
+| `arr.fill(value)` | Fill array with value |
+| `arr.map(fn)` | Map function over array |
+| `arr.push(...values)` | Append elements (1D only) |
+| `arr.pop()` | Remove and return last element (1D only) |
+| `arr.reverse()` | Reverse array in place |
+
 ## C Wrapper Layer (`c/wrapper.c`)
 
 The C layer wraps Julia C API with the following main functions:
@@ -355,7 +440,7 @@ The C layer wraps Julia C API with the following main functions:
 1. **Initialization**: `jl_init0`, `jl_init_with_image0`
 2. **Type Getters**: `jl_*_type_getter()` function series (including `datatype`, `module`, `task`, `array`)
 3. **Module Access**: `jl_*_module_getter()` function series
-4. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`
+4. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`, `jl_alloc_array_2d`, `jl_alloc_array_3d`, `jl_alloc_array_nd`
 5. **Property Queries**: `jl_hasproperty`, `jl_propertynames`, `jl_propertycount`
 
 ## Build System
@@ -439,6 +524,7 @@ Coverage includes:
 - All data type creation and conversion
 - Function calls (regular/keyword arguments)
 - Array operations (shared memory/reshape/map)
+- **Multi-dimensional arrays** (creation, getAt/setAt, column-major indexing)
 - Collection operations (Set/Dict/Tuple)
 - Async tasks (JuliaTask)
 - Module imports

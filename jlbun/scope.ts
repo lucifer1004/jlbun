@@ -20,10 +20,22 @@ import {
  */
 export interface ScopedJuliaArray {
   /**
-   * Create a JuliaArray with given element type and length.
+   * Create a JuliaArray with given element type and dimensions.
    * The array is automatically tracked in the scope.
+   *
+   * @example
+   * ```typescript
+   * Julia.scope((julia) => {
+   *   // 1D array
+   *   const arr1d = julia.Array.init(julia.Float64, 100);
+   *   // 2D matrix
+   *   const matrix = julia.Array.init(julia.Float64, 10, 20);
+   *   // 3D tensor
+   *   const tensor = julia.Array.init(julia.Float64, 10, 20, 30);
+   * });
+   * ```
    */
-  init(elType: JuliaDataType, length: number): JuliaArray;
+  init(elType: JuliaDataType, ...dims: number[]): JuliaArray;
 
   /**
    * Create a JuliaArray from a TypedArray.
@@ -337,8 +349,8 @@ export class JuliaScope {
 
     // Create proxies for collection types that auto-track
     const scopedArray: ScopedJuliaArray = {
-      init: (elType: JuliaDataType, length: number): JuliaArray => {
-        const arr = JuliaArray.init(elType, length);
+      init: (elType: JuliaDataType, ...dims: number[]): JuliaArray => {
+        const arr = JuliaArray.init(elType, ...dims);
         trackValue(arr);
         return arr;
       },

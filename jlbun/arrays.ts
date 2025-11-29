@@ -47,6 +47,48 @@ const DEFAULT_FROM_BUN_ARRAY_OPTIONS: FromBunArrayOptions = {
 
 /**
  * Wrapper for Julia `Array`.
+ *
+ * ## Column-Major Order
+ *
+ * Julia uses **column-major order** (like Fortran), meaning elements are stored
+ * column-by-column in memory. This is different from C/JavaScript which use
+ * row-major order.
+ *
+ * For a 2D array (matrix), elements are stored as:
+ * ```
+ * [a[0,0], a[1,0], a[2,0], ..., a[0,1], a[1,1], a[2,1], ...]
+ * ```
+ *
+ * Example: For a 2x3 matrix:
+ * ```
+ * Julia:  [ 1  3  5 ]    Memory layout: [1, 2, 3, 4, 5, 6]
+ *         [ 2  4  6 ]
+ *
+ * C/JS:   [ 1  2  3 ]    Memory layout: [1, 2, 3, 4, 5, 6]
+ *         [ 4  5  6 ]
+ * ```
+ *
+ * When using `get(linearIndex)` or `set(linearIndex, value)`, the linear index
+ * follows column-major order. For multi-dimensional access, use `getAt(...indices)`
+ * and `setAt(...indices, value)` which handle the index conversion automatically.
+ *
+ * @example
+ * ```typescript
+ * const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 columns
+ *
+ * // Linear indexing (column-major)
+ * matrix.set(0, 1.0);  // Sets element at row 0, col 0
+ * matrix.set(1, 2.0);  // Sets element at row 1, col 0
+ * matrix.set(3, 4.0);  // Sets element at row 0, col 1
+ *
+ * // Multi-dimensional indexing (more intuitive)
+ * matrix.setAt(0, 0, 1.0);  // row 0, col 0
+ * matrix.setAt(1, 0, 2.0);  // row 1, col 0
+ * matrix.setAt(0, 1, 4.0);  // row 0, col 1
+ *
+ * // Get element at row 2, col 3
+ * const val = matrix.getAt(2, 3);
+ * ```
  */
 export class JuliaArray implements JuliaValue {
   ptr: Pointer;
@@ -58,17 +100,63 @@ export class JuliaArray implements JuliaValue {
   }
 
   /**
-   * Create a `JuliaArray` with given element type and length.
+   * Create a `JuliaArray` with given element type and dimensions.
    *
    * @param elType Element type of the array.
-   * @param length Length of the array.
+   * @param dims Dimensions of the array. For 1D array, pass a single number.
+   *             For multi-dimensional arrays, pass multiple numbers.
+   *
+   * @example
+   * ```typescript
+   * // 1D array with 100 elements
+   * const arr1d = JuliaArray.init(Julia.Float64, 100);
+   *
+   * // 2D array (10x20 matrix)
+   * const arr2d = JuliaArray.init(Julia.Float64, 10, 20);
+   *
+   * // 3D array (10x20x30)
+   * const arr3d = JuliaArray.init(Julia.Float64, 10, 20, 30);
+   *
+   * // N-dimensional array
+   * const arrNd = JuliaArray.init(Julia.Float64, 2, 3, 4, 5);
+   * ```
    */
-  static init(elType: JuliaDataType, length: number): JuliaArray {
-    const arrType = jlbun.symbols.jl_apply_array_type(elType.ptr, 1)!;
-    return new JuliaArray(
-      jlbun.symbols.jl_alloc_array_1d(arrType, length)!,
-      elType,
-    );
+  static init(elType: JuliaDataType, ...dims: number[]): JuliaArray {
+    if (dims.length === 0) {
+      throw new MethodError("At least one dimension must be provided");
+    }
+
+    const ndims = dims.length;
+    const arrType = jlbun.symbols.jl_apply_array_type(elType.ptr, ndims)!;
+
+    let arrPtr: Pointer | null;
+
+    if (ndims === 1) {
+      arrPtr = jlbun.symbols.jl_alloc_array_1d(arrType, dims[0]);
+    } else if (ndims === 2) {
+      arrPtr = jlbun.symbols.jl_alloc_array_2d(arrType, dims[0], dims[1]);
+    } else if (ndims === 3) {
+      arrPtr = jlbun.symbols.jl_alloc_array_3d(
+        arrType,
+        dims[0],
+        dims[1],
+        dims[2],
+      );
+    } else {
+      // For 4+ dimensions, use jl_alloc_array_nd
+      const dimsArray = new BigInt64Array(dims.map(BigInt));
+      arrPtr = jlbun.symbols.jl_alloc_array_nd(
+        arrType,
+        ptr(dimsArray.buffer),
+        ndims,
+      );
+    }
+
+    if (arrPtr === null) {
+      throw new Error(`Failed to allocate Julia array with dims: ${dims}`);
+    }
+
+    return new JuliaArray(arrPtr, elType);
   }
 
   /**
@@ -168,9 +256,40 @@ export class JuliaArray implements JuliaValue {
   }
 
   /**
-   * Get data at the given index.
+   * Convert multi-dimensional indices to linear index (column-major order).
    *
-   * @param index The index (starting from 0) to be fetched.
+   * @param indices Array indices (0-based) for each dimension.
+   * @returns Linear index in column-major order.
+   */
+  private indicesToLinear(...indices: number[]): number {
+    const dims = this.size;
+    if (indices.length !== dims.length) {
+      throw new RangeError(
+        `Expected ${dims.length} indices, got ${indices.length}`,
+      );
+    }
+
+    let linearIndex = 0;
+    let stride = 1;
+    for (let i = 0; i < dims.length; i++) {
+      if (indices[i] < 0 || indices[i] >= dims[i]) {
+        throw new RangeError(
+          `Index ${indices[i]} out of bounds for dimension ${i} (size ${dims[i]})`,
+        );
+      }
+      linearIndex += indices[i] * stride;
+      stride *= dims[i];
+    }
+    return linearIndex;
+  }
+
+  /**
+   * Get data at the given linear index (column-major order).
+   *
+   * For multi-dimensional arrays, consider using `getAt(...indices)` for
+   * more intuitive access.
+   *
+   * @param index The linear index (starting from 0) to be fetched.
    * @returns Julia data at the given index, wrapped in a `JuliaValue` object.
    */
   get(index: number): JuliaValue {
@@ -186,8 +305,35 @@ export class JuliaArray implements JuliaValue {
   }
 
   /**
+   * Get data at the given multi-dimensional indices.
    *
-   * @param index
+   * Indices are 0-based and follow Julia's column-major convention.
+   * For a 2D matrix, use `getAt(row, col)`.
+   *
+   * @param indices The indices for each dimension (all 0-based).
+   * @returns Julia data at the given position, wrapped in a `JuliaValue` object.
+   *
+   * @example
+   * ```typescript
+   * const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 cols
+   * const val = matrix.getAt(2, 3);  // Get element at row 2, col 3
+   *
+   * const tensor = JuliaArray.init(Julia.Float64, 2, 3, 4);
+   * const val3d = tensor.getAt(1, 2, 3);  // 3D indexing
+   * ```
+   */
+  getAt(...indices: number[]): JuliaValue {
+    const linearIndex = this.indicesToLinear(...indices);
+    return this.get(linearIndex);
+  }
+
+  /**
+   * Set data at the given linear index (column-major order).
+   *
+   * For multi-dimensional arrays, consider using `setAt(...indices, value)` for
+   * more intuitive access.
+   *
+   * @param index The linear index (starting from 0).
    * @param value Data to be set at the given index.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -230,6 +376,35 @@ export class JuliaArray implements JuliaValue {
     }
 
     jlbun.symbols.jl_array_ptr_set_wrapper(this.ptr, index, ptr);
+  }
+
+  /**
+   * Set data at the given multi-dimensional indices.
+   *
+   * Indices are 0-based and follow Julia's column-major convention.
+   * For a 2D matrix, use `setAt(row, col, value)`.
+   *
+   * @param args The indices for each dimension followed by the value to set.
+   *             For an N-dimensional array, pass N indices then the value.
+   *
+   * @example
+   * ```typescript
+   * const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 cols
+   * matrix.setAt(2, 3, 42.0);  // Set element at row 2, col 3 to 42.0
+   *
+   * const tensor = JuliaArray.init(Julia.Float64, 2, 3, 4);
+   * tensor.setAt(1, 2, 3, 99.0);  // 3D indexing
+   * ```
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setAt(...args: any[]): void {
+    if (args.length < 2) {
+      throw new MethodError("setAt requires at least one index and a value");
+    }
+    const value = args[args.length - 1];
+    const indices = args.slice(0, -1) as number[];
+    const linearIndex = this.indicesToLinear(...indices);
+    this.set(linearIndex, value);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

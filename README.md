@@ -13,6 +13,7 @@
     - [Evaluate Julia code](#evaluate-julia-code)
     - [Pass a Bun array to Julia](#pass-a-bun-array-to-julia)
     - [Pass a Julia Array to Bun](#pass-a-julia-array-to-bun)
+    - [Multi-dimensional arrays](#multi-dimensional-arrays)
     - [Do some linear algebra](#do-some-linear-algebra)
     - [Install and use new packages](#install-and-use-new-packages)
     - [Function calls with keyword arguments](#function-calls-with-keyword-arguments)
@@ -20,6 +21,7 @@
     - [Run Julia with multiple threads](#run-julia-with-multiple-threads)
     - [Automatic memory management with scope](#automatic-memory-management-with-scope)
   - [Performance](#performance)
+    - [Best Practices for Array Creation](#best-practices-for-array-creation)
   - [Star History](#star-history)
 
 ## Installation
@@ -96,6 +98,53 @@ Julia.init();
 const juliaArray = Julia.Base.rand(10, 10);
 const bunArray = juliaArray.rawValue;
 console.log(bunArray);
+
+Julia.close();
+```
+
+### Multi-dimensional arrays
+
+Create multi-dimensional arrays directly without reshape:
+
+```typescript
+import { Julia, JuliaArray } from "jlbun";
+
+Julia.init();
+
+// Create arrays with different dimensions
+const arr1d = JuliaArray.init(Julia.Float64, 100);        // 1D: 100 elements
+const matrix = JuliaArray.init(Julia.Float64, 10, 20);    // 2D: 10x20 matrix
+const tensor = JuliaArray.init(Julia.Float64, 3, 4, 5);   // 3D: 3x4x5 tensor
+const arr4d = JuliaArray.init(Julia.Float64, 2, 3, 4, 5); // 4D array
+
+// Check dimensions
+console.log(matrix.ndims);  // 2
+console.log(matrix.size);   // [10, 20]
+console.log(matrix.length); // 200
+
+Julia.close();
+```
+
+**Column-Major Order**: Julia uses column-major order (like Fortran), meaning elements are stored column-by-column. For intuitive multi-dimensional access, use `getAt()` and `setAt()`:
+
+```typescript
+import { Julia, JuliaArray } from "jlbun";
+
+Julia.init();
+
+const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 columns
+
+// Multi-dimensional indexing (0-based)
+matrix.setAt(0, 0, 1.0);  // row 0, col 0
+matrix.setAt(2, 3, 12.0); // row 2, col 3
+
+const val = matrix.getAt(2, 3); // Get element at row 2, col 3
+console.log(val.value); // 12.0
+
+// Works with 3D+ arrays too
+const tensor = JuliaArray.init(Julia.Int32, 2, 3, 4);
+tensor.setAt(1, 2, 3, 99);
+console.log(tensor.getAt(1, 2, 3).value); // 99
 
 Julia.close();
 ```
@@ -284,6 +333,28 @@ jlbun uses several optimizations to minimize FFI overhead:
 - **Type Pointer Comparison**: For primitive types (Int64, Float64, String, etc.), type checking uses direct pointer comparison (O(1)) instead of string comparison
 - **Type String Cache**: Type strings are cached to avoid repeated FFI calls for the same Julia types
 - **Zero-Copy Arrays**: `JuliaArray.from()` shares memory with JavaScript `TypedArray` without copying
+- **Direct FFI Calls**: Function calls via FFI are ~8-260x faster than `Julia.eval()` with string parsing
+
+### Best Practices for Array Creation
+
+| Use Case | Recommended Method | Why |
+|----------|-------------------|-----|
+| Zero-initialized array | `Julia.Base.zeros(Float64, m, n)` | Uses optimized system calls |
+| Filled with specific value | `Julia.Base.fill(value, m, n)` | Single call, clean API |
+| Will overwrite all values | `JuliaArray.init(Julia.Float64, m, n)` | Fastest (no initialization) |
+| From JS TypedArray | `JuliaArray.from(typedArray)` | Zero-copy memory sharing |
+
+```typescript
+// ❌ Slow: string parsing overhead
+const arr = Julia.eval("zeros(1000, 1000)");
+
+// ✅ Fast: direct FFI call
+const arr = Julia.Base.zeros(Julia.Float64, 1000, 1000);
+
+// ✅ Fastest (uninitialized): when you'll fill it yourself
+const arr = JuliaArray.init(Julia.Float64, 1000, 1000);
+arr.fill(42.0);  // Fill with a specific value
+```
 
 ## Star History
 
