@@ -222,8 +222,10 @@ export class JuliaArray implements JuliaValue {
    * Length of the array.
    */
   get length(): number {
-    // Use Julia's length function since jl_array_len_getter seems to be returning the length of the underlying container.
-    return Number(Julia.Base.length(this).value);
+    // Use jl_array_length which computes product of dimensions
+    // This handles reshaped arrays correctly (unlike jl_array_len which
+    // returns underlying storage size that may be larger after push/resize)
+    return Number(jlbun.symbols.jl_array_length(this.ptr));
   }
 
   /**

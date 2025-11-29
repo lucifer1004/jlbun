@@ -159,6 +159,18 @@ size_t jl_array_len_getter(jl_array_t *a) {
   return jl_array_len(a);
 }
 
+// Get logical length of array (product of dimensions)
+// Unlike jl_array_len which returns underlying storage size,
+// this returns the actual element count for reshaped/viewed arrays
+size_t jl_array_length(jl_array_t *a) {
+  int ndims = jl_array_ndims(a);
+  size_t length = 1;
+  for (int i = 0; i < ndims; i++) {
+    length *= jl_array_dim(a, i);
+  }
+  return length;
+}
+
 int32_t jl_array_ndims_getter(jl_array_t *a) {
   return jl_array_ndims(a);
 }
