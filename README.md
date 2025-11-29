@@ -46,6 +46,8 @@
   - [Modules \& Packages](#modules--packages)
   - [Multi-Threading](#multi-threading)
   - [Low-Level Operations](#low-level-operations)
+  - [Data Types](#data-types)
+  - [Error Handling](#error-handling)
   - [Performance](#performance)
     - [Best Practices](#best-practices)
   - [Star History](#star-history)
@@ -385,6 +387,74 @@ Julia.close();
 ```
 
 > ⚠️ **Warning**: `load()` and `store()` are unsafe operations.
+
+---
+
+## Data Types
+
+jlbun provides TypeScript wrappers for Julia's primitive types:
+
+| TypeScript | Julia | JS Value |
+|------------|-------|----------|
+| `JuliaInt8/16/32` | `Int8/16/32` | `number` |
+| `JuliaInt64` | `Int64` | `bigint` |
+| `JuliaUInt8/16/32` | `UInt8/16/32` | `number` |
+| `JuliaUInt64` | `UInt64` | `bigint` |
+| `JuliaFloat16` | `Float16` | `number` |
+| `JuliaFloat32` | `Float32` | `number` |
+| `JuliaFloat64` | `Float64` | `number` |
+| `JuliaString` | `String` | `string` |
+| `JuliaBool` | `Bool` | `boolean` |
+| `JuliaChar` | `Char` | `string` |
+| `JuliaSymbol` | `Symbol` | `Symbol` |
+
+```typescript
+import { JuliaFloat16, JuliaInt64 } from "jlbun";
+
+// Create from JavaScript
+const f16 = JuliaFloat16.from(3.14);  // Float16 with ~3 decimal precision
+const i64 = JuliaInt64.from(9007199254740993n);  // BigInt for large integers
+
+// Access value
+console.log(f16.value);  // 3.140625 (Float16 precision)
+console.log(i64.value);  // 9007199254740993n
+```
+
+---
+
+## Error Handling
+
+Julia exceptions are automatically mapped to TypeScript error classes:
+
+```typescript
+import { BoundsError, DomainError, JuliaError } from "jlbun";
+
+try {
+  Julia.Base.sqrt(-1);
+} catch (e) {
+  if (e instanceof DomainError) {
+    console.log("Domain error:", e.message);
+  } else if (e instanceof JuliaError) {
+    console.log("Julia error type:", e.juliaType);
+  }
+}
+```
+
+| Error Class | Julia Type | Trigger |
+|-------------|------------|---------|
+| `MethodError` | `MethodError` | No method matches arguments |
+| `BoundsError` | `BoundsError` | Array index out of bounds |
+| `DomainError` | `DomainError` | Invalid domain (e.g., `sqrt(-1)`) |
+| `DivideError` | `DivideError` | Integer division by zero |
+| `KeyError` | `KeyError` | Missing dictionary key |
+| `ArgumentError` | `ArgumentError` | Invalid function argument |
+| `TypeError` | `TypeError` | Wrong argument type |
+| `UndefVarError` | `UndefVarError` | Undefined variable |
+| `DimensionMismatch` | `DimensionMismatch` | Array dimension mismatch |
+| `InexactError` | `InexactError` | Cannot convert exactly |
+| `UnknownJuliaError` | *(other)* | Check `e.juliaType` |
+
+All error classes inherit from `JuliaError`, which provides a `juliaType` property containing the original Julia exception type name.
 
 ---
 

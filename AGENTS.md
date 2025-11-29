@@ -91,6 +91,7 @@ Julia.scopeAsync(fn)           // Async version of scope()
 | `JuliaInt64` | `Int64` | `bigint` |
 | `JuliaUInt8/16/32` | `UInt8/16/32` | `number` |
 | `JuliaUInt64` | `UInt64` | `bigint` |
+| `JuliaFloat16` | `Float16` | `number` |
 | `JuliaFloat32/64` | `Float32/64` | `number` |
 | `JuliaString` | `String` | `string` |
 | `JuliaBool` | `Bool` | `boolean` |
