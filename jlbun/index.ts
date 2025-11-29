@@ -86,6 +86,7 @@ export { jlbun } from "./wrapper.js";
 export { GCManager } from "./gc.js";
 export {
   JuliaScope,
+  type JuliaScopeOptions,
   type ScopedJulia,
   type ScopedJuliaArray,
   type ScopedJuliaDict,
