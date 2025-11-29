@@ -216,11 +216,18 @@ describe("JuliaSubArray", () => {
   });
 
   describe("Map operation", () => {
-    test("map applies function to SubArray", () => {
+    test("map over SubArray returns JuliaArray", () => {
       const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
       const sub = arr.slice(0, 2);
       const doubled = sub.map(Julia.eval("x -> 2x"));
+
+      // Verify return type is JuliaArray
+      expect(doubled).toBeInstanceOf(JuliaArray);
       expect(doubled.value).toEqual(new Float64Array([2, 4, 6]));
+
+      // Verify it's independent from the original
+      doubled.set(0, 100);
+      expect(sub.get(0).value).toBe(1); // Original unchanged
     });
   });
 

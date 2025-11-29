@@ -248,4 +248,42 @@ describe("JuliaArray multi-dimensional", () => {
     // setAt with wrong args
     expect(() => matrix.setAt(0)).toThrow(MethodError); // no value
   });
+
+  it("can be copied with copy()", () => {
+    const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
+    const copied = arr.copy();
+
+    // Copy has same values
+    expect(copied.length).toBe(5);
+    expect(copied.value).toEqual(new Float64Array([1, 2, 3, 4, 5]));
+
+    // Copy is independent - modification doesn't affect original
+    copied.set(0, 100);
+    expect(copied.get(0).value).toBe(100);
+    expect(arr.get(0).value).toBe(1);
+
+    // Original modification doesn't affect copy
+    arr.set(1, 200);
+    expect(arr.get(1).value).toBe(200);
+    expect(copied.get(1).value).toBe(2);
+  });
+
+  it("supports iteration with Symbol.iterator", () => {
+    const arr = JuliaArray.from(new Int32Array([10, 20, 30, 40, 50]));
+
+    // Manual iteration
+    const values: number[] = [];
+    for (const val of arr) {
+      values.push(val.value as number);
+    }
+    expect(values).toEqual([10, 20, 30, 40, 50]);
+
+    // Spread operator
+    const spread = [...arr].map((v) => v.value);
+    expect(spread).toEqual([10, 20, 30, 40, 50]);
+
+    // Array.from
+    const fromArray = Array.from(arr, (v) => v.value);
+    expect(fromArray).toEqual([10, 20, 30, 40, 50]);
+  });
 });

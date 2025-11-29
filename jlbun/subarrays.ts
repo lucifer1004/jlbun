@@ -345,12 +345,16 @@ export class JuliaSubArray implements JuliaValue {
   }
 
   /**
-   * Map a function over the SubArray.
+   * Map a function over the SubArray and get a new array.
    *
    * @param f Julia function to apply.
+   * @returns A new JuliaArray with the mapped values.
    */
-  map(f: JuliaValue): JuliaValue {
-    return Julia.Base.map(f, this);
+  map(f: JuliaValue): JuliaArray {
+    const arr = Julia.Base.map(f, this);
+    const elType = jlbun.symbols.jl_array_eltype(arr.ptr)!;
+    const typeStr = Julia.getTypeStr(elType);
+    return new JuliaArray(arr.ptr, new JuliaDataType(elType, typeStr));
   }
 
   /**

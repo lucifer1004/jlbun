@@ -513,6 +513,28 @@ export class JuliaArray implements JuliaValue {
   }
 
   /**
+   * Create a copy of this array.
+   *
+   * The copy is independent - changes to the copy do not affect the original.
+   *
+   * @returns A new JuliaArray with the same data.
+   */
+  copy(): JuliaArray {
+    const copied = Julia.Base.copy(this);
+    return new JuliaArray(copied.ptr, this.elType);
+  }
+
+  /**
+   * Iterate over the array elements.
+   */
+  *[Symbol.iterator](): Iterator<JuliaValue> {
+    const len = this.length;
+    for (let i = 0; i < len; i++) {
+      yield this.get(i);
+    }
+  }
+
+  /**
    * Create a view (SubArray) of this array with specified indices.
    *
    * Views share memory with the parent array - changes to the view

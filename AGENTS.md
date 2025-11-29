@@ -465,8 +465,10 @@ arr.fill(42.0);  // Then fill as needed
 | `arr.push(...values)` | Append elements (1D only) |
 | `arr.pop()` | Remove and return last element (1D only) |
 | `arr.reverse()` | Reverse array in place |
+| `arr.copy()` | Create independent copy of the array |
 | `arr.view(...indices)` | Create a SubArray view (zero-copy) |
 | `arr.slice(start, stop)` | Create a 1D contiguous view |
+| `arr[Symbol.iterator]` | Iterate over elements |
 
 ## JuliaSubArray API Reference
 
