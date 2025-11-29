@@ -3,7 +3,7 @@ import { Pointer, ptr, toArrayBuffer } from "bun:ffi";
 /**
  * A typed JS Array.
  */
-type BunArray =
+export type BunArray =
   | Uint8Array
   | Int8Array
   | Uint16Array
@@ -28,6 +28,7 @@ import {
   JuliaInt32,
   JuliaInt64,
   JuliaString,
+  JuliaSubArray,
   JuliaSymbol,
   JuliaUInt8,
   JuliaUInt16,
@@ -509,5 +510,61 @@ export class JuliaArray implements JuliaValue {
     const elType = jlbun.symbols.jl_array_eltype(arr.ptr)!;
     const typeStr = Julia.getTypeStr(elType);
     return new JuliaArray(arr.ptr, new JuliaDataType(elType, typeStr));
+  }
+
+  /**
+   * Create a view (SubArray) of this array with specified indices.
+   *
+   * Views share memory with the parent array - changes to the view
+   * are reflected in the parent and vice versa.
+   *
+   * @param indices Index specifications. Can be:
+   *   - `number`: Single index (0-based, converted to 1-based for Julia)
+   *   - `":"`: All elements in that dimension (equivalent to Julia's `:`)
+   *   - `[start, stop]`: Range (0-based, inclusive)
+   *   - `[start, step, stop]`: Stepped range (0-based)
+   * @returns A new JuliaSubArray.
+   *
+   * @example
+   * ```typescript
+   * const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
+   *
+   * // View elements 1..3 (0-based indices)
+   * const sub1 = arr.view([1, 3]);
+   *
+   * // View every other element
+   * const sub2 = arr.view([0, 2, 4]); // step=2
+   *
+   * // For multi-dimensional arrays
+   * const matrix = Julia.eval("reshape(Float64.(1:12), 3, 4)") as JuliaArray;
+   * const col = matrix.view(":", 0); // All rows, first column
+   * ```
+   */
+  view(
+    ...indices: (number | ":" | [number, number] | [number, number, number])[]
+  ): JuliaSubArray {
+    return JuliaSubArray.view(this, ...indices);
+  }
+
+  /**
+   * Create a contiguous view (slice) of elements from `start` to `stop` (0-based, inclusive).
+   *
+   * This is a convenience method for 1D array views.
+   *
+   * @param start Start index (0-based, inclusive).
+   * @param stop Stop index (0-based, inclusive).
+   * @returns A new JuliaSubArray.
+   *
+   * @example
+   * ```typescript
+   * const arr = JuliaArray.from(new Float64Array([10, 20, 30, 40, 50]));
+   * const sub = arr.slice(1, 3);  // [20, 30, 40]
+   *
+   * sub.set(0, 100);
+   * console.log(arr.get(1).value); // 100 (modification propagates)
+   * ```
+   */
+  slice(start: number, stop: number): JuliaSubArray {
+    return JuliaSubArray.view(this, [start, stop]);
   }
 }

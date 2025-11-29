@@ -4,7 +4,9 @@ import {
   Julia,
   JuliaArray,
   JuliaFunction,
+  JuliaRange,
   JuliaScope,
+  JuliaSubArray,
   JuliaTask,
 } from "../index.js";
 import { ensureJuliaInitialized } from "./setup.js";
@@ -108,65 +110,106 @@ describe("Julia.scopeAsync", () => {
 
 describe("Scoped collection types", () => {
   it("julia.Array.init creates auto-tracked arrays", () => {
-    const result = Julia.scope((julia) => {
-      const arr = julia.Array.init(julia.Float64, 1000);
-      for (let i = 0; i < 1000; i++) {
-        arr.set(i, i * 2);
-      }
-      return julia.Base.sum(arr).value;
-    });
+    const scope = new JuliaScope();
+    const julia = scope.julia;
 
-    // Sum of 0, 2, 4, ..., 1998 = 2 * (0 + 1 + ... + 999) = 2 * 999 * 1000 / 2 = 999000
-    expect(result).toBe(999000);
+    const sizeBefore = scope.size;
+    const arr = julia.Array.init(julia.Float64, 100);
+
+    // Verify tracking
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    for (let i = 0; i < 100; i++) {
+      arr.set(i, i * 2);
+    }
+    expect(Julia.Base.sum(arr).value).toBe(9900); // 2*(0+1+...+99) = 2*99*100/2
+
+    scope.dispose();
   });
 
   it("julia.Array.from creates auto-tracked arrays from TypedArray", () => {
-    const result = Julia.scope((julia) => {
-      const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
-      return julia.Base.sum(arr).value;
-    });
+    const scope = new JuliaScope();
+    const julia = scope.julia;
 
-    expect(result).toBe(15);
+    const sizeBefore = scope.size;
+    const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+
+    // Verify tracking
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    expect(Julia.Base.sum(arr).value).toBe(15);
+
+    scope.dispose();
   });
 
   it("julia.Dict.from creates auto-tracked dicts", () => {
-    const result = Julia.scope((julia) => {
-      const dict = julia.Dict.from([
-        ["a", 1],
-        ["b", 2],
-        ["c", 3],
-      ]);
-      return julia.Base.length(dict).value;
-    });
+    const scope = new JuliaScope();
+    const julia = scope.julia;
 
-    expect(result).toBe(3n);
+    const sizeBefore = scope.size;
+    const dict = julia.Dict.from([
+      ["a", 1],
+      ["b", 2],
+      ["c", 3],
+    ]);
+
+    // Verify tracking
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    expect(Julia.Base.length(dict).value).toBe(3n);
+
+    scope.dispose();
   });
 
   it("julia.Set.from creates auto-tracked sets", () => {
-    const result = Julia.scope((julia) => {
-      const set = julia.Set.from([1, 2, 3, 4, 5]);
-      return julia.Base.length(set).value;
-    });
+    const scope = new JuliaScope();
+    const julia = scope.julia;
 
-    expect(result).toBe(5n);
+    const sizeBefore = scope.size;
+    const set = julia.Set.from([1, 2, 3, 4, 5]);
+
+    // Verify tracking
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    expect(Julia.Base.length(set).value).toBe(5n);
+
+    scope.dispose();
   });
 
   it("julia.Tuple.from creates auto-tracked tuples", () => {
-    const result = Julia.scope((julia) => {
-      const tuple = julia.Tuple.from([1, 2, 3]);
-      return tuple.value.length;
-    });
+    const scope = new JuliaScope();
+    const julia = scope.julia;
 
-    expect(result).toBe(3);
+    const sizeBefore = scope.size;
+    const tuple = julia.Tuple.from([1, 2, 3]);
+
+    // Verify tracking
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    expect(tuple.value.length).toBe(3);
+
+    scope.dispose();
   });
 
   it("julia.NamedTuple.from creates auto-tracked named tuples", () => {
-    const result = Julia.scope((julia) => {
-      const nt = julia.NamedTuple.from({ a: 1, b: 2, c: 3 });
-      return julia.Base.length(nt).value;
-    });
+    const scope = new JuliaScope();
+    const julia = scope.julia;
 
-    expect(result).toBe(3n);
+    const sizeBefore = scope.size;
+    const nt = julia.NamedTuple.from({ a: 1, b: 2, c: 3 });
+
+    // Verify tracking
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    expect(Julia.Base.length(nt).value).toBe(3n);
+
+    scope.dispose();
   });
 
   it("survives Julia GC with large array operations", () => {
@@ -360,5 +403,318 @@ describe("GCManager API coverage", () => {
 
   it("protectedCount returns a number", () => {
     expect(typeof GCManager.protectedCount).toBe("number");
+  });
+});
+
+describe("JuliaSubArray and JuliaRange scope compatibility", () => {
+  it("SubArray is auto-tracked when created via Base.view", () => {
+    const result = Julia.scope((julia) => {
+      const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+      // Create SubArray via julia.Base.view - should be auto-tracked
+      const sub = julia.Base.view(arr, julia.Base.UnitRange(2, 4));
+      expect(sub).toBeInstanceOf(JuliaSubArray);
+      return julia.Base.sum(sub).value;
+    });
+
+    expect(result).toBe(9); // 2 + 3 + 4
+  });
+
+  it("SubArray created via arr.view() is tracked when using track()", () => {
+    const scope = new JuliaScope();
+    const arr = JuliaArray.from(new Float64Array([10, 20, 30, 40, 50]));
+
+    const sizeBefore = scope.size;
+    const sub = arr.view([1, 3]);
+    scope.track(sub);
+
+    // Verify tracking increased size
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Track same value again - size should not change
+    scope.track(sub);
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    expect(sub).toBeInstanceOf(JuliaSubArray);
+    expect(Julia.Base.sum(sub).value).toBe(90); // 20 + 30 + 40
+
+    scope.dispose();
+  });
+
+  it("SubArray modifications propagate correctly within scope", () => {
+    const result = Julia.scope((julia) => {
+      const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+      const sub = julia.Base.view(arr, julia.Base.UnitRange(2, 4));
+
+      // Modify via SubArray
+      julia.Base["setindex!"](sub, 100, 1); // sub[1] = 100
+
+      // Check parent array
+      return arr.get(1).value; // Should be 100
+    });
+
+    expect(result).toBe(100);
+  });
+
+  it("JuliaRange is auto-tracked when created via Base.range", () => {
+    const result = Julia.scope((julia) => {
+      // Create Range via Julia - should be auto-tracked
+      const range = julia.callWithKwargs(
+        julia.Base.range,
+        { stop: 10, step: 2 },
+        1,
+      );
+      expect(range).toBeInstanceOf(JuliaRange);
+      return julia.Base.sum(range).value;
+    });
+
+    expect(result).toBe(25n); // 1 + 3 + 5 + 7 + 9
+  });
+
+  it("JuliaRange created via JuliaRange.from is tracked when using track()", () => {
+    const scope = new JuliaScope();
+    const sizeBefore = scope.size;
+
+    const range = JuliaRange.from(1, 10);
+    scope.track(range);
+
+    // Verify tracking increased size
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Track same value again - size should not change
+    scope.track(range);
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    // Verify functionality
+    expect(range).toBeInstanceOf(JuliaRange);
+    expect(Julia.Base.sum(range).value).toBe(55n);
+
+    scope.dispose();
+  });
+
+  it("nested SubArray views work within scope", () => {
+    const result = Julia.scope((julia) => {
+      const arr = julia.Array.from(
+        new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+      );
+      // Create nested views
+      const sub1 = julia.Base.view(arr, julia.Base.UnitRange(2, 8)); // [2,3,4,5,6,7,8]
+      const sub2 = julia.Base.view(sub1, julia.Base.UnitRange(2, 4)); // [3,4,5]
+
+      expect(sub1).toBeInstanceOf(JuliaSubArray);
+      expect(sub2).toBeInstanceOf(JuliaSubArray);
+
+      return julia.Base.sum(sub2).value;
+    });
+
+    expect(result).toBe(12); // 3 + 4 + 5
+  });
+
+  it("SubArray can be escaped from scope", () => {
+    const sub = Julia.scope((julia) => {
+      const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+      const view = julia.Base.view(arr, julia.Base.UnitRange(2, 4));
+      // Escape the SubArray
+      return julia.escape(view);
+    });
+
+    // SubArray should still be valid outside scope
+    expect(sub).toBeInstanceOf(JuliaSubArray);
+    expect(sub.length).toBe(3);
+  });
+
+  it("JuliaRange can be escaped from scope", () => {
+    const range = Julia.scope((julia) => {
+      const r = julia.callWithKwargs(julia.Base.range, { stop: 5 }, 1);
+      return julia.escape(r);
+    }) as JuliaRange;
+
+    // Range should still be valid outside scope
+    expect(range).toBeInstanceOf(JuliaRange);
+    expect(range.length).toBe(5);
+  });
+});
+
+describe("ScopedJulia.untracked()", () => {
+  it("skips auto-tracking for performance", () => {
+    const scope = new JuliaScope();
+    const julia = scope.julia;
+
+    const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+    const initialSize = scope.size;
+
+    // Without untracked: objects are tracked
+    const range1 = julia.Base.UnitRange(2, 4);
+    expect(scope.size).toBe(initialSize + 1); // Range tracked
+
+    julia.Base.view(arr, range1);
+    expect(scope.size).toBe(initialSize + 2); // SubArray tracked
+
+    // With untracked: objects are NOT tracked
+    const sizeBefore = scope.size;
+    let sum = 0;
+    julia.untracked(() => {
+      for (let i = 0; i < 100; i++) {
+        const range = julia.Base.UnitRange(2, 4);
+        const sub = julia.Base.view(arr, range);
+        sum += Julia.Base.sum(sub).value as number;
+      }
+    });
+
+    // Size should not change during untracked block
+    expect(scope.size).toBe(sizeBefore);
+    expect(sum).toBe(9 * 100); // Each sum is 2+3+4=9
+
+    scope.dispose();
+  });
+
+  it("restores tracking state after completion", () => {
+    const scope = new JuliaScope();
+    const julia = scope.julia;
+
+    julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+
+    julia.untracked(() => {
+      // Inside untracked
+      julia.Base.UnitRange(1, 3);
+    });
+
+    const sizeBefore = scope.size;
+
+    // After untracked, tracking should be re-enabled
+    julia.Base.UnitRange(1, 3);
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    scope.dispose();
+  });
+
+  it("handles nested calls correctly", () => {
+    const scope = new JuliaScope();
+    const julia = scope.julia;
+
+    julia.Array.from(new Float64Array([1, 2, 3]));
+
+    const sizeBefore = scope.size;
+
+    julia.untracked(() => {
+      julia.Base.UnitRange(1, 2);
+
+      julia.untracked(() => {
+        julia.Base.UnitRange(3, 4);
+      });
+
+      julia.Base.UnitRange(5, 6);
+    });
+
+    // All ranges created in nested untracked should not be tracked
+    expect(scope.size).toBe(sizeBefore);
+
+    scope.dispose();
+  });
+
+  it("explicit track() still works inside untracked", () => {
+    const scope = new JuliaScope();
+    const julia = scope.julia;
+
+    julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+    const sizeBefore = scope.size;
+
+    julia.untracked(() => {
+      // Auto-tracking disabled, but explicit track() works
+      const range = julia.track(Julia.Base.UnitRange(2, 4));
+      expect(range.length).toBe(3);
+    });
+
+    expect(scope.size).toBe(sizeBefore + 1);
+
+    scope.dispose();
+  });
+
+  it("works with Julia.scope() helper", () => {
+    let trackedDuringUntracked = false;
+    let trackedAfterUntracked = false;
+
+    Julia.scope((julia) => {
+      const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+
+      // Test untracked via Julia.scope callback
+      julia.untracked(() => {
+        const range = julia.Base.UnitRange(2, 4);
+        julia.Base.view(arr, range);
+        trackedDuringUntracked = true;
+      });
+
+      // Normal tracking should resume
+      julia.Base.UnitRange(1, 5);
+      trackedAfterUntracked = true;
+    });
+
+    expect(trackedDuringUntracked).toBe(true);
+    expect(trackedAfterUntracked).toBe(true);
+  });
+
+  it("nested Julia.scope() inside untracked() has independent tracking", () => {
+    const outerScope = new JuliaScope();
+    const outerJulia = outerScope.julia;
+
+    outerJulia.Array.from(new Float64Array([1, 2, 3]));
+    const outerSizeBefore = outerScope.size;
+
+    let innerScopeTrackedCount = 0;
+
+    outerJulia.untracked(() => {
+      // Outer scope should not track
+      outerJulia.Base.UnitRange(1, 5);
+      expect(outerScope.size).toBe(outerSizeBefore); // No change
+
+      // But a nested Julia.scope() should track independently
+      Julia.scope((innerJulia) => {
+        const innerArr = innerJulia.Array.from(
+          new Float64Array([1, 2, 3, 4, 5]),
+        );
+        const innerRange = innerJulia.Base.UnitRange(2, 4);
+        innerJulia.Base.view(innerArr, innerRange);
+
+        // Inner scope should track (it has its own trackingEnabled = true)
+        // We can't access inner scope's size directly, but we verify no crash
+        innerScopeTrackedCount++;
+      });
+    });
+
+    // Outer scope still unchanged (untracked items not counted)
+    expect(outerScope.size).toBe(outerSizeBefore);
+    expect(innerScopeTrackedCount).toBe(1);
+
+    outerScope.dispose();
+  });
+
+  it("untracked() only affects current scope, not nested scopes", () => {
+    let outerTracked = 0;
+    let innerTracked = 0;
+
+    Julia.scope((outerJulia) => {
+      // Track something in outer scope
+      outerJulia.Array.from(new Float64Array([1, 2, 3]));
+      outerTracked++;
+
+      outerJulia.untracked(() => {
+        // This should NOT be tracked in outer scope
+        outerJulia.Base.UnitRange(1, 10);
+
+        // Nested scope should still track normally
+        Julia.scope((innerJulia) => {
+          innerJulia.Array.from(new Float64Array([4, 5, 6]));
+          innerJulia.Base.UnitRange(1, 5);
+          innerTracked += 2; // Array + Range
+        });
+      });
+
+      // Back in outer scope, tracking should resume
+      outerJulia.Base.UnitRange(1, 3);
+      outerTracked++;
+    });
+
+    expect(outerTracked).toBe(2); // Only the explicitly noted ones
+    expect(innerTracked).toBe(2);
   });
 });

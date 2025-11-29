@@ -10,7 +10,9 @@ import {
   JuliaModule,
   JuliaNamedTuple,
   JuliaPair,
+  JuliaRange,
   JuliaSet,
+  JuliaSubArray,
   JuliaTuple,
   JuliaValue,
 } from "./index.js";
@@ -127,6 +129,36 @@ export interface ScopedJulia {
   track<T extends JuliaValue>(value: T): T;
   escape<T extends JuliaValue>(value: T): T;
 
+  /**
+   * Execute a function without auto-tracking returned values.
+   *
+   * Use this when creating many temporary objects that don't need to survive
+   * beyond their immediate use. This improves performance by skipping the
+   * tracking overhead.
+   *
+   * **Warning**: Objects created inside `untracked()` may be garbage collected
+   * by Julia if no JS reference exists. Only use for temporary operations.
+   *
+   * @example
+   * ```typescript
+   * Julia.scope((julia) => {
+   *   const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
+   *   const range = julia.track(Julia.Base.UnitRange(2, 4));
+   *
+   *   // Create many temporary SubArrays without tracking overhead
+   *   let sum = 0;
+   *   julia.untracked(() => {
+   *     for (let i = 0; i < 10000; i++) {
+   *       const sub = julia.Base.view(arr, range);
+   *       sum += Julia.Base.sum(sub).value as number;
+   *     }
+   *   });
+   *   return sum;
+   * });
+   * ```
+   */
+  untracked<T>(fn: () => T): T;
+
   typeof(value: JuliaValue): JuliaDataType;
   getTypeStr(ptr: Pointer | JuliaValue): string;
   autoWrap(value: unknown): JuliaValue;
@@ -174,6 +206,7 @@ export interface ScopedJulia {
 export class JuliaScope {
   private tracked: Map<JuliaValue, string> = new Map();
   private disposed = false;
+  private trackingEnabled = true;
 
   /**
    * Track a Julia value in this scope.
@@ -196,6 +229,22 @@ export class JuliaScope {
     const id = GCManager.protect(value);
     this.tracked.set(value, id);
     return value;
+  }
+
+  /**
+   * Execute a function without auto-tracking returned values.
+   *
+   * @param fn The function to execute
+   * @returns The return value of the function
+   */
+  untracked<T>(fn: () => T): T {
+    const wasEnabled = this.trackingEnabled;
+    this.trackingEnabled = false;
+    try {
+      return fn();
+    } finally {
+      this.trackingEnabled = wasEnabled;
+    }
   }
 
   /**
@@ -245,8 +294,9 @@ export class JuliaScope {
    * Get a proxy wrapper for a JuliaFunction that auto-tracks results.
    */
   private wrapFunction(fn: JuliaFunction): JuliaFunction {
-    const trackIfNeeded = (result: JuliaValue | undefined) => {
-      if (result && this.shouldTrack(result)) {
+    // Use arrow function to capture 'this' and check trackingEnabled at call time
+    const maybeTrack = (result: JuliaValue | undefined) => {
+      if (this.trackingEnabled && result && this.shouldTrack(result)) {
         this.track(result);
       }
       return result;
@@ -254,12 +304,12 @@ export class JuliaScope {
 
     return new Proxy(fn, {
       apply: (_target, _thisArg, args) => {
-        return trackIfNeeded(Julia.call(fn, ...args));
+        return maybeTrack(Julia.call(fn, ...args));
       },
       get: (target, prop) => {
         if (prop === "callWithKwargs") {
           return (kwargs: Record<string, unknown>, ...args: unknown[]) => {
-            return trackIfNeeded(Julia.callWithKwargs(fn, kwargs, ...args));
+            return maybeTrack(Julia.callWithKwargs(fn, kwargs, ...args));
           };
         }
         return Reflect.get(target, prop);
@@ -307,6 +357,8 @@ export class JuliaScope {
   private shouldTrack(value: JuliaValue): boolean {
     return (
       value instanceof JuliaArray ||
+      value instanceof JuliaSubArray ||
+      value instanceof JuliaRange ||
       value instanceof JuliaDict ||
       value instanceof JuliaIdDict ||
       value instanceof JuliaSet ||
@@ -320,13 +372,14 @@ export class JuliaScope {
 
   /**
    * Helper to track a value if needed and return it.
+   * Respects the trackingEnabled flag.
    */
   private trackIfNeeded<T extends JuliaValue>(result: T): T;
   private trackIfNeeded(result: JuliaValue | undefined): JuliaValue | undefined;
   private trackIfNeeded(
     result: JuliaValue | undefined,
   ): JuliaValue | undefined {
-    if (result && this.shouldTrack(result)) {
+    if (this.trackingEnabled && result && this.shouldTrack(result)) {
       this.track(result);
     }
     return result;
@@ -451,6 +504,7 @@ export class JuliaScope {
       // Expose scope methods
       track: trackValue,
       escape: escapeValue,
+      untracked: this.untracked.bind(this),
 
       // Expose type utilities
       typeof: Julia.typeof.bind(Julia),

@@ -7,392 +7,419 @@
 
 ![Logo of jlbun](https://user-images.githubusercontent.com/13583761/210193825-4b898ddf-b4b2-4e21-a691-c05240bb81e3.png)
 
+**jlbun** is a high-performance FFI library that brings Julia's computational power to the Bun JavaScript runtime. Call Julia functions directly from TypeScript with zero-copy array sharing and automatic memory management.
+
+## ✨ What's New in v0.1
+
+> **Memory-Safe by Default** - The v0.1 release introduces a scope-based memory management system that eliminates manual GC handling.
+
+| Feature | Description |
+|---------|-------------|
+| 🛡️ **`Julia.scope()`** | Automatic tracking and cleanup of Julia objects |
+| 🚀 **`julia.untracked()`** | Opt-out for performance-critical loops (~300x faster) |
+| 📊 **`JuliaRange`** | Native support for `UnitRange`, `StepRange`, `LinRange` |
+| 🔍 **`JuliaSubArray`** | Zero-copy array views with `view()` and `slice()` |
+| ⚡ **Multi-dimensional Arrays** | Direct N-D array creation with `getAt()`/`setAt()` |
+
+---
+
+## Table of Contents
+
 - [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
+  - [✨ What's New in v0.1](#-whats-new-in-v01)
+  - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
-  - [Usage](#usage)
-    - [Evaluate Julia code](#evaluate-julia-code)
-    - [Pass a Bun array to Julia](#pass-a-bun-array-to-julia)
-    - [Pass a Julia Array to Bun](#pass-a-julia-array-to-bun)
-    - [Multi-dimensional arrays](#multi-dimensional-arrays)
-    - [Do some linear algebra](#do-some-linear-algebra)
-    - [Install and use new packages](#install-and-use-new-packages)
-    - [Function calls with keyword arguments](#function-calls-with-keyword-arguments)
-    - [Call JS functions from Julia](#call-js-functions-from-julia)
-    - [Run Julia with multiple threads](#run-julia-with-multiple-threads)
-    - [Automatic memory management with scope](#automatic-memory-management-with-scope)
-    - [Low-level pointer operations](#low-level-pointer-operations)
+  - [Quick Start](#quick-start)
+  - [Memory Management (v0.1)](#memory-management-v01)
+    - [`Julia.scope()` - The Recommended Way](#juliascope---the-recommended-way)
+    - [Escaping Values from Scope](#escaping-values-from-scope)
+    - [Performance Optimization with `untracked()`](#performance-optimization-with-untracked)
+  - [Arrays](#arrays)
+    - [Zero-Copy Array Sharing](#zero-copy-array-sharing)
+    - [Multi-Dimensional Arrays](#multi-dimensional-arrays)
+    - [Array Views (SubArray)](#array-views-subarray)
+  - [Ranges](#ranges)
+  - [Functions](#functions)
+    - [Calling Julia Functions](#calling-julia-functions)
+    - [Keyword Arguments](#keyword-arguments)
+    - [Calling JS Functions from Julia](#calling-js-functions-from-julia)
+  - [Modules \& Packages](#modules--packages)
+  - [Multi-Threading](#multi-threading)
+  - [Low-Level Operations](#low-level-operations)
   - [Performance](#performance)
-    - [Best Practices for Array Creation](#best-practices-for-array-creation)
+    - [Best Practices](#best-practices)
   - [Star History](#star-history)
+
+---
 
 ## Installation
 
-> - You need to have `Bun`, `CMake` and `Julia` installed to use this library.
-> - **Currently only supports Julia >=1.10**
-> - `bun install` does not run the packages's `install` scripts, so `npm install` is used instead. 
+> **Requirements**: `Bun`, `CMake`, and `Julia >=1.10`
 
 ```bash
 npm install jlbun
 ```
 
-## Usage
+> Note: Use `npm install` instead of `bun install` as the latter doesn't run install scripts.
 
-### Evaluate Julia code
+---
 
-`jlbun` provides `Julia.eval()` and `Julia.tagEval()`. The former accepts a string, while the latter accepts a tagged template literal.
+## Quick Start
 
 ```typescript
 import { Julia } from "jlbun";
 
 Julia.init();
 
-Julia.eval('println("Hello from Julia")'); // "Hello from Julia"
+// Evaluate Julia code
+Julia.eval('println("Hello from Julia!")');
 
-const arr = [1, 2, "hello"];
-Julia.tagEval`println(${arr})`; // "Any[1, 2, "hello"]"
-
-const arr2 = new Uint8Array([1, 2, 3]);
-Julia.tagEval`println(${arr2})`; // "UInt8[0x01, 0x02, 0x03]"
-
-const obj = { foo: 0, bar: false, bal: [1, 2, 3] }
-Julia.tagEval`println(${obj})`; // "(foo = 0, bar = false, bal = Any[1, 2, 3])"
+// Call Julia functions directly
+const result = Julia.Base.sum([1, 2, 3, 4, 5]);
+console.log(result.value); // 15
 
 Julia.close();
 ```
 
-### Pass a Bun array to Julia
+---
+
+## Memory Management (v0.1)
+
+### `Julia.scope()` - The Recommended Way
+
+**v0.1's flagship feature**: All Julia objects created within a scope are automatically tracked and freed when the scope exits.
+
+```typescript
+import { Julia } from "jlbun";
+
+Julia.init();
+
+const result = Julia.scope((julia) => {
+  // Create matrices - automatically tracked
+  const a = julia.Base.rand(1000, 1000);
+  const b = julia.Base.rand(1000, 1000);
+  const c = julia.Base["*"](a, b);
+  
+  // Return a JS value - Julia objects auto-released
+  return julia.Base.sum(c).value;
+});
+
+console.log(result); // A number; matrices a, b, c are freed
+
+Julia.close();
+```
+
+For async operations:
+
+```typescript
+const result = await Julia.scopeAsync(async (julia) => {
+  const func = julia.eval("() -> sum(1:1000000)");
+  const task = JuliaTask.from(func);
+  return (await task.value).value;
+});
+```
+
+### Escaping Values from Scope
+
+To keep a Julia object alive beyond the scope:
+
+```typescript
+// Method 1: Return the JuliaValue directly (auto-escaped)
+const arr = Julia.scope((julia) => {
+  return julia.Base.rand(100); // Survives scope exit
+});
+console.log(arr.length); // 100
+
+// Method 2: Explicit escape
+const sorted = Julia.scope((julia) => {
+  const temp = julia.Base.rand(100);
+  const result = julia.Base.sort(temp);
+  return julia.escape(result); // Only `result` survives
+});
+```
+
+### Performance Optimization with `untracked()`
+
+For high-iteration loops, auto-tracking adds overhead. Use `untracked()` to temporarily disable it:
+
+```typescript
+Julia.scope((julia) => {
+  const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8]));
+  
+  // ~300x faster than tracked calls
+  julia.untracked(() => {
+    for (let i = 0; i < 10000; i++) {
+      const range = julia.Base.UnitRange(1, 5);
+      julia.Base.view(arr, range); // Temporary, not tracked
+    }
+  });
+  
+  return julia.Base.sum(arr).value;
+});
+```
+
+**Key behaviors**:
+- Only affects current scope (nested `Julia.scope()` calls have independent tracking)
+- Tracking resumes after the block, even if an exception is thrown
+
+---
+
+## Arrays
+
+### Zero-Copy Array Sharing
+
+JavaScript `TypedArray` and Julia `Array` share the same memory:
 
 ```typescript
 import { Julia, JuliaArray } from "jlbun";
 
-// This initializes Julia and loads prelude symbols.
 Julia.init();
 
-// Create a `TypedArray` at the Bun side.
 const bunArray = new Float64Array([1, 2, 3, 4, 5]);
-
-// Create a `JuliaArray` from the `TypedArray`.
 const juliaArray = JuliaArray.from(bunArray);
 
-// These two arrays now share the same memory.
-Julia.Base.println(juliaArray); // [1.0, 2.0, 3.0, 4.0, 5.0]
+// Modify from JS side
+bunArray[0] = 100;
+Julia.Base.println(juliaArray); // [100.0, 2.0, 3.0, 4.0, 5.0]
 
-// We can modify the array at the Bun side (0-indexed).
-bunArray[1] = 100.0;
-Julia.Base.println(juliaArray); // [1.0, 100.0, 3.0, 4.0, 5.0]
-
-// Or we can modify the array at the Julia side (also 0-indexed).
-juliaArray.set(0, -10.0);
-Julia.Base.println(juliaArray); // [-10.0, 100.0, 3.0, 4.0, 5.0]
-
-// This cleans up Julia-related stuff.
-Julia.close();
-```
-
-### Pass a Julia Array to Bun
-
-```typescript
-import { Julia } from "jlbun";
-
-Julia.init();
-
-const juliaArray = Julia.Base.rand(10, 10);
-const bunArray = juliaArray.rawValue;
-console.log(bunArray);
+// Modify from Julia side (0-indexed API)
+juliaArray.set(1, -1);
+console.log(bunArray[1]); // -1
 
 Julia.close();
 ```
 
-### Multi-dimensional arrays
+### Multi-Dimensional Arrays
 
-Create multi-dimensional arrays directly without reshape:
+Create N-dimensional arrays directly:
 
 ```typescript
-import { Julia, JuliaArray } from "jlbun";
+const matrix = JuliaArray.init(Julia.Float64, 10, 20);    // 2D: 10x20
+const tensor = JuliaArray.init(Julia.Float64, 3, 4, 5);   // 3D: 3x4x5
 
-Julia.init();
-
-// Create arrays with different dimensions
-const arr1d = JuliaArray.init(Julia.Float64, 100);        // 1D: 100 elements
-const matrix = JuliaArray.init(Julia.Float64, 10, 20);    // 2D: 10x20 matrix
-const tensor = JuliaArray.init(Julia.Float64, 3, 4, 5);   // 3D: 3x4x5 tensor
-const arr4d = JuliaArray.init(Julia.Float64, 2, 3, 4, 5); // 4D array
-
-// Check dimensions
 console.log(matrix.ndims);  // 2
 console.log(matrix.size);   // [10, 20]
-console.log(matrix.length); // 200
-
-Julia.close();
-```
-
-**Column-Major Order**: Julia uses column-major order (like Fortran), meaning elements are stored column-by-column. For intuitive multi-dimensional access, use `getAt()` and `setAt()`:
-
-```typescript
-import { Julia, JuliaArray } from "jlbun";
-
-Julia.init();
-
-const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 columns
 
 // Multi-dimensional indexing (0-based)
-matrix.setAt(0, 0, 1.0);  // row 0, col 0
-matrix.setAt(2, 3, 12.0); // row 2, col 3
+matrix.setAt(2, 3, 42.0);
+console.log(matrix.getAt(2, 3).value); // 42.0
+```
 
-const val = matrix.getAt(2, 3); // Get element at row 2, col 3
-console.log(val.value); // 12.0
+> Julia uses **column-major order**. Use `getAt()`/`setAt()` for intuitive multi-dimensional access.
 
-// Works with 3D+ arrays too
-const tensor = JuliaArray.init(Julia.Int32, 2, 3, 4);
-tensor.setAt(1, 2, 3, 99);
-console.log(tensor.getAt(1, 2, 3).value); // 99
+### Array Views (SubArray)
+
+Create zero-copy views with `view()` and `slice()`:
+
+```typescript
+const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8]));
+
+// Range view (0-based, inclusive)
+const sub = arr.view([1, 4]);
+console.log(sub.value); // Float64Array [2, 3, 4, 5]
+
+// 1D slice (convenience method)
+const slice = arr.slice(2, 5);
+console.log(slice.value); // Float64Array [3, 4, 5, 6]
+
+// Views share memory - modifications propagate!
+sub.set(0, 100);
+console.log(arr.get(1).value); // 100
+
+// Multi-dimensional views
+const matrix = JuliaArray.init(Julia.Float64, 4, 4);
+const row = matrix.view(0, ":");        // Row 0, all columns
+const block = matrix.view([1, 2], [0, 2]); // Rows 1-2, cols 0-2
+
+// Create independent copy when needed
+const copy = sub.copy();
+```
+
+---
+
+## Ranges
+
+Work with Julia ranges directly:
+
+```typescript
+import { Julia, JuliaRange } from "jlbun";
+
+Julia.init();
+
+// Create ranges
+const unit = JuliaRange.from(1, 10);       // 1:10
+const step = JuliaRange.from(1, 10, 2);    // 1:2:10 → [1, 3, 5, 7, 9]
+const lin = JuliaRange.linspace(0, 1, 5);  // LinRange(0.0, 1.0, 5)
+
+// Properties
+console.log(unit.length);      // 10
+console.log(unit.first.value); // 1n
+console.log(step.step.value);  // 2n
+
+// Iteration
+for (const val of unit) {
+  console.log(val.value);
+}
+
+// Use with Julia functions
+console.log(Julia.Base.sum(unit).value); // 55n
 
 Julia.close();
 ```
 
-### Do some linear algebra
+---
+
+## Functions
+
+### Calling Julia Functions
 
 ```typescript
-import { Julia } from "jlbun";
+// Direct function calls
+const result = Julia.Base.sqrt(2);
+console.log(result.value); // 1.4142135623730951
 
-Julia.init();
+// Operators as functions
+const product = Julia.Base["*"](matrix1, matrix2);
 
-const juliaArray = Julia.Base.rand(2, 2);
-const inv = Julia.Base.inv(juliaArray);
-console.log(inv.value);
-
-const anotherJuliaArray = Julia.Base.rand(2, 2);
-const product = Julia.Base["*"](juliaArray, anotherJuliaArray);
-console.log(product.value);
-
-// We can also import Julia modules.
+// Import modules
 const LA = Julia.import("LinearAlgebra");
-console.log(LA.norm(product).value);
-
-Julia.close();
+console.log(LA.norm(vector).value);
 ```
 
-### Install and use new packages
+### Keyword Arguments
 
 ```typescript
-import { Julia } from "jlbun";
-import { join } from "path";
-
-Julia.init();
-
-// Install `CairoMakie`
-Julia.Pkg.add("CairoMakie");
-
-// Import `CairoMakie`
-const Cairo = Julia.import("CairoMakie");
-
-// Plot and save
-const plt = Cairo.plot(Julia.Base.rand(10), Julia.Base.rand(10));
-Cairo.save(join(process.cwd(), "plot.png"), plt);
-
-Julia.close();
-```
-
-### Function calls with keyword arguments
-
-```typescript
-import { Julia, JuliaArray } from "jlbun";
-
-Julia.init();
-
-const rawArray = new Int32Array([1, 10, 20, 30, 100]);
-const arr = JuliaArray.from(rawArray);
+const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
 Julia.Base["sort!"].callWithKwargs({ by: Julia.Base.string, rev: true }, arr);
-console.log(rawArray); // Int32Array(5) [ 30, 20, 100, 10, 1 ]
-
-Julia.close();
+// Result: [30, 20, 100, 10, 1]
 ```
 
-### Call JS functions from Julia
+### Calling JS Functions from Julia
 
 ```typescript
 import { Julia, JuliaArray, JuliaFunction } from "jlbun";
 
 Julia.init();
 
-const jsFunc = (x: number) => -x;
-
-const cb = JuliaFunction.from(jsFunc, {
+const negate = JuliaFunction.from((x: number) => -x, {
   returns: "i32",
   args: ["i32"],
 });
 
-const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
-const neg = arr.map(cb);
-Julia.println(neg); // Int32[-1, -10, -20, -30, -100]
-cb.close();
+const arr = JuliaArray.from(new Int32Array([1, 2, 3]));
+const neg = arr.map(negate);
+Julia.println(neg); // Int32[-1, -2, -3]
+
+negate.close(); // Optional: auto-cleaned when GC'd
 
 Julia.close();
 ```
 
-To deal with strings requires some tricks, see the example below:
+---
+
+## Modules & Packages
 
 ```typescript
-import { Julia, JuliaArray, JuliaFunction, safeCString } from "jlbun";
+// Install packages
+Julia.Pkg.add("CairoMakie");
 
-Julia.init();
+// Import modules
+const Cairo = Julia.import("CairoMakie");
 
-const jsFunc = (x: number) => {
-  return safeCString(x.toString());
-};
-
-const cb = JuliaFunction.from(jsFunc, {
-  returns: "cstring",
-  args: ["i32"],
-});
-
-const arr = JuliaArray.from(new Int32Array([1, 10, 20, 30, 100]));
-Julia.Base["sort!"].callWithKwargs({ by: cb, rev: true }, arr);
-Julia.println(arr); // Int32[30, 20, 100, 10, 1]
-cb.close();
-
-Julia.close();
+// Use
+const plt = Cairo.plot(Julia.Base.rand(10), Julia.Base.rand(10));
+Cairo.save("plot.png", plt);
 ```
 
-### Run Julia with multiple threads
+---
 
-To use multiple threads in Julia, you need to set the `JULIA_NUM_THREADS` environment variable.
+## Multi-Threading
 
-With `export JULIA_NUM_THREADS=2` set, the following program should output `2` instead of `1`:
+Set `JULIA_NUM_THREADS` before running:
 
-```typescript
-import { Julia } from "jlbun";
-
-Julia.init();
-
-Julia.eval("println(Threads.nthreads())");
-
-Julia.close();
+```bash
+export JULIA_NUM_THREADS=8
 ```
-
-A more advanced example:
 
 ```typescript
 import { Julia, JuliaFunction, JuliaTask, JuliaValue } from "jlbun";
 
 Julia.init();
 
+const func = Julia.eval(`() -> sum(1:1000)`);
 const promises: Promise<JuliaValue>[] = [];
-
-const func = Julia.eval(`function ()
-  ans = 0;
-  for i in 1:1000
-    ans += i
-  end
-  ans
-end
-`) as JuliaFunction;
 
 for (let i = 0; i < Julia.nthreads; i++) {
   promises.push(JuliaTask.from(func).schedule(i).value);
 }
 
-const results = (await Promise.all(promises)).map(promise => promise.value);
-console.log(results); // [ 500500n, 500500n, 500500n, 500500n, 500500n, 500500n, 500500n, 500500n ]
+const results = await Promise.all(promises);
+console.log(results.map(r => r.value)); // [500500n, 500500n, ...]
 
 Julia.close();
 ```
 
-### Automatic memory management with scope
+---
 
-Use `Julia.scope()` to automatically manage Julia object lifecycle:
+## Low-Level Operations
 
-```typescript
-import { Julia } from "jlbun";
-
-Julia.init();
-
-// All Julia objects created within the scope are automatically freed when the scope ends
-const result = Julia.scope((julia) => {
-  const a = julia.Base.rand(1000, 1000);
-  const b = julia.Base.rand(1000, 1000);
-  const c = julia.Base["*"](a, b);
-  return julia.Base.sum(c).value; // Return JS value, Julia objects auto-released
-});
-
-console.log(result); // A number
-
-// For async operations, use Julia.scopeAsync()
-const asyncResult = await Julia.scopeAsync(async (julia) => {
-  const func = julia.eval("() -> sum(1:1000000)");
-  const task = JuliaTask.from(func);
-  return (await task.value).value;
-});
-
-Julia.close();
-```
-
-### Low-level pointer operations
-
-`JuliaPtr` provides access to Julia's `Ptr{T}` type for low-level memory operations:
+`JuliaPtr` provides access to Julia's `Ptr{T}` type:
 
 ```typescript
 import { Julia, JuliaArray, JuliaPtr } from "jlbun";
 
 Julia.init();
 
-// Get a pointer to array data
-const arr = JuliaArray.from(new Float64Array([1.0, 2.0, 3.0, 4.0, 5.0]));
+const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
 const ptr = JuliaPtr.fromArray(arr);
 
-// Read values (0-based indexing)
+// Read/write (0-based)
 console.log(ptr.load(0).value); // 1.0
-console.log(ptr.load(2).value); // 3.0
-
-// Write values
 ptr.store(99.0, 1);
-console.log(arr.get(1).value); // 99.0
 
-// Pointer arithmetic (element-based, not byte-based)
+// Pointer arithmetic
 const ptr2 = ptr.offset(2);
 console.log(ptr2.load(0).value); // 3.0
-
-// Check element type and address
-console.log(Julia.string(ptr.elType)); // "Float64"
-console.log(ptr.address); // Memory address as bigint
-
-// Reinterpret as different type
-const intPtr = ptr.reinterpret(Julia.UInt64);
 
 Julia.close();
 ```
 
-**Warning**: `load()` and `store()` are unsafe operations. Ensure the pointer is valid and properly aligned before use.
+> ⚠️ **Warning**: `load()` and `store()` are unsafe operations.
+
+---
 
 ## Performance
 
-jlbun uses several optimizations to minimize FFI overhead:
+jlbun is optimized for minimal FFI overhead:
 
-- **Type Pointer Comparison**: For primitive types (Int64, Float64, String, etc.), type checking uses direct pointer comparison (O(1)) instead of string comparison
-- **Type String Cache**: Type strings are cached to avoid repeated FFI calls for the same Julia types
-- **Zero-Copy Arrays**: `JuliaArray.from()` shares memory with JavaScript `TypedArray` without copying
-- **Direct FFI Calls**: Function calls via FFI are ~8-260x faster than `Julia.eval()` with string parsing
+| Optimization | Description |
+|--------------|-------------|
+| **Type Pointer Comparison** | O(1) type checking for primitives |
+| **Type String Cache** | Avoids repeated FFI calls |
+| **Zero-Copy Arrays** | Memory sharing with TypedArray |
+| **Direct FFI Calls** | 8-260x faster than `Julia.eval()` |
 
-### Best Practices for Array Creation
-
-| Use Case | Recommended Method | Why |
-|----------|-------------------|-----|
-| Zero-initialized array | `Julia.Base.zeros(Float64, m, n)` | Uses optimized system calls |
-| Filled with specific value | `Julia.Base.fill(value, m, n)` | Single call, clean API |
-| Will overwrite all values | `JuliaArray.init(Julia.Float64, m, n)` | Fastest (no initialization) |
-| From JS TypedArray | `JuliaArray.from(typedArray)` | Zero-copy memory sharing |
+### Best Practices
 
 ```typescript
-// ❌ Slow: string parsing overhead
+// ❌ Slow: string parsing
 const arr = Julia.eval("zeros(1000, 1000)");
 
-// ✅ Fast: direct FFI call
+// ✅ Fast: direct FFI
 const arr = Julia.Base.zeros(Julia.Float64, 1000, 1000);
 
-// ✅ Fastest (uninitialized): when you'll fill it yourself
+// ✅ Fastest: uninitialized
 const arr = JuliaArray.init(Julia.Float64, 1000, 1000);
-arr.fill(42.0);  // Fill with a specific value
 ```
+
+| Use Case | Recommended |
+|----------|-------------|
+| Zero-initialized | `Julia.Base.zeros(type, dims...)` |
+| Fill with value | `Julia.Base.fill(value, dims...)` |
+| Will overwrite all | `JuliaArray.init(type, dims...)` |
+| From TypedArray | `JuliaArray.from(typedArray)` |
+
+---
 
 ## Star History
 

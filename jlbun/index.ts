@@ -21,13 +21,15 @@ export interface JuliaOptions {
   prefetchFilter?: boolean;
 }
 
-export { JuliaArray } from "./arrays.js";
+export { type BunArray, JuliaArray } from "./arrays.js";
 export { JuliaDict, JuliaIdDict } from "./dicts.js";
 export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
 export { JuliaFunction } from "./functions.js";
 export { Julia, MIME } from "./julia.js";
 export { JuliaModule } from "./modules.js";
+export { JuliaRange } from "./ranges.js";
 export { JuliaSet } from "./sets.js";
+export { JuliaSubArray } from "./subarrays.js";
 export { JuliaTask } from "./tasks.js";
 export { JuliaNamedTuple, JuliaPair, JuliaTuple } from "./tuples.js";
 export { JuliaDataType } from "./types.js";

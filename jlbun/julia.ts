@@ -24,9 +24,11 @@ import {
   JuliaOptions,
   JuliaPair,
   JuliaPtr,
+  JuliaRange,
   JuliaScope,
   JuliaSet,
   JuliaString,
+  JuliaSubArray,
   JuliaSymbol,
   JuliaTask,
   JuliaTuple,
@@ -555,6 +557,32 @@ export class Julia {
     }
     if (typeStr === "IdDict" || typeStr.startsWith("IdDict{")) {
       return new JuliaIdDict(ptr);
+    }
+
+    // Handle Range types (UnitRange, StepRange, StepRangeLen, LinRange)
+    if (
+      typeStr === "UnitRange" ||
+      typeStr.startsWith("UnitRange{") ||
+      typeStr === "StepRange" ||
+      typeStr.startsWith("StepRange{") ||
+      typeStr === "StepRangeLen" ||
+      typeStr.startsWith("StepRangeLen{") ||
+      typeStr === "LinRange" ||
+      typeStr.startsWith("LinRange{")
+    ) {
+      return new JuliaRange(ptr);
+    }
+
+    // Handle SubArray type
+    if (typeStr === "SubArray" || typeStr.startsWith("SubArray{")) {
+      const elTypePtr = jlbun.symbols.jl_array_eltype(ptr);
+      if (elTypePtr === null) {
+        return new JuliaAny(ptr);
+      }
+      return new JuliaSubArray(
+        ptr,
+        new JuliaDataType(elTypePtr, Julia.getTypeStr(elTypePtr)),
+      );
     }
 
     // Handle lambda functions (type starts with #)

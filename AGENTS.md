@@ -18,6 +18,8 @@ jlbun/
 │   ├── gc.ts            # GCManager for automatic lifecycle management
 │   ├── scope.ts         # JuliaScope for proxy-based auto-tracking
 │   ├── arrays.ts        # JuliaArray wrapper class
+│   ├── subarrays.ts     # JuliaSubArray wrapper class (zero-copy views)
+│   ├── ranges.ts        # JuliaRange wrapper class (UnitRange, StepRange, etc.)
 │   ├── functions.ts     # JuliaFunction wrapper class
 │   ├── values.ts        # Primitive type wrappers (Int, Float, String, etc.)
 │   ├── tuples.ts        # Tuple/NamedTuple/Pair wrapper classes
@@ -95,6 +97,8 @@ Julia.scopeAsync(fn)           // Async version of scope()
 | `JuliaChar` | `Char` | `string` |
 | `JuliaSymbol` | `Symbol` | `Symbol` |
 | `JuliaArray` | `Array` | `TypedArray` / `any[]` |
+| `JuliaSubArray` | `SubArray` | `TypedArray` / `any[]` (via `.value`) |
+| `JuliaRange` | `UnitRange/StepRange/LinRange` | `TypedArray` (via `.value`) |
 | `JuliaPtr` | `Ptr{T}` | `Pointer` (raw address) |
 | `JuliaTuple` | `Tuple` | `any[]` |
 | `JuliaNamedTuple` | `NamedTuple` | `Record<string, any>` |
@@ -223,6 +227,7 @@ The callback receives a `ScopedJulia` proxy object that mirrors the `Julia` stat
 | `julia.call(func, ...args)` | Call function with tracking |
 | `julia.callWithKwargs(func, kwargs, ...args)` | Call with keyword args |
 | `julia.escape(value)` | Remove from tracking, return value |
+| `julia.untracked(fn)` | Execute fn without auto-tracking (for performance) |
 | `julia.Base` / `julia.Core` / `julia.Main` / `julia.Pkg` | Module access |
 | `julia.version` | Julia version string |
 | `julia.nthreads` | Number of Julia threads |
@@ -314,6 +319,32 @@ console.log(`Sum: ${result}`);
 ### Thread Safety
 
 The scope implementation uses Julia's `ReentrantLock` to protect the internal GC root dictionary, making it safe to use with multi-threaded Julia operations (`JuliaTask`).
+
+### `julia.untracked()` - Performance Optimization
+
+For performance-critical loops, auto-tracking can add overhead. Use `untracked()` to temporarily disable tracking:
+
+```typescript
+Julia.scope((julia) => {
+  const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8]));
+  
+  // ~300x faster than tracked calls for high-iteration loops
+  julia.untracked(() => {
+    for (let i = 0; i < 10000; i++) {
+      const range = julia.Base.UnitRange(1, 5);
+      julia.Base.view(arr, range); // Temporary objects not tracked
+    }
+  });
+  
+  // Normal tracking resumes here
+  return julia.Base.sum(arr).value;
+});
+```
+
+**Key behaviors**:
+- Only affects current scope (nested `Julia.scope()` calls have independent tracking)
+- Explicit `julia.track(value)` still works inside `untracked()`
+- Tracking state is restored even if an exception is thrown
 
 ---
 
@@ -434,6 +465,90 @@ arr.fill(42.0);  // Then fill as needed
 | `arr.push(...values)` | Append elements (1D only) |
 | `arr.pop()` | Remove and return last element (1D only) |
 | `arr.reverse()` | Reverse array in place |
+| `arr.view(...indices)` | Create a SubArray view (zero-copy) |
+| `arr.slice(start, stop)` | Create a 1D contiguous view |
+
+## JuliaSubArray API Reference
+
+`JuliaSubArray` wraps Julia's `SubArray` type, providing zero-copy views into arrays.
+
+| Method/Property | Description |
+|-----------------|-------------|
+| `JuliaSubArray.view(array, ...indices)` | Create view from array |
+| `sub.parent` | Get parent array |
+| `sub.parentindices` | Get indices into parent array |
+| `sub.length` | Total number of elements |
+| `sub.ndims` | Number of dimensions |
+| `sub.size` | Array of dimension sizes |
+| `sub.elType` | Element type (JuliaDataType) |
+| `sub.isContiguous` | Whether memory is contiguous |
+| `sub.get(index)` | Get element at linear index |
+| `sub.set(index, value)` | Set element at linear index |
+| `sub.getAt(...indices)` | Get element at multi-dimensional indices |
+| `sub.setAt(...indices, value)` | Set element at multi-dimensional indices |
+| `sub.fill(value)` | Fill all elements with value |
+| `sub.copy()` | Create independent copy (JuliaArray) |
+| `sub.collect()` | Convert to JuliaArray |
+| `sub.value` | Get as TypedArray or JS array |
+| `sub.view(...indices)` | Create nested view |
+| `sub.slice(start, stop)` | Create 1D slice of this view |
+| `sub.map(fn)` | Map function over elements |
+| `sub.rawPtr` | Get raw data pointer (if contiguous) |
+| `sub.fastValue` | Fast TypedArray access (if contiguous) |
+
+**Index Specification for `view()`**:
+- `number`: Single index (0-based)
+- `":"`: All elements in dimension
+- `[start, stop]`: Range (0-based, inclusive)
+- `[start, step, stop]`: Stepped range
+
+```typescript
+// Examples
+const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
+const sub = arr.view([1, 3]);        // Elements 1-3
+const all = arr.view(":");           // All elements
+const matrix = JuliaArray.init(Julia.Float64, 4, 4);
+const row = matrix.view(0, ":");     // First row
+const block = matrix.view([1, 2], [0, 2]); // 2x3 block
+```
+
+## JuliaRange API Reference
+
+`JuliaRange` wraps Julia's range types (`UnitRange`, `StepRange`, `StepRangeLen`, `LinRange`).
+
+| Method/Property | Description |
+|-----------------|-------------|
+| `JuliaRange.from(start, stop, step?)` | Create UnitRange or StepRange |
+| `JuliaRange.linspace(start, stop, length)` | Create LinRange (evenly spaced) |
+| `JuliaRange.withLength(start, length, step?)` | Create range with specified length |
+| `range.first` | First element (JuliaValue) |
+| `range.last` | Last element (JuliaValue) |
+| `range.step` | Step size (JuliaValue) |
+| `range.length` | Number of elements |
+| `range.isEmpty` | Whether range is empty |
+| `range.elType` | Element type (JuliaDataType) |
+| `range.get(index)` | Get element at index (0-based) |
+| `range.contains(value)` | Check if value is in range |
+| `range.reverse()` | Create reversed range |
+| `range.map(fn)` | Map function over range |
+| `range.value` | Convert to TypedArray |
+| `range[Symbol.iterator]` | Iterate over elements |
+
+```typescript
+// Examples
+const unit = JuliaRange.from(1, 10);       // 1:10
+const step = JuliaRange.from(1, 10, 2);    // 1:2:10 -> [1,3,5,7,9]
+const lin = JuliaRange.linspace(0, 1, 5);  // LinRange(0.0, 1.0, 5)
+const len = JuliaRange.withLength(0, 10);  // 0:9
+
+// Iterate
+for (const val of unit) {
+  console.log(val.value);
+}
+
+// Use with Julia functions
+Julia.Base.sum(unit).value; // 55n
+```
 
 ## JuliaPtr API Reference
 
@@ -542,15 +657,19 @@ Tests are organized by module in `jlbun/tests/`:
 
 ```text
 jlbun/tests/
-├── setup.ts          # Shared test initialization
-├── julia.test.ts     # Julia static class tests
-├── values.test.ts    # Primitive type tests (Int, Float, String, etc.)
-├── functions.test.ts # JuliaFunction and callback tests
-├── arrays.test.ts    # JuliaArray operations
+├── setup.ts            # Shared test initialization
+├── julia.test.ts       # Julia static class tests
+├── values.test.ts      # Primitive type tests (Int, Float, String, etc.)
+├── functions.test.ts   # JuliaFunction and callback tests
+├── arrays.test.ts      # JuliaArray operations
+├── subarrays.test.ts   # JuliaSubArray view operations
+├── ranges.test.ts      # JuliaRange operations
+├── ptr.test.ts         # JuliaPtr pointer operations
 ├── collections.test.ts # Tuple, Dict, Set tests
-├── tasks.test.ts     # JuliaTask async tests
-├── scope.test.ts     # Scope and GCManager tests
-└── utils.test.ts     # Utility functions and error classes
+├── tasks.test.ts       # JuliaTask async tests
+├── scope.test.ts       # Scope and GCManager tests
+├── scope-stress.test.ts # Scope stress tests
+└── utils.test.ts       # Utility functions and error classes
 ```
 
 ### Running Tests
@@ -569,10 +688,13 @@ Coverage includes:
 - Function calls (regular/keyword arguments)
 - Array operations (shared memory/reshape/map)
 - **Multi-dimensional arrays** (creation, getAt/setAt, column-major indexing)
+- **SubArray views** (view/slice, zero-copy, nested views)
+- **Ranges** (UnitRange, StepRange, LinRange, StepRangeLen)
 - Collection operations (Set/Dict/Tuple)
 - Async tasks (JuliaTask)
 - Module imports
 - **Scoped lifecycle management** (Julia.scope/Julia.scopeAsync)
+- **untracked()** for performance-critical code paths
 - GCManager protection/unprotection
 - JSCallback auto-cleanup via FinalizationRegistry
 
