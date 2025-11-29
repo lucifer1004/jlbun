@@ -200,6 +200,37 @@ void jl_array_ptr_set_wrapper(jl_array_t *a, size_t i, jl_value_t *v) {
   }
 }
 
+// Multi-dimensional array allocation (compatibility wrapper for Julia < 1.11)
+#if JULIA_VERSION_MAJOR >= 1 && JULIA_VERSION_MINOR >= 11
+// Julia 1.11+ has jl_alloc_array_nd built-in, just expose it
+jl_array_t *jl_alloc_array_nd_wrapper(jl_value_t *atype, size_t *dims, size_t ndims) {
+  return jl_alloc_array_nd(atype, dims, ndims);
+}
+#else
+// Julia 1.10 and earlier: use jl_new_array with a tuple
+// From Julia source: tuple memory layout is just contiguous field values,
+// so we can cast (size_t*)dims_tuple to access dimension values directly
+jl_array_t *jl_alloc_array_nd_wrapper(jl_value_t *atype, size_t *dims, size_t ndims) {
+  // Create NTuple{N, Int} type for dimensions (Int = Int64 on 64-bit)
+  jl_value_t **types = (jl_value_t **)alloca(ndims * sizeof(jl_value_t *));
+  for (size_t i = 0; i < ndims; i++) {
+    types[i] = (jl_value_t *)jl_long_type;  // jl_long_type = Int (platform native)
+  }
+  jl_datatype_t *tuple_type = (jl_datatype_t *)jl_apply_tuple_type_v(types, ndims);
+  
+  // Allocate tuple and write dimensions directly into memory
+  // Tuple layout: fields are stored contiguously starting at object pointer
+  jl_value_t *dims_tuple = jl_new_struct_uninit(tuple_type);
+  size_t *tuple_data = (size_t *)dims_tuple;
+  for (size_t i = 0; i < ndims; i++) {
+    tuple_data[i] = dims[i];
+  }
+  
+  // jl_new_array creates array directly from atype and dims tuple
+  return jl_new_array(atype, dims_tuple);
+}
+#endif
+
 // GC
 void jl_gc_push1(jl_value_t *x) { JL_GC_PUSH1(&x); }
 void jl_gc_push2(jl_value_t *x, jl_value_t *y) { JL_GC_PUSH2(&x, &y); }

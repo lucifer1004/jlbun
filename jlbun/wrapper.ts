@@ -339,19 +339,19 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     returns: FFIType.ptr,
   },
   jl_alloc_array_1d: {
-    args: [FFIType.ptr, FFIType.i32],
+    args: [FFIType.ptr, FFIType.u64],
     returns: FFIType.ptr,
   },
   jl_alloc_array_2d: {
-    args: [FFIType.ptr, FFIType.i64, FFIType.i64],
+    args: [FFIType.ptr, FFIType.u64, FFIType.u64],
     returns: FFIType.ptr,
   },
   jl_alloc_array_3d: {
-    args: [FFIType.ptr, FFIType.i64, FFIType.i64, FFIType.i64],
+    args: [FFIType.ptr, FFIType.u64, FFIType.u64, FFIType.u64],
     returns: FFIType.ptr,
   },
-  jl_alloc_array_nd: {
-    args: [FFIType.ptr, FFIType.ptr, FFIType.i64],
+  jl_alloc_array_nd_wrapper: {
+    args: [FFIType.ptr, FFIType.ptr, FFIType.u64],
     returns: FFIType.ptr,
   },
   jl_cstr_to_string: {

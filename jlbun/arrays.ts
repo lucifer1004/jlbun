@@ -143,9 +143,9 @@ export class JuliaArray implements JuliaValue {
         dims[2],
       );
     } else {
-      // For 4+ dimensions, use jl_alloc_array_nd
-      const dimsArray = new BigInt64Array(dims.map(BigInt));
-      arrPtr = jlbun.symbols.jl_alloc_array_nd(
+      // For 4+ dimensions, use jl_alloc_array_nd_wrapper (compatibility for Julia < 1.11)
+      const dimsArray = new BigUint64Array(dims.map(BigInt));
+      arrPtr = jlbun.symbols.jl_alloc_array_nd_wrapper(
         arrType,
         ptr(dimsArray.buffer),
         ndims,

@@ -440,7 +440,7 @@ The C layer wraps Julia C API with the following main functions:
 1. **Initialization**: `jl_init0`, `jl_init_with_image0`
 2. **Type Getters**: `jl_*_type_getter()` function series (including `datatype`, `module`, `task`, `array`)
 3. **Module Access**: `jl_*_module_getter()` function series
-4. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`, `jl_alloc_array_2d`, `jl_alloc_array_3d`, `jl_alloc_array_nd`
+4. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`, `jl_alloc_array_2d`, `jl_alloc_array_3d`, `jl_alloc_array_nd_wrapper`
 5. **Property Queries**: `jl_hasproperty`, `jl_propertynames`, `jl_propertycount`
 
 ## Build System
