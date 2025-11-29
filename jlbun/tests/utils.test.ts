@@ -1,6 +1,28 @@
 import { FFIType } from "bun:ffi";
 import { beforeAll, describe, expect, it } from "bun:test";
-import { InexactError, MethodError, UnknownJuliaError } from "../errors.js";
+import {
+  ArgumentError,
+  BoundsError,
+  createJuliaError,
+  DimensionMismatch,
+  DivideError,
+  DomainError,
+  InexactError,
+  InterruptException,
+  JuliaError,
+  KeyError,
+  LoadError,
+  MethodError,
+  OverflowError,
+  StackOverflowError,
+  StringIndexError,
+  TaskFailedException,
+  TypeError,
+  UndefRefError,
+  UndefVarError,
+  UnknownJuliaError,
+} from "../errors.js";
+import { Julia, JuliaArray, JuliaDict } from "../index.js";
 import { mapFFITypeToJulia } from "../utils.js";
 import { ensureJuliaInitialized } from "./setup.js";
 
@@ -94,21 +116,177 @@ describe("mapFFITypeToJulia coverage", () => {
 });
 
 describe("Error classes", () => {
-  it("InexactError can be thrown and caught", () => {
+  it("all error classes extend JuliaError", () => {
+    const errors = [
+      new InexactError("test"),
+      new MethodError("test"),
+      new BoundsError("test"),
+      new ArgumentError("test"),
+      new TypeError("test"),
+      new DomainError("test"),
+      new DivideError("test"),
+      new OverflowError("test"),
+      new KeyError("test"),
+      new LoadError("test"),
+      new StringIndexError("test"),
+      new StackOverflowError("test"),
+      new DimensionMismatch("test"),
+      new UndefVarError("test"),
+      new UndefRefError("test"),
+      new TaskFailedException("test"),
+      new InterruptException("test"),
+      new UnknownJuliaError("test"),
+    ];
+
+    for (const err of errors) {
+      expect(err).toBeInstanceOf(JuliaError);
+      expect(err).toBeInstanceOf(Error);
+      expect(err.juliaType).toBeDefined();
+    }
+  });
+
+  it("InexactError has correct properties", () => {
+    const err = new InexactError("test error");
+    expect(err.name).toBe("InexactError");
+    expect(err.juliaType).toBe("InexactError");
+    expect(err.message).toBe("test error");
     expect(() => {
-      throw new InexactError("test error");
+      throw err;
     }).toThrow(InexactError);
   });
 
-  it("MethodError can be thrown and caught", () => {
+  it("MethodError has correct properties", () => {
+    const err = new MethodError("test error");
+    expect(err.name).toBe("MethodError");
+    expect(err.juliaType).toBe("MethodError");
     expect(() => {
-      throw new MethodError("test error");
+      throw err;
     }).toThrow(MethodError);
   });
 
-  it("UnknownJuliaError can be thrown and caught", () => {
+  it("BoundsError has correct properties", () => {
+    const err = new BoundsError("index out of bounds");
+    expect(err.name).toBe("BoundsError");
+    expect(err.juliaType).toBe("BoundsError");
     expect(() => {
-      throw new UnknownJuliaError("test error");
-    }).toThrow(UnknownJuliaError);
+      throw err;
+    }).toThrow(BoundsError);
+  });
+
+  it("UnknownJuliaError stores original Julia type", () => {
+    const err = new UnknownJuliaError("message", "CustomJuliaError");
+    expect(err.name).toBe("UnknownJuliaError");
+    expect(err.juliaType).toBe("CustomJuliaError");
+  });
+});
+
+describe("createJuliaError factory", () => {
+  it("creates InexactError for InexactError type", () => {
+    const err = createJuliaError("InexactError", "cannot convert");
+    expect(err).toBeInstanceOf(InexactError);
+    expect(err.message).toBe("cannot convert");
+  });
+
+  it("creates MethodError for MethodError type", () => {
+    const err = createJuliaError("MethodError", "no method");
+    expect(err).toBeInstanceOf(MethodError);
+  });
+
+  it("creates BoundsError for BoundsError type", () => {
+    const err = createJuliaError("BoundsError", "index out of bounds");
+    expect(err).toBeInstanceOf(BoundsError);
+  });
+
+  it("creates ArgumentError for ArgumentError type", () => {
+    const err = createJuliaError("ArgumentError", "invalid argument");
+    expect(err).toBeInstanceOf(ArgumentError);
+  });
+
+  it("creates DomainError for DomainError type", () => {
+    const err = createJuliaError("DomainError", "domain error");
+    expect(err).toBeInstanceOf(DomainError);
+  });
+
+  it("creates DivideError for DivideError type", () => {
+    const err = createJuliaError("DivideError", "divide by zero");
+    expect(err).toBeInstanceOf(DivideError);
+  });
+
+  it("creates KeyError for KeyError type", () => {
+    const err = createJuliaError("KeyError", "key not found");
+    expect(err).toBeInstanceOf(KeyError);
+  });
+
+  it("creates DimensionMismatch for DimensionMismatch type", () => {
+    const err = createJuliaError("DimensionMismatch", "dimensions mismatch");
+    expect(err).toBeInstanceOf(DimensionMismatch);
+  });
+
+  it("creates UndefVarError for UndefVarError type", () => {
+    const err = createJuliaError("UndefVarError", "undefined variable");
+    expect(err).toBeInstanceOf(UndefVarError);
+  });
+
+  it("creates UnknownJuliaError for unknown types", () => {
+    const err = createJuliaError("SomeRandomError", "random error");
+    expect(err).toBeInstanceOf(UnknownJuliaError);
+    expect(err.juliaType).toBe("SomeRandomError");
+  });
+
+  it("creates all other error types correctly", () => {
+    expect(createJuliaError("TypeError", "msg")).toBeInstanceOf(TypeError);
+    expect(createJuliaError("OverflowError", "msg")).toBeInstanceOf(
+      OverflowError,
+    );
+    expect(createJuliaError("LoadError", "msg")).toBeInstanceOf(LoadError);
+    expect(createJuliaError("StringIndexError", "msg")).toBeInstanceOf(
+      StringIndexError,
+    );
+    expect(createJuliaError("StackOverflowError", "msg")).toBeInstanceOf(
+      StackOverflowError,
+    );
+    expect(createJuliaError("UndefRefError", "msg")).toBeInstanceOf(
+      UndefRefError,
+    );
+    expect(createJuliaError("TaskFailedException", "msg")).toBeInstanceOf(
+      TaskFailedException,
+    );
+    expect(createJuliaError("InterruptException", "msg")).toBeInstanceOf(
+      InterruptException,
+    );
+  });
+});
+
+describe("Julia errors thrown from actual Julia calls", () => {
+  it("throws BoundsError for out-of-bounds array access", () => {
+    const arr = JuliaArray.from(new Float64Array([1, 2, 3]));
+    expect(() => Julia.Base.getindex(arr, 10)).toThrow(BoundsError);
+  });
+
+  it("throws DomainError for sqrt of negative number", () => {
+    expect(() => Julia.Base.sqrt(-1)).toThrow(DomainError);
+  });
+
+  it("throws DivideError for integer division by zero", () => {
+    expect(() => Julia.Base.div(1, 0)).toThrow(DivideError);
+  });
+
+  it("throws KeyError for missing dictionary key", () => {
+    const dict = JuliaDict.from([["a", 1]]);
+    expect(() => Julia.Base.getindex(dict, "nonexistent")).toThrow(KeyError);
+  });
+
+  it("throws UndefVarError for undefined variable", () => {
+    expect(() => Julia.eval("__nonexistent_variable_12345__")).toThrow(
+      UndefVarError,
+    );
+  });
+
+  it("throws ArgumentError for invalid argument", () => {
+    expect(() => Julia.Base.zeros(-1)).toThrow(ArgumentError);
+  });
+
+  it("throws MethodError for wrong argument type", () => {
+    expect(() => Julia.Base.sqrt("not a number")).toThrow(MethodError);
   });
 });

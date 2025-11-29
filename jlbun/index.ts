@@ -23,7 +23,28 @@ export interface JuliaOptions {
 
 export { type BunArray, JuliaArray } from "./arrays.js";
 export { JuliaDict, JuliaIdDict } from "./dicts.js";
-export { InexactError, MethodError, UnknownJuliaError } from "./errors.js";
+export {
+  ArgumentError,
+  BoundsError,
+  createJuliaError,
+  DimensionMismatch,
+  DivideError,
+  DomainError,
+  InexactError,
+  InterruptException,
+  JuliaError,
+  KeyError,
+  LoadError,
+  MethodError,
+  OverflowError,
+  StackOverflowError,
+  StringIndexError,
+  TaskFailedException,
+  TypeError,
+  UndefRefError,
+  UndefVarError,
+  UnknownJuliaError,
+} from "./errors.js";
 export { JuliaFunction } from "./functions.js";
 export { Julia, MIME } from "./julia.js";
 export { JuliaModule } from "./modules.js";

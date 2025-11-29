@@ -1,8 +1,8 @@
 import { Pointer } from "bun:ffi";
 import { randomUUID } from "crypto";
 import {
+  createJuliaError,
   GCManager,
-  InexactError,
   jlbun,
   JuliaAny,
   JuliaArray,
@@ -37,10 +37,8 @@ import {
   JuliaUInt32,
   JuliaUInt64,
   JuliaValue,
-  MethodError,
   safeCString,
   ScopedJulia,
-  UnknownJuliaError,
 } from "./index.js";
 
 export enum MIME {
@@ -632,13 +630,23 @@ export class Julia {
     const errPtr = jlbun.symbols.jl_exception_occurred();
     if (errPtr !== null) {
       const errType = Julia.getTypeStr(errPtr);
-      if (errType == "MethodError") {
-        throw new MethodError(code);
-      } else if (errType == "InexactError") {
-        throw new InexactError(code);
-      } else {
-        throw new UnknownJuliaError(errType);
+
+      // Try to get the exception message
+      let errMsg = code;
+      try {
+        const stringFunc = Julia.Base?.["string"];
+        if (stringFunc) {
+          const errJuliaValue = new JuliaAny(errPtr);
+          const msgPtr = Julia.call(stringFunc, errJuliaValue);
+          if (msgPtr && msgPtr.ptr) {
+            errMsg = `${code}: ${msgPtr.toString()}`;
+          }
+        }
+      } catch {
+        // Fall back to code only
       }
+
+      throw createJuliaError(errType, errMsg);
     }
   }
 
@@ -685,13 +693,7 @@ export class Julia {
         errMsg = errType;
       }
 
-      if (errType == "MethodError") {
-        throw new MethodError(`${funcCall}: ${errMsg}`);
-      } else if (errType == "InexactError") {
-        throw new InexactError(`${funcCall}: ${errMsg}`);
-      } else {
-        throw new UnknownJuliaError(`Julia error in ${funcCall}: ${errMsg}`);
-      }
+      throw createJuliaError(errType, `${funcCall}: ${errMsg}`);
     }
   }
 

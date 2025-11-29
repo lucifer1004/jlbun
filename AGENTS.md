@@ -646,11 +646,47 @@ bun run rollup -c rollup.config.js
 
 ### Error Handling
 
+All Julia exceptions are mapped to TypeScript error classes inheriting from `JuliaError`:
+
 ```typescript
-// Custom error types
-MethodError        // Julia method call error
-InexactError       // Type conversion precision loss error
-UnknownJuliaError  // Other Julia exceptions
+// Base class
+JuliaError           // Base class with `juliaType` property
+
+// Common Julia errors (mapped automatically)
+MethodError          // No method matches the given arguments
+InexactError         // Type conversion cannot be done exactly
+BoundsError          // Array index out of bounds
+ArgumentError        // Invalid argument to function
+TypeError            // Argument is of wrong type
+DomainError          // Argument outside valid domain (e.g., sqrt(-1))
+DivideError          // Integer division by zero
+OverflowError        // Integer overflow in checked arithmetic
+KeyError             // Key not found in collection
+DimensionMismatch    // Array dimensions don't match
+UndefVarError        // Variable not defined
+UndefRefError        // Uninitialized reference
+LoadError            // Module/package loading failed
+StringIndexError     // Invalid string index
+StackOverflowError   // Deep recursion
+TaskFailedException  // Error in Julia task
+InterruptException   // Interrupt signal (Ctrl+C)
+UnknownJuliaError    // Other Julia exceptions (check `juliaType`)
+```
+
+Usage:
+
+```typescript
+import { BoundsError, DomainError, JuliaError } from "jlbun";
+
+try {
+  Julia.Base.sqrt(-1);
+} catch (e) {
+  if (e instanceof DomainError) {
+    console.log("Domain error:", e.message);
+  } else if (e instanceof JuliaError) {
+    console.log("Julia error type:", e.juliaType);
+  }
+}
 ```
 
 ## Testing
