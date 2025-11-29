@@ -4,6 +4,7 @@ import {
   JuliaAny,
   JuliaBool,
   JuliaChar,
+  JuliaFloat16,
   JuliaFloat32,
   JuliaFloat64,
   JuliaInt8,
@@ -142,6 +143,68 @@ describe("JuliaUInt64", () => {
     const uint64 = JuliaUInt64.from(10n);
     expect(uint64.value).toBe(10n);
     expect(uint64.toString()).toBe("10");
+  });
+});
+
+describe("JuliaFloat16", () => {
+  it("can be created from Julia", () => {
+    const float16 = Julia.eval("Float16(10)");
+    expect(float16).toBeInstanceOf(JuliaFloat16);
+    expect(float16.value).toBe(10);
+    expect(float16.toString()).toBe("10.0");
+  });
+
+  it("can be created from JS", () => {
+    const float16 = JuliaFloat16.from(10);
+    expect(float16.value).toBe(10);
+  });
+
+  it("handles small positive values", () => {
+    const float16 = JuliaFloat16.from(0.5);
+    expect(float16.value).toBeCloseTo(0.5, 2);
+  });
+
+  it("handles negative values", () => {
+    const float16 = JuliaFloat16.from(-3.14);
+    expect(float16.value).toBeCloseTo(-3.14, 2);
+  });
+
+  it("handles zero", () => {
+    const float16 = JuliaFloat16.from(0);
+    expect(float16.value).toBe(0);
+  });
+
+  it("handles infinity", () => {
+    const posInf = JuliaFloat16.from(Infinity);
+    expect(posInf.value).toBe(Infinity);
+
+    const negInf = JuliaFloat16.from(-Infinity);
+    expect(negInf.value).toBe(-Infinity);
+  });
+
+  it("handles NaN", () => {
+    const nan = JuliaFloat16.from(NaN);
+    expect(nan.value).toBeNaN();
+  });
+
+  it("handles overflow to infinity", () => {
+    // Float16 max is ~65504
+    const overflow = JuliaFloat16.from(100000);
+    expect(overflow.value).toBe(Infinity);
+  });
+
+  it("handles underflow to zero", () => {
+    // Very small numbers underflow
+    const underflow = JuliaFloat16.from(1e-10);
+    expect(underflow.value).toBe(0);
+  });
+
+  it("roundtrips through Julia", () => {
+    const original = 3.14159;
+    const float16 = JuliaFloat16.from(original);
+    const result = Julia.Base.Float64(float16);
+    // Float16 has limited precision, so we only check ~3 decimal places
+    expect(result.value).toBeCloseTo(original, 2);
   });
 });
 

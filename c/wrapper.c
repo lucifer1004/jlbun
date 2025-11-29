@@ -120,6 +120,23 @@ jl_value_t *jl_true_getter(void) { return jl_true; }
 jl_value_t *jl_false_getter(void) { return jl_false; }
 
 /* ============================================================================
+ * Float16 Boxing/Unboxing
+ * 
+ * Float16 is stored as uint16_t in IEEE 754 half-precision format.
+ * Julia does not export box/unbox functions for Float16, so we implement them.
+ * ============================================================================ */
+
+jl_value_t *jl_box_float16(uint16_t x) {
+  jl_value_t *v = jl_new_struct_uninit(jl_float16_type);
+  *(uint16_t *)jl_data_ptr(v) = x;
+  return v;
+}
+
+uint16_t jl_unbox_float16(jl_value_t *v) {
+  return *(uint16_t *)jl_data_ptr(v);
+}
+
+/* ============================================================================
  * Property Queries
  * ============================================================================ */
 
@@ -241,6 +258,8 @@ jl_value_t *jl_array_ptr_ref_wrapper(jl_array_t *a, size_t i) {
     return jl_box_int64(((int64_t *)data)[i]);
   if (eltype == (jl_value_t *)jl_uint64_type)
     return jl_box_uint64(((uint64_t *)data)[i]);
+  if (eltype == (jl_value_t *)jl_float16_type)
+    return jl_box_float16(((uint16_t *)data)[i]);
   if (eltype == (jl_value_t *)jl_float32_type)
     return jl_box_float32(((float *)data)[i]);
   if (eltype == (jl_value_t *)jl_float64_type)
@@ -305,6 +324,10 @@ void jl_array_ptr_set_wrapper(jl_array_t *a, size_t i, jl_value_t *v) {
   }
   if (eltype == (jl_value_t *)jl_uint64_type) {
     ((uint64_t *)data)[i] = jl_unbox_uint64(v);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_float16_type) {
+    ((uint16_t *)data)[i] = jl_unbox_float16(v);
     return;
   }
   if (eltype == (jl_value_t *)jl_float32_type) {
@@ -404,6 +427,8 @@ jl_value_t *jl_ptr_load(jl_value_t *ptr_value, size_t offset) {
     return jl_box_float64(*(double *)target);
   if (eltype == (jl_value_t *)jl_float32_type)
     return jl_box_float32(*(float *)target);
+  if (eltype == (jl_value_t *)jl_float16_type)
+    return jl_box_float16(*(uint16_t *)target);
   if (eltype == (jl_value_t *)jl_int64_type)
     return jl_box_int64(*(int64_t *)target);
   if (eltype == (jl_value_t *)jl_int32_type)
@@ -435,11 +460,83 @@ jl_value_t *jl_ptr_load(jl_value_t *ptr_value, size_t offset) {
   return jl_new_bits(eltype, target);
 }
 
+// Helper: convert float to Float16 bits
+static uint16_t float_to_float16(float value) {
+  uint32_t f32_bits;
+  memcpy(&f32_bits, &value, sizeof(f32_bits));
+
+  uint32_t sign = (f32_bits >> 31) & 0x1;
+  int32_t exp = ((f32_bits >> 23) & 0xff) - 127 + 15;
+  uint32_t frac = f32_bits & 0x7fffff;
+
+  // Handle special cases
+  if (((f32_bits >> 23) & 0xff) == 0xff) {
+    // Infinity or NaN
+    if (frac == 0) {
+      return (sign << 15) | 0x7c00;  // Infinity
+    } else {
+      return (sign << 15) | 0x7c00 | (frac >> 13);  // NaN
+    }
+  }
+
+  if (exp >= 31) {
+    // Overflow to infinity
+    return (sign << 15) | 0x7c00;
+  } else if (exp <= 0) {
+    // Underflow to zero or denormal
+    if (exp < -10) {
+      return sign << 15;
+    }
+    // Denormalized
+    uint32_t m = frac | 0x800000;
+    int shift = 14 - exp;
+    return (sign << 15) | (m >> shift);
+  } else {
+    // Normalized
+    return (sign << 15) | (exp << 10) | (frac >> 13);
+  }
+}
+
+// Helper: convert Float16 bits to float
+static float float16_to_float(uint16_t bits) {
+  uint32_t sign = (bits >> 15) & 0x1;
+  uint32_t exp = (bits >> 10) & 0x1f;
+  uint32_t frac = bits & 0x3ff;
+
+  uint32_t f32_bits;
+  if (exp == 0) {
+    if (frac == 0) {
+      // Zero
+      f32_bits = sign << 31;
+    } else {
+      // Denormalized: convert to normalized float32
+      exp = 1;
+      while (!(frac & 0x400)) {
+        frac <<= 1;
+        exp--;
+      }
+      frac &= 0x3ff;
+      f32_bits = (sign << 31) | ((exp + 127 - 15) << 23) | (frac << 13);
+    }
+  } else if (exp == 31) {
+    // Infinity or NaN
+    f32_bits = (sign << 31) | 0x7f800000 | (frac << 13);
+  } else {
+    // Normalized
+    f32_bits = (sign << 31) | ((exp + 127 - 15) << 23) | (frac << 13);
+  }
+
+  float result;
+  memcpy(&result, &f32_bits, sizeof(result));
+  return result;
+}
+
 // Helper: convert numeric value to target type and return as double
 static double jl_to_double(jl_value_t *val) {
   jl_datatype_t *vtype = (jl_datatype_t *)jl_typeof(val);
   if (vtype == jl_float64_type) return jl_unbox_float64(val);
   if (vtype == jl_float32_type) return (double)jl_unbox_float32(val);
+  if (vtype == jl_float16_type) return (double)float16_to_float(jl_unbox_float16(val));
   if (vtype == jl_int64_type) return (double)jl_unbox_int64(val);
   if (vtype == jl_int32_type) return (double)jl_unbox_int32(val);
   if (vtype == jl_uint64_type) return (double)jl_unbox_uint64(val);
@@ -464,6 +561,7 @@ static int64_t jl_to_int64(jl_value_t *val) {
   if (vtype == jl_uint8_type) return (int64_t)jl_unbox_uint8(val);
   if (vtype == jl_float64_type) return (int64_t)jl_unbox_float64(val);
   if (vtype == jl_float32_type) return (int64_t)jl_unbox_float32(val);
+  if (vtype == jl_float16_type) return (int64_t)float16_to_float(jl_unbox_float16(val));
   return 0;
 }
 
@@ -489,6 +587,10 @@ void jl_ptr_store(jl_value_t *ptr_value, jl_value_t *val, size_t offset) {
   }
   if (eltype == (jl_value_t *)jl_float32_type) {
     *(float *)target = (float)jl_to_double(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_float16_type) {
+    *(uint16_t *)target = float_to_float16((float)jl_to_double(val));
     return;
   }
   if (eltype == (jl_value_t *)jl_int64_type) {

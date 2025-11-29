@@ -151,6 +151,119 @@ export class JuliaUInt64 extends JuliaPrimitive {
   }
 }
 
+// Float16 conversion utilities using IEEE 754 half-precision format
+// Based on: https://en.wikipedia.org/wiki/Half-precision_floating-point_format
+
+/**
+ * Convert a JavaScript number to IEEE 754 half-precision (uint16).
+ * @internal
+ */
+function float32ToFloat16Bits(value: number): number {
+  // Use Float32Array and Uint32Array to get IEEE 754 single precision bits
+  const f32 = new Float32Array(1);
+  const u32 = new Uint32Array(f32.buffer);
+  f32[0] = value;
+  const bits = u32[0];
+
+  // Extract components from float32
+  const sign = (bits >> 31) & 0x1;
+  const exp = (bits >> 23) & 0xff;
+  const frac = bits & 0x7fffff;
+
+  // Handle special cases
+  if (exp === 0xff) {
+    // Infinity or NaN
+    if (frac === 0) {
+      // Infinity
+      return (sign << 15) | 0x7c00;
+    } else {
+      // NaN - preserve some mantissa bits
+      return (sign << 15) | 0x7c00 | (frac >> 13);
+    }
+  }
+
+  // Calculate float16 exponent
+  const newExp = exp - 127 + 15;
+
+  if (newExp >= 31) {
+    // Overflow to infinity
+    return (sign << 15) | 0x7c00;
+  } else if (newExp <= 0) {
+    // Underflow to zero or denormal
+    if (newExp < -10) {
+      return sign << 15;
+    }
+    // Denormalized number
+    const m = frac | 0x800000;
+    const shift = 14 - newExp;
+    return (sign << 15) | (m >> shift);
+  } else {
+    // Normalized number
+    return (sign << 15) | (newExp << 10) | (frac >> 13);
+  }
+}
+
+/**
+ * Convert IEEE 754 half-precision (uint16) to JavaScript number.
+ * @internal
+ */
+function float16BitsToFloat32(bits: number): number {
+  const sign = (bits >> 15) & 0x1;
+  const exp = (bits >> 10) & 0x1f;
+  const frac = bits & 0x3ff;
+
+  let result: number;
+
+  if (exp === 0) {
+    if (frac === 0) {
+      // Zero
+      result = 0;
+    } else {
+      // Denormalized number
+      result = frac * Math.pow(2, -24);
+    }
+  } else if (exp === 31) {
+    if (frac === 0) {
+      // Infinity
+      result = Infinity;
+    } else {
+      // NaN
+      result = NaN;
+    }
+  } else {
+    // Normalized number
+    result = (1 + frac / 1024) * Math.pow(2, exp - 15);
+  }
+
+  return sign ? -result : result;
+}
+
+/**
+ * Wrapper for Julia `Float16`.
+ *
+ * Float16 (half-precision) uses 16 bits:
+ * - 1 bit sign
+ * - 5 bits exponent
+ * - 10 bits mantissa
+ *
+ * Range: ±65504 (max), ±6.1×10⁻⁵ (min positive normal)
+ */
+export class JuliaFloat16 extends JuliaPrimitive {
+  constructor(ptr: Pointer) {
+    super(ptr);
+  }
+
+  static from(value: number): JuliaFloat16 {
+    const bits = float32ToFloat16Bits(value);
+    return new JuliaFloat16(jlbun.symbols.jl_box_float16(bits)!);
+  }
+
+  get value(): number {
+    const bits = jlbun.symbols.jl_unbox_float16(this.ptr);
+    return float16BitsToFloat32(bits);
+  }
+}
+
 /**
  * Wrapper for Julia `Float32`.
  */

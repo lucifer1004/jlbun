@@ -278,6 +278,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.u64],
     returns: FFIType.ptr,
   },
+  jl_box_float16: {
+    args: [FFIType.u16], // Float16 is stored as uint16_t in IEEE 754 format
+    returns: FFIType.ptr,
+  },
   jl_box_float32: {
     args: [FFIType.f32],
     returns: FFIType.ptr,
@@ -321,6 +325,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   jl_unbox_uint64: {
     args: [FFIType.ptr],
     returns: FFIType.u64,
+  },
+  jl_unbox_float16: {
+    args: [FFIType.ptr],
+    returns: FFIType.u16, // Float16 is stored as uint16_t in IEEE 754 format
   },
   jl_unbox_float32: {
     args: [FFIType.ptr],

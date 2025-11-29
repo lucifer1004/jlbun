@@ -59,6 +59,7 @@ export {
   JuliaAny,
   JuliaBool,
   JuliaChar,
+  JuliaFloat16,
   JuliaFloat32,
   JuliaFloat64,
   JuliaInt8,

@@ -10,6 +10,7 @@ import {
   JuliaChar,
   JuliaDataType,
   JuliaDict,
+  JuliaFloat16,
   JuliaFloat32,
   JuliaFloat64,
   JuliaFunction,
@@ -291,10 +292,9 @@ export class Julia {
         Julia.UInt64.ptr,
         (ptr) => new JuliaUInt64(ptr),
       );
-      // Float16 maps to JuliaFloat32 (no dedicated Float16 wrapper)
       Julia.simpleTypeConstructors.set(
         Julia.Float16.ptr,
-        (ptr) => new JuliaFloat32(ptr),
+        (ptr) => new JuliaFloat16(ptr),
       );
       Julia.simpleTypeConstructors.set(
         Julia.Float32.ptr,
