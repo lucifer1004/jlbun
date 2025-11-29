@@ -266,6 +266,39 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [],
     returns: FFIType.void,
   },
+  // Perf mode GC (lock-free, single-threaded)
+  jlbun_gc_perf_init: {
+    args: [FFIType.u64], // initial_capacity
+    returns: FFIType.void,
+  },
+  jlbun_gc_perf_mark: {
+    args: [],
+    returns: FFIType.u64, // current stack position
+  },
+  jlbun_gc_perf_push: {
+    args: [FFIType.ptr], // value
+    returns: FFIType.u64, // index
+  },
+  jlbun_gc_perf_release: {
+    args: [FFIType.u64], // mark position
+    returns: FFIType.void,
+  },
+  jlbun_gc_perf_size: {
+    args: [],
+    returns: FFIType.u64,
+  },
+  jlbun_gc_perf_capacity: {
+    args: [],
+    returns: FFIType.u64,
+  },
+  jlbun_gc_perf_is_initialized: {
+    args: [],
+    returns: FFIType.i32,
+  },
+  jlbun_gc_perf_close: {
+    args: [],
+    returns: FFIType.void,
+  },
 
   // Auto generated wrappers
   jl_gc_enable: {

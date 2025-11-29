@@ -93,4 +93,5 @@ export {
   type ScopedJuliaNamedTuple,
   type ScopedJuliaSet,
   type ScopedJuliaTuple,
+  type ScopeMode,
 } from "./scope.js";

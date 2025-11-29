@@ -75,8 +75,9 @@ Julia.call(func, ...args)      // Call Julia function
 Julia.callWithKwargs(func, kwargs, ...args)  // Call with keyword arguments
 Julia.autoWrap(value)          // Auto-wrap JS value as JuliaValue
 Julia.wrapPtr(ptr)             // Wrap pointer as JuliaValue
-Julia.scope(fn)                // Execute code with automatic GC management
-Julia.scopeAsync(fn)           // Async version of scope()
+Julia.scope(fn, options?)      // Execute code with automatic GC management
+Julia.scopeAsync(fn)           // Async version (always uses "safe" mode)
+Julia.defaultScopeMode         // Get/set default scope mode for Julia.scope()
 ```
 
 **Built-in Module Access**:
@@ -221,7 +222,7 @@ Julia.scope((julia) => {
   setTimeout(() => {
     console.log(arr.length); // arr is still valid
   }, 1000);
-}, { safe: true });
+}, { mode: "safe" });
 ```
 
 **When to use safe mode:**
@@ -229,15 +230,64 @@ Julia.scope((julia) => {
 - Storing Julia objects in arrays/maps that outlive the scope
 - Callbacks that may execute after scope ends
 
-**Performance trade-off:**
+**Scope modes:**
 | Mode | Characteristics |
 |------|-----------------|
-| Default | O(1) batch release, ~0.027 ms/scope (100 objects) |
-| Safe | Per-object FinalizationRegistry, ~0.063 ms/scope (100 objects) |
+| `default` | Scope-based with concurrent async support. Thread-safe mutex protection. |
+| `safe` | All objects use FinalizationRegistry. Safe for closures but non-deterministic release. |
+| `perf` | Lock-free stack-based. Fastest but ONLY for single-threaded, strict LIFO scope order. |
+
+### Choosing the Right Mode
+
+| Scenario | Recommended Mode | Why |
+|----------|-----------------|-----|
+| General purpose / unsure | `default` | Safe for most use cases, supports concurrency |
+| High-performance batch processing | `perf` | ~2-3x faster than default for many objects |
+| Closures / callbacks (setTimeout, etc.) | `safe` | Objects survive scope disposal |
+| `Julia.scopeAsync()` | (automatic) | Always uses `safe` internally |
+| `JuliaTask` parallelism | `default` | Thread-safe, supports concurrent scopes |
+| Simple synchronous loops | `perf` | Maximum performance, no locking overhead |
+
+**Performance characteristics:**
+- `perf` is ~2-3x faster than `default` when scopes contain many objects (100+)
+- `safe` has higher overhead due to FinalizationRegistry registration
+- For small object counts (<50), the difference is negligible
+
+**Set default mode globally:**
+```typescript
+// Set default for all subsequent Julia.scope() calls
+Julia.defaultScopeMode = "perf";
+
+// Now all scopes use perf mode by default
+Julia.scope((julia) => { ... });
+
+// Override for specific scope
+Julia.scope((julia) => { ... }, { mode: "default" });
+```
+
+### Perf Mode (v0.2+)
+
+For single-threaded, non-concurrent scenarios where maximum performance is required:
+
+```typescript
+// Perf mode: fastest, but ONLY for single-threaded LIFO scopes
+Julia.scope((julia) => {
+  const arr = julia.Array.init(julia.Float64, 1000);
+  // ... do work ...
+  return julia.Base.sum(arr).value;
+}, { mode: "perf" });
+```
+
+**WARNING**: Perf mode is NOT safe for:
+- Concurrent `Julia.scopeAsync()` calls
+- `JuliaTask` parallelism
+- Non-LIFO scope disposal order (e.g., inner scope outliving outer scope)
 
 ### `Julia.scopeAsync()` - Asynchronous Scope
 
-For async operations (e.g., `JuliaTask`), use `Julia.scopeAsync()`:
+For async operations (e.g., `JuliaTask`), use `Julia.scopeAsync()`.
+
+**Note**: Async scopes always use `"safe"` mode internally to prevent race conditions. The `mode` option is ignored.
 
 ```typescript
 const result = await Julia.scopeAsync(async (julia) => {
@@ -703,6 +753,13 @@ The C layer wraps Julia C API with the following main functions:
    - `jlbun_gc_get(idx)`, `jlbun_gc_set(idx, value)` - Direct slot access
    - `jlbun_gc_size()`, `jlbun_gc_capacity()` - Pool statistics
    - `jlbun_gc_close()` - Cleanup
+9. **Performance Mode GC** (lock-free, single-threaded only):
+   - `jlbun_gc_perf_init(capacity)` - Initialize perf mode stack
+   - `jlbun_gc_perf_mark()` - Get current stack position
+   - `jlbun_gc_perf_push(value)` - Push value onto stack
+   - `jlbun_gc_perf_release(mark)` - Release to mark position
+   - `jlbun_gc_perf_size()`, `jlbun_gc_perf_capacity()` - Statistics
+   - `jlbun_gc_perf_close()` - Cleanup
 
 ## Build System
 

@@ -211,28 +211,55 @@ export interface ScopedJulia {
  * // a and b are automatically released
  * ```
  */
+/**
+ * Scope mode determines how Julia objects are tracked and released.
+ *
+ * - `'default'`: Scope-based with concurrent async support. Safe for parallel `scopeAsync()`.
+ * - `'safe'`: All objects use FinalizationRegistry. Safe for closures but non-deterministic.
+ * - `'perf'`: Lock-free stack-based. Fastest but ONLY for single-threaded, LIFO scope order.
+ */
+export type ScopeMode = "default" | "safe" | "perf";
+
 export interface JuliaScopeOptions {
   /**
-   * Safe mode: all objects are managed by FinalizationRegistry instead of
-   * scope-based release. This prevents issues with closures capturing Julia
-   * objects, but releases are non-deterministic (depends on JS GC).
+   * Scope mode determines how Julia objects are tracked and released.
    *
-   * Default: false (scope-based, fast but requires explicit escape for closures)
+   * - `'default'`: Scope-based with concurrent async support. Thread-safe, handles parallel `scopeAsync()`.
+   * - `'safe'`: All objects use FinalizationRegistry. Safe for closures but non-deterministic release.
+   * - `'perf'`: Lock-free stack-based. Fastest but ONLY for single-threaded, strict LIFO scope order.
+   *
+   * **WARNING**: `'perf'` mode is NOT safe for:
+   *   - Concurrent `Julia.scopeAsync()` calls
+   *   - `JuliaTask` parallelism
+   *   - Non-LIFO scope disposal order
+   *
+   * @default 'default'
    */
-  safe?: boolean;
+  mode?: ScopeMode;
 }
 
 export class JuliaScope {
-  private scopeId: bigint;
+  private scopeId: bigint = 0n;
+  private perfMark: number = 0;
   private tracked: Map<JuliaValue, number> = new Map(); // value -> stack idx
   private escapedValues: Set<JuliaValue> = new Set();
   private disposed = false;
   private trackingEnabled = true;
-  private safeMode: boolean;
+  private mode: ScopeMode;
 
   constructor(options: JuliaScopeOptions = {}) {
-    this.scopeId = GCManager.scopeBegin();
-    this.safeMode = options.safe ?? false;
+    this.mode = options.mode ?? "default";
+
+    if (this.mode === "perf") {
+      // Perf mode: ensure perf GC is initialized, then mark current position
+      if (!GCManager.isPerfInitialized) {
+        GCManager.perfInit();
+      }
+      this.perfMark = GCManager.perfMark();
+    } else {
+      // Default/safe mode: use scope-based GC with scope_id
+      this.scopeId = GCManager.scopeBegin();
+    }
   }
 
   /**
@@ -251,11 +278,15 @@ export class JuliaScope {
       throw new Error("Cannot track values in a disposed scope");
     }
 
-    // Push to GC stack with scope ownership (O(1) operation)
-    const idx = GCManager.pushScoped(value, this.scopeId);
-
-    // Always remember the index for escape transfer and safe mode
-    this.tracked.set(value, idx);
+    if (this.mode === "perf") {
+      // Perf mode: simple stack push, no Map tracking (for maximum speed)
+      GCManager.perfPush(value);
+    } else {
+      // Default/safe mode: push with scope ownership
+      const idx = GCManager.pushScoped(value, this.scopeId);
+      // Remember index for escape transfer and safe mode
+      this.tracked.set(value, idx);
+    }
 
     return value;
   }
@@ -282,12 +313,21 @@ export class JuliaScope {
    *
    * Implementation: Transfer the value to global scope (id=0) which is never auto-released.
    *
+   * **Note**: In perf mode, escape() re-pushes the value to the default GC stack
+   * with FinalizationRegistry cleanup. The original perf stack slot is still released.
+   *
    * @param value The Julia value to escape
    * @returns The same value
    */
   escape<T extends JuliaValue>(value: T): T {
-    // Record for re-push with FinalizationRegistry after scope ends
-    this.escapedValues.add(value);
+    if (this.mode === "perf") {
+      // Perf mode: push to default GC with global scope for persistence
+      const idx = GCManager.pushScoped(value, 0n);
+      GCManager.registerEscape(value, idx);
+    } else {
+      // Default/safe mode: record for transfer at dispose time
+      this.escapedValues.add(value);
+    }
     return value;
   }
 
@@ -313,7 +353,11 @@ export class JuliaScope {
     if (this.disposed) return;
     this.disposed = true;
 
-    if (this.safeMode) {
+    if (this.mode === "perf") {
+      // Perf mode: simple stack release to mark position (O(1))
+      // Escaped values are already in default GC stack
+      GCManager.perfRelease(this.perfMark);
+    } else if (this.mode === "safe") {
       // Safe mode: ALL objects are managed by FinalizationRegistry
       // No scope release - prevents closure capture issues
       for (const [value, idx] of this.tracked) {
@@ -322,7 +366,7 @@ export class JuliaScope {
         GCManager.registerEscape(value, idx);
       }
     } else {
-      // Fast mode: Scope-based release with explicit escape
+      // Default mode: Scope-based release with explicit escape
       // First, transfer escaped values to global scope (id=0)
       for (const value of this.escapedValues) {
         const idx = this.tracked.get(value);

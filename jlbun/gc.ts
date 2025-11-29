@@ -200,5 +200,73 @@ export class GCManager {
     this.closed = true; // Prevent FinalizationRegistry callbacks from accessing Julia
     this.escapeRegistry = null;
     jlbun.symbols.jlbun_gc_close();
+    jlbun.symbols.jlbun_gc_perf_close();
+  }
+
+  // ============================================================================
+  // Performance Mode API (lock-free, single-threaded only)
+  // ============================================================================
+
+  /**
+   * Initialize the performance mode GC stack.
+   * Only call this if you plan to use perf mode scopes.
+   *
+   * @param capacity Initial capacity (default 1024)
+   */
+  static perfInit(capacity: number = 1024): void {
+    jlbun.symbols.jlbun_gc_perf_init(BigInt(capacity));
+  }
+
+  /**
+   * Check if perf mode GC is initialized.
+   */
+  static get isPerfInitialized(): boolean {
+    return jlbun.symbols.jlbun_gc_perf_is_initialized() !== 0;
+  }
+
+  /**
+   * Get the current perf stack position (mark point).
+   * Use this before pushing values, then release to this mark.
+   *
+   * @returns Current stack position
+   */
+  static perfMark(): number {
+    return Number(jlbun.symbols.jlbun_gc_perf_mark());
+  }
+
+  /**
+   * Push a Julia value onto the perf stack.
+   * The value will be protected until perfRelease() is called.
+   *
+   * @param value The Julia value to protect
+   * @returns The index where the value was stored
+   */
+  static perfPush(value: JuliaValue): number {
+    return Number(jlbun.symbols.jlbun_gc_perf_push(value.ptr));
+  }
+
+  /**
+   * Release all values from mark position to current top.
+   * This is O(1) amortized - just resets the stack pointer
+   * and clears the slots.
+   *
+   * @param mark The mark position to release to
+   */
+  static perfRelease(mark: number): void {
+    jlbun.symbols.jlbun_gc_perf_release(BigInt(mark));
+  }
+
+  /**
+   * Get the current perf stack size.
+   */
+  static get perfSize(): number {
+    return Number(jlbun.symbols.jlbun_gc_perf_size());
+  }
+
+  /**
+   * Get the perf stack capacity.
+   */
+  static get perfCapacity(): number {
+    return Number(jlbun.symbols.jlbun_gc_perf_capacity());
   }
 }

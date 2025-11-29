@@ -1072,3 +1072,130 @@ void jlbun_gc_close(void) {
 
   pthread_mutex_unlock(&gc_stack.lock);
 }
+
+/* ============================================================================
+ * Performance Mode GC - Lock-free Stack-based Management
+ *
+ * Optimized for single-threaded, non-concurrent scenarios with LIFO semantics.
+ * No mutex overhead, pure O(1) operations, minimum memory footprint.
+ *
+ * IMPORTANT: NOT thread-safe! Only use when you can guarantee:
+ *   1. Single-threaded access (no JuliaTask parallelism)
+ *   2. LIFO scope disposal order (no concurrent scopeAsync)
+ *
+ * API:
+ *   - jlbun_gc_perf_init(capacity): Initialize perf mode stack
+ *   - jlbun_gc_perf_mark(): Get current stack position (O(1))
+ *   - jlbun_gc_perf_push(v): Push value onto stack (O(1))
+ *   - jlbun_gc_perf_release(mark): Release to mark position (O(1))
+ *   - jlbun_gc_perf_size(): Current stack size
+ *   - jlbun_gc_perf_close(): Cleanup
+ * ============================================================================
+ */
+
+typedef struct {
+  jl_array_t *values; // Vector{Any} as root storage
+  size_t top;         // Current stack top (next write position)
+  size_t capacity;    // Current capacity
+  int initialized;    // Initialization flag
+} JlbunPerfGCStack;
+
+static JlbunPerfGCStack perf_gc_stack = {NULL, 0, 0, 0};
+
+// Ensure capacity (internal helper, NO LOCKS)
+static void perf_ensure_capacity(size_t needed) {
+  if (needed <= perf_gc_stack.capacity)
+    return;
+
+  // Double capacity until sufficient
+  size_t new_cap = perf_gc_stack.capacity;
+  while (new_cap < needed)
+    new_cap *= 2;
+
+  // Grow Julia Vector{Any} via resize!
+  JL_FUNCTION_TYPE *resize_fn = jl_get_function(jl_base_module, "resize!");
+  jl_call2(resize_fn, (jl_value_t *)perf_gc_stack.values, jl_box_int64(new_cap));
+
+  // Fill new slots with nothing
+  for (size_t i = perf_gc_stack.capacity; i < new_cap; i++) {
+    jl_array_ptr_set(perf_gc_stack.values, i, jl_nothing);
+  }
+
+  perf_gc_stack.capacity = new_cap;
+}
+
+// Initialize the perf mode GC stack
+void jlbun_gc_perf_init(size_t initial_capacity) {
+  if (perf_gc_stack.initialized)
+    return;
+
+  // Allocate Vector{Any} for values
+  jl_value_t *any_type = (jl_value_t *)jl_any_type;
+  jl_value_t *array_type = jl_apply_array_type(any_type, 1);
+  perf_gc_stack.values = jl_alloc_array_1d(array_type, initial_capacity);
+
+  perf_gc_stack.capacity = initial_capacity;
+  perf_gc_stack.top = 0;
+
+  // Create global reference to prevent GC
+  char eval_buf[256];
+  snprintf(
+      eval_buf, sizeof(eval_buf),
+      "global __jlbun_perf_gc_stack__::Vector{Any} = Vector{Any}(nothing, %zu)",
+      initial_capacity);
+  jl_eval_string(eval_buf);
+
+  // Get the array we just created
+  jl_value_t *values =
+      jl_get_global(jl_main_module, jl_symbol("__jlbun_perf_gc_stack__"));
+  if (values != NULL && jl_is_array(values)) {
+    perf_gc_stack.values = (jl_array_t *)values;
+  }
+
+  perf_gc_stack.initialized = 1;
+}
+
+// Get current stack position (mark point)
+size_t jlbun_gc_perf_mark(void) { return perf_gc_stack.top; }
+
+// Push value onto stack, returns index
+size_t jlbun_gc_perf_push(jl_value_t *v) {
+  if (!perf_gc_stack.initialized)
+    return SIZE_MAX;
+
+  perf_ensure_capacity(perf_gc_stack.top + 1);
+  size_t idx = perf_gc_stack.top++;
+  jl_array_ptr_set(perf_gc_stack.values, idx, v);
+  return idx;
+}
+
+// Release all values from mark position to current top
+void jlbun_gc_perf_release(size_t mark) {
+  if (!perf_gc_stack.initialized || mark > perf_gc_stack.top)
+    return;
+
+  // Clear slots from mark to top
+  for (size_t i = mark; i < perf_gc_stack.top; i++) {
+    jl_array_ptr_set(perf_gc_stack.values, i, jl_nothing);
+  }
+
+  // Reset top to mark position
+  perf_gc_stack.top = mark;
+}
+
+// Get current stack size
+size_t jlbun_gc_perf_size(void) { return perf_gc_stack.top; }
+
+// Get capacity
+size_t jlbun_gc_perf_capacity(void) { return perf_gc_stack.capacity; }
+
+// Check if initialized
+int jlbun_gc_perf_is_initialized(void) { return perf_gc_stack.initialized; }
+
+// Cleanup
+void jlbun_gc_perf_close(void) {
+  perf_gc_stack.values = NULL;
+  perf_gc_stack.top = 0;
+  perf_gc_stack.capacity = 0;
+  perf_gc_stack.initialized = 0;
+}

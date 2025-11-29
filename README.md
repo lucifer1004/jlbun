@@ -16,7 +16,8 @@
 | Feature | Description |
 |---------|-------------|
 | 🔀 **Concurrent Async Scopes** | Multiple `Julia.scopeAsync()` can run in parallel safely |
-| 🛡️ **Safe Mode** | `Julia.scope(fn, { safe: true })` for automatic closure safety |
+| 🛡️ **Safe Mode** | `Julia.scope(fn, { mode: "safe" })` for automatic closure safety |
+| ⚡ **Perf Mode** | `Julia.scope(fn, { mode: "perf" })` lock-free for single-threaded LIFO |
 | 🔒 **Thread-Safe GC** | All C-layer operations protected by `pthread_mutex_t` |
 | 📦 **Scope Isolation** | Each scope has unique ID; release order doesn't matter |
 
@@ -174,19 +175,38 @@ Julia.scope((julia) => {
   setTimeout(() => {
     console.log(arr.length); // arr is still valid
   }, 1000);
-}, { safe: true }); // arr stays alive until JS GC
+}, { mode: "safe" }); // arr stays alive until JS GC
 ```
 
-**When to use safe mode:**
-- Passing Julia objects to `setTimeout`, `setInterval`, or event handlers
-- Storing Julia objects in arrays/maps that outlive the scope
-- Callbacks that may execute after scope ends
+### Choosing the Right Mode
 
-**Performance comparison** (1000 iterations, 100 objects/scope):
-| Mode | Time/scope | Objects/sec |
-|------|------------|-------------|
-| Default | 0.027 ms | ~3.7M |
-| Safe | 0.063 ms | ~1.5M |
+| Scenario | Recommended Mode |
+|----------|-----------------|
+| General purpose / unsure | `default` |
+| High-performance batch processing | `perf` |
+| Closures / callbacks (setTimeout, etc.) | `safe` |
+| `JuliaTask` parallelism | `default` |
+| Simple synchronous loops | `perf` |
+
+```typescript
+// Set default mode globally
+Julia.defaultScopeMode = "perf";
+
+// All subsequent scopes use perf mode
+Julia.scope((julia) => { ... });
+
+// Override for specific scope
+Julia.scope((julia) => { ... }, { mode: "safe" });
+```
+
+**Mode characteristics:**
+| Mode | Thread-Safe | Closure-Safe | Performance |
+|------|-------------|--------------|-------------|
+| `perf` | ❌ | ❌ | ⚡⚡⚡ Fastest |
+| `default` | ✅ | ❌ | ⚡⚡ Good |
+| `safe` | ✅ | ✅ | ⚡ Slower |
+
+> **Note**: `Julia.scopeAsync()` always uses `safe` mode internally.
 
 ### Escaping Values from Scope
 

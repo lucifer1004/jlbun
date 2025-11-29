@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   GCManager,
   Julia,
@@ -523,6 +523,41 @@ describe("GCManager API coverage", () => {
 
     GCManager.scopeEnd(scopeId);
   });
+
+  // Perf mode GCManager API tests
+  it("isPerfInitialized returns true after perf mode is used", () => {
+    // Perf mode is auto-initialized on first use
+    Julia.scope(
+      (julia) => {
+        julia.Array.init(julia.Float64, 5);
+      },
+      { mode: "perf" },
+    );
+
+    expect(GCManager.isPerfInitialized).toBe(true);
+  });
+
+  it("perfCapacity returns capacity of perf stack", () => {
+    const cap = GCManager.perfCapacity;
+    expect(typeof cap).toBe("number");
+    expect(cap).toBeGreaterThanOrEqual(1024); // Default initial capacity
+  });
+
+  it("perfSize and perfMark track perf stack state", () => {
+    const initialSize = GCManager.perfSize;
+    const mark = GCManager.perfMark();
+    expect(mark).toBe(initialSize);
+
+    // Push directly to perf stack
+    const arr = JuliaArray.init(Julia.Float64, 5);
+    const idx = GCManager.perfPush(arr);
+    expect(GCManager.perfSize).toBe(initialSize + 1);
+    expect(idx).toBe(initialSize);
+
+    // Release back to mark
+    GCManager.perfRelease(mark);
+    expect(GCManager.perfSize).toBe(initialSize);
+  });
 });
 
 describe("JuliaSubArray and JuliaRange scope compatibility", () => {
@@ -674,7 +709,7 @@ describe("Julia.scope safe mode", () => {
         captured = julia.Array.init(julia.Float64, 10);
         captured.set(0, 42);
       },
-      { safe: true },
+      { mode: "safe" },
     );
 
     // In safe mode, the captured array should still be valid
@@ -692,7 +727,7 @@ describe("Julia.scope safe mode", () => {
         captured.set(0, 100);
         await Promise.resolve(); // Simulate async
       },
-      { safe: true },
+      { mode: "safe" },
     );
 
     expect(captured).not.toBeNull();
@@ -891,5 +926,125 @@ describe("ScopedJulia.untracked()", () => {
 
     expect(outerTracked).toBe(2); // Only the explicitly noted ones
     expect(innerTracked).toBe(2);
+  });
+});
+
+describe("Perf mode scope", () => {
+  // Use Julia.defaultScopeMode to reduce boilerplate
+  beforeAll(() => {
+    Julia.defaultScopeMode = "perf";
+  });
+
+  afterAll(() => {
+    Julia.defaultScopeMode = "default";
+  });
+
+  it("basic perf mode works", () => {
+    expect(Julia.defaultScopeMode).toBe("perf");
+
+    const result = Julia.scope((julia) => {
+      const arr = julia.Array.init(julia.Float64, 10);
+      arr.set(0, 42);
+      return arr.get(0).value;
+    });
+
+    expect(result).toBe(42);
+  });
+
+  it("perf mode releases objects after scope", () => {
+    const initialSize = GCManager.perfSize;
+
+    Julia.scope((julia) => {
+      julia.Array.init(julia.Float64, 100);
+      julia.Array.init(julia.Float64, 100);
+      julia.Array.init(julia.Float64, 100);
+      // Perf stack should grow
+      expect(GCManager.perfSize).toBeGreaterThan(initialSize);
+    });
+
+    // After scope, perf stack should be back to initial size
+    expect(GCManager.perfSize).toBe(initialSize);
+  });
+
+  it("perf mode nested scopes work (LIFO order)", () => {
+    const mark1 = GCManager.perfSize;
+
+    Julia.scope((julia) => {
+      julia.Array.init(julia.Float64, 10);
+      const mark2 = GCManager.perfSize;
+      expect(mark2).toBeGreaterThan(mark1);
+
+      // Nested scope (inherits perf mode from defaultScopeMode)
+      Julia.scope((julia2) => {
+        julia2.Array.init(julia2.Float64, 20);
+        expect(GCManager.perfSize).toBeGreaterThan(mark2);
+      });
+
+      // After inner scope, should be back to outer scope mark
+      expect(GCManager.perfSize).toBe(mark2);
+    });
+
+    // After outer scope, should be back to original
+    expect(GCManager.perfSize).toBe(mark1);
+  });
+
+  it("perf mode escape works", () => {
+    let escaped: JuliaArray | null = null;
+
+    Julia.scope((julia) => {
+      const arr = julia.Array.init(julia.Float64, 5);
+      arr.set(0, 123);
+      escaped = julia.escape(arr);
+    });
+
+    // Escaped array should still be valid
+    expect(escaped).not.toBeNull();
+    expect(escaped!.get(0).value).toBe(123);
+  });
+});
+
+describe("Julia.defaultScopeMode", () => {
+  it("can get and set default scope mode", () => {
+    const original = Julia.defaultScopeMode;
+    expect(original).toBe("default");
+
+    Julia.defaultScopeMode = "perf";
+    expect(Julia.defaultScopeMode).toBe("perf");
+
+    Julia.defaultScopeMode = "safe";
+    expect(Julia.defaultScopeMode).toBe("safe");
+
+    // Restore
+    Julia.defaultScopeMode = original;
+  });
+
+  it("scope uses default mode when not specified", () => {
+    Julia.defaultScopeMode = "perf";
+    const initialPerfSize = GCManager.perfSize;
+
+    Julia.scope((julia) => {
+      julia.Array.init(julia.Float64, 10);
+      // Should use perf stack
+      expect(GCManager.perfSize).toBeGreaterThan(initialPerfSize);
+    });
+
+    Julia.defaultScopeMode = "default";
+  });
+
+  it("explicit mode option overrides default", () => {
+    Julia.defaultScopeMode = "perf";
+    const initialPerfSize = GCManager.perfSize;
+
+    // Explicit default mode should NOT use perf stack
+    Julia.scope(
+      (julia) => {
+        julia.Array.init(julia.Float64, 10);
+        // Perf size should not change (using default mode GC)
+        expect(GCManager.perfSize).toBe(initialPerfSize);
+      },
+      { mode: "default" },
+    );
+
+    Julia.defaultScopeMode = "default";
   });
 });

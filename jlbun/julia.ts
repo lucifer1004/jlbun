@@ -28,6 +28,7 @@ import {
   JuliaPtr,
   JuliaRange,
   JuliaScope,
+  JuliaScopeOptions,
   JuliaSet,
   JuliaString,
   JuliaSubArray,
@@ -42,6 +43,7 @@ import {
   MethodError,
   safeCString,
   ScopedJulia,
+  ScopeMode,
 } from "./index.js";
 
 export enum MIME {
@@ -62,6 +64,7 @@ const DEFAULT_JULIA_OPTIONS = {
 export class Julia {
   private static options: JuliaOptions = DEFAULT_JULIA_OPTIONS;
   private static globals: JuliaIdDict;
+  private static _defaultScopeMode: ScopeMode = "default";
   public static nthreads: number;
   public static version: string;
 
@@ -69,6 +72,28 @@ export class Julia {
   public static Base: JuliaModule;
   public static Main: JuliaModule;
   public static Pkg: JuliaModule;
+
+  /**
+   * Get the default scope mode for `Julia.scope()`.
+   * Does not affect `Julia.scopeAsync()` which always uses "safe" mode.
+   */
+  public static get defaultScopeMode(): ScopeMode {
+    return this._defaultScopeMode;
+  }
+
+  /**
+   * Set the default scope mode for `Julia.scope()`.
+   *
+   * @param mode The scope mode to use by default:
+   *   - `'default'`: Scope-based with concurrent async support (thread-safe)
+   *   - `'safe'`: All objects use FinalizationRegistry (closure-safe)
+   *   - `'perf'`: Lock-free stack-based (single-threaded LIFO only)
+   *
+   * Note: `Julia.scopeAsync()` always uses "safe" mode regardless of this setting.
+   */
+  public static set defaultScopeMode(mode: ScopeMode) {
+    this._defaultScopeMode = mode;
+  }
 
   public static Any: JuliaDataType;
   public static Nothing: JuliaDataType;
@@ -981,9 +1006,13 @@ export class Julia {
    */
   public static scope<T>(
     fn: (julia: ScopedJulia) => T,
-    options?: { safe?: boolean },
+    options?: JuliaScopeOptions,
   ): T {
-    const scope = new JuliaScope(options);
+    // Use provided mode, or fall back to default
+    const effectiveOptions: JuliaScopeOptions = {
+      mode: options?.mode ?? this._defaultScopeMode,
+    };
+    const scope = new JuliaScope(effectiveOptions);
     try {
       const result = fn(scope.julia);
 
@@ -1007,7 +1036,11 @@ export class Julia {
    * Execute async code within a scoped context where Julia objects are
    * automatically tracked and released when the scope ends.
    *
+   * **Note**: Async scopes always use "safe" mode to prevent race conditions
+   * with concurrent async operations. The `mode` option is ignored.
+   *
    * @param fn An async function that receives a ScopedJulia proxy.
+   * @param options Options (mode is always forced to "safe")
    * @returns A promise that resolves to the return value of the function.
    *
    * @example
@@ -1021,9 +1054,16 @@ export class Julia {
    */
   public static async scopeAsync<T>(
     fn: (julia: ScopedJulia) => Promise<T>,
-    options?: { safe?: boolean },
+    options?: JuliaScopeOptions,
   ): Promise<T> {
-    const scope = new JuliaScope(options);
+    // Async scopes always use "safe" mode to prevent race conditions
+    // Warn if user explicitly requested a different mode
+    if (options?.mode && options.mode !== "safe") {
+      console.warn(
+        `Julia.scopeAsync() always uses "safe" mode. Ignoring mode: "${options.mode}"`,
+      );
+    }
+    const scope = new JuliaScope({ mode: "safe" });
     try {
       const result = await fn(scope.julia);
 

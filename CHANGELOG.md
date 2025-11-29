@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Scope-Based GC Root Management**: New C-layer implementation using `Vector{Any}` with scope isolation for concurrent async operations
 - **Concurrent Async Scope Support**: Scopes can now be released in any order, enabling safe use of `Promise.all()` with multiple `Julia.scopeAsync()` calls
-- **Safe Mode for Scopes**: `Julia.scope(fn, { safe: true })` manages Julia object lifetimes with `FinalizationRegistry`, making it safe to capture objects in closures
+- **Safe Mode for Scopes**: `Julia.scope(fn, { mode: "safe" })` manages Julia object lifetimes with `FinalizationRegistry`, making it safe to capture objects in closures
 - **New GCManager APIs**: 
   - `scopeBegin()` - Create a new scope, returns unique scope_id
   - `pushScoped(value, scopeId)` - Push value to specific scope
@@ -22,10 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `getScope(idx)` - Get scope_id of value at index
 - **Escape Registry**: Escaped objects are registered with `FinalizationRegistry` for automatic cleanup when JavaScript GC runs
 - **Thread Safety**: All C-layer GC operations are protected by `pthread_mutex_t`
+- **Perf Mode**: `Julia.scope(fn, { mode: "perf" })` for lock-free, single-threaded LIFO scopes (maximum performance)
+- **Default Scope Mode**: `Julia.defaultScopeMode` getter/setter to configure default mode for `Julia.scope()`
 - **Benchmark Suite**: Added `benchmarks/scope/gc-modes.ts` for comparing GC mode performance
 
 ### Changed
 
+- **`Julia.scopeAsync()` Always Uses Safe Mode**: Async scopes now always use `"safe"` mode internally to prevent race conditions with concurrent operations. The `mode` option is ignored and a warning is logged if a different mode is requested.
 - **GCManager Architecture**: Complete redesign from stack-based LIFO to scope-based isolation
 - **Scope Disposal**: Uses `scopeEnd(scopeId)` for targeted release instead of stack-based `release(mark)`
 - **Escaped Objects**: Use `transfer(idx, 0n)` to move to global scope, then registered with `FinalizationRegistry`
