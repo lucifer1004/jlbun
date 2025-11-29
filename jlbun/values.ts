@@ -389,7 +389,9 @@ export class JuliaPtr extends JuliaPrimitive {
    * @returns The memory address as a bigint.
    */
   get address(): bigint {
-    return Julia.Base.UInt(this).value as bigint;
+    // Use FFI directly instead of Julia.Base.UInt()
+    const addr = jlbun.symbols.jl_unbox_voidpointer(this.ptr);
+    return addr === null ? 0n : BigInt(addr as number);
   }
 
   /**
@@ -434,8 +436,11 @@ export class JuliaPtr extends JuliaPrimitive {
    * @returns The value at the pointer location.
    */
   load(offset: number = 0): JuliaValue {
-    // Julia's unsafe_load is 1-indexed
-    return Julia.Base.unsafe_load(this, offset + 1);
+    const result = jlbun.symbols.jl_ptr_load(this.ptr, offset);
+    if (result === null) {
+      throw new Error("Failed to load value from pointer");
+    }
+    return Julia.wrapPtr(result);
   }
 
   /**
@@ -452,8 +457,8 @@ export class JuliaPtr extends JuliaPrimitive {
     value: JuliaValue | number | bigint | boolean | string,
     offset: number = 0,
   ): void {
-    // Julia's unsafe_store! is 1-indexed
-    Julia.Base["unsafe_store!"](this, Julia.autoWrap(value), offset + 1);
+    const wrapped = Julia.autoWrap(value);
+    jlbun.symbols.jl_ptr_store(this.ptr, wrapped.ptr, offset);
   }
 
   /**
@@ -466,12 +471,11 @@ export class JuliaPtr extends JuliaPrimitive {
    * @returns A new `JuliaPtr` pointing to the offset location.
    */
   offset(n: number): JuliaPtr {
-    // Julia's pointer arithmetic is byte-based, but we want element-based offset
-    // Compute byte offset = n * sizeof(eltype(ptr))
-    const elSize = Julia.Base.sizeof(this.elType);
-    const byteOffset = Julia.Base["*"](Julia.autoWrap(n), elSize);
-    const newPtr = Julia.Base["+"](this, byteOffset);
-    return new JuliaPtr(newPtr.ptr);
+    const result = jlbun.symbols.jl_ptr_add(this.ptr, n);
+    if (result === null) {
+      throw new Error("Failed to create offset pointer");
+    }
+    return new JuliaPtr(result);
   }
 
   /**

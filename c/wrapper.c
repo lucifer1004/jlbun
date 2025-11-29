@@ -372,6 +372,183 @@ jl_value_t *jl_ptr_eltype(jl_value_t *ptr_value) {
   return NULL;
 }
 
+// Load value from Ptr{T} at element offset (0-based)
+// Returns boxed Julia value, or NULL on error
+jl_value_t *jl_ptr_load(jl_value_t *ptr_value, size_t offset) {
+  jl_datatype_t *ptr_type = (jl_datatype_t *)jl_typeof(ptr_value);
+  if (!jl_is_datatype(ptr_type) || jl_nparams(ptr_type) != 1) {
+    return NULL;
+  }
+
+  jl_value_t *eltype = jl_tparam0(ptr_type);
+  void *addr = jl_unbox_voidpointer(ptr_value);
+  if (addr == NULL) return NULL;
+
+  size_t elsz = jl_datatype_size((jl_datatype_t *)eltype);
+  void *target = (char *)addr + offset * elsz;
+
+  // Fast path: common primitive types
+  if (eltype == (jl_value_t *)jl_float64_type)
+    return jl_box_float64(*(double *)target);
+  if (eltype == (jl_value_t *)jl_float32_type)
+    return jl_box_float32(*(float *)target);
+  if (eltype == (jl_value_t *)jl_int64_type)
+    return jl_box_int64(*(int64_t *)target);
+  if (eltype == (jl_value_t *)jl_int32_type)
+    return jl_box_int32(*(int32_t *)target);
+  if (eltype == (jl_value_t *)jl_uint64_type)
+    return jl_box_uint64(*(uint64_t *)target);
+  if (eltype == (jl_value_t *)jl_uint32_type)
+    return jl_box_uint32(*(uint32_t *)target);
+  if (eltype == (jl_value_t *)jl_int16_type)
+    return jl_box_int16(*(int16_t *)target);
+  if (eltype == (jl_value_t *)jl_uint16_type)
+    return jl_box_uint16(*(uint16_t *)target);
+  if (eltype == (jl_value_t *)jl_int8_type)
+    return jl_box_int8(*(int8_t *)target);
+  if (eltype == (jl_value_t *)jl_uint8_type)
+    return jl_box_uint8(*(uint8_t *)target);
+  if (eltype == (jl_value_t *)jl_bool_type)
+    return jl_box_bool(*(int8_t *)target);
+  if (eltype == (jl_value_t *)jl_char_type)
+    return jl_box_char(*(uint32_t *)target);
+
+  // Ptr{T} types
+  if (jl_is_ptr_type(eltype)) {
+    void *ptr_val = *(void **)target;
+    return jl_new_bits(eltype, &ptr_val);
+  }
+
+  // Fallback: generic primitive types
+  return jl_new_bits(eltype, target);
+}
+
+// Helper: convert numeric value to target type and return as double
+static double jl_to_double(jl_value_t *val) {
+  jl_datatype_t *vtype = (jl_datatype_t *)jl_typeof(val);
+  if (vtype == jl_float64_type) return jl_unbox_float64(val);
+  if (vtype == jl_float32_type) return (double)jl_unbox_float32(val);
+  if (vtype == jl_int64_type) return (double)jl_unbox_int64(val);
+  if (vtype == jl_int32_type) return (double)jl_unbox_int32(val);
+  if (vtype == jl_uint64_type) return (double)jl_unbox_uint64(val);
+  if (vtype == jl_uint32_type) return (double)jl_unbox_uint32(val);
+  if (vtype == jl_int16_type) return (double)jl_unbox_int16(val);
+  if (vtype == jl_uint16_type) return (double)jl_unbox_uint16(val);
+  if (vtype == jl_int8_type) return (double)jl_unbox_int8(val);
+  if (vtype == jl_uint8_type) return (double)jl_unbox_uint8(val);
+  return 0.0;
+}
+
+// Helper: convert numeric value to target type and return as int64
+static int64_t jl_to_int64(jl_value_t *val) {
+  jl_datatype_t *vtype = (jl_datatype_t *)jl_typeof(val);
+  if (vtype == jl_int64_type) return jl_unbox_int64(val);
+  if (vtype == jl_int32_type) return (int64_t)jl_unbox_int32(val);
+  if (vtype == jl_uint64_type) return (int64_t)jl_unbox_uint64(val);
+  if (vtype == jl_uint32_type) return (int64_t)jl_unbox_uint32(val);
+  if (vtype == jl_int16_type) return (int64_t)jl_unbox_int16(val);
+  if (vtype == jl_uint16_type) return (int64_t)jl_unbox_uint16(val);
+  if (vtype == jl_int8_type) return (int64_t)jl_unbox_int8(val);
+  if (vtype == jl_uint8_type) return (int64_t)jl_unbox_uint8(val);
+  if (vtype == jl_float64_type) return (int64_t)jl_unbox_float64(val);
+  if (vtype == jl_float32_type) return (int64_t)jl_unbox_float32(val);
+  return 0;
+}
+
+// Store value to Ptr{T} at element offset (0-based)
+// Automatically converts value to target element type
+void jl_ptr_store(jl_value_t *ptr_value, jl_value_t *val, size_t offset) {
+  jl_datatype_t *ptr_type = (jl_datatype_t *)jl_typeof(ptr_value);
+  if (!jl_is_datatype(ptr_type) || jl_nparams(ptr_type) != 1) {
+    return;
+  }
+
+  jl_value_t *eltype = jl_tparam0(ptr_type);
+  void *addr = jl_unbox_voidpointer(ptr_value);
+  if (addr == NULL) return;
+
+  size_t elsz = jl_datatype_size((jl_datatype_t *)eltype);
+  void *target = (char *)addr + offset * elsz;
+
+  // Convert value to target type (handles type mismatch like Int64 -> Float64)
+  if (eltype == (jl_value_t *)jl_float64_type) {
+    *(double *)target = jl_to_double(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_float32_type) {
+    *(float *)target = (float)jl_to_double(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_int64_type) {
+    *(int64_t *)target = jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_int32_type) {
+    *(int32_t *)target = (int32_t)jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_uint64_type) {
+    *(uint64_t *)target = (uint64_t)jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_uint32_type) {
+    *(uint32_t *)target = (uint32_t)jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_int16_type) {
+    *(int16_t *)target = (int16_t)jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_uint16_type) {
+    *(uint16_t *)target = (uint16_t)jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_int8_type) {
+    *(int8_t *)target = (int8_t)jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_uint8_type) {
+    *(uint8_t *)target = (uint8_t)jl_to_int64(val);
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_bool_type) {
+    *(int8_t *)target = jl_to_int64(val) != 0;
+    return;
+  }
+  if (eltype == (jl_value_t *)jl_char_type) {
+    *(uint32_t *)target = (uint32_t)jl_to_int64(val);
+    return;
+  }
+
+  // Ptr{T} types
+  if (jl_is_ptr_type(eltype)) {
+    *(void **)target = jl_unbox_voidpointer(val);
+    return;
+  }
+
+  // Fallback: copy raw bytes (same type assumed)
+  memcpy(target, (char *)val, elsz);
+}
+
+// Create new Ptr{T} by adding n elements offset (preserves element type)
+// Equivalent to: ptr + n * sizeof(eltype(ptr)) in bytes
+jl_value_t *jl_ptr_add(jl_value_t *ptr_value, int64_t n) {
+  jl_datatype_t *ptr_type = (jl_datatype_t *)jl_typeof(ptr_value);
+  if (!jl_is_datatype(ptr_type) || jl_nparams(ptr_type) != 1) {
+    return NULL;
+  }
+
+  jl_value_t *eltype = jl_tparam0(ptr_type);
+  void *addr = jl_unbox_voidpointer(ptr_value);
+
+  // Calculate new address: addr + n * sizeof(eltype)
+  size_t elsz = jl_datatype_size((jl_datatype_t *)eltype);
+  void *new_addr = (char *)addr + n * elsz;
+
+  // Create new Ptr{T} with same type
+  return jl_new_bits((jl_value_t *)ptr_type, &new_addr);
+}
+
 /* ============================================================================
  * Garbage Collection
  * ============================================================================ */

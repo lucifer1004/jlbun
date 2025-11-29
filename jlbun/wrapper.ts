@@ -342,6 +342,18 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
+  jl_ptr_load: {
+    args: [FFIType.ptr, FFIType.u64],
+    returns: FFIType.ptr,
+  },
+  jl_ptr_store: {
+    args: [FFIType.ptr, FFIType.ptr, FFIType.u64],
+    returns: FFIType.void,
+  },
+  jl_ptr_add: {
+    args: [FFIType.ptr, FFIType.i64],
+    returns: FFIType.ptr,
+  },
   jl_get_nth_field: {
     args: [FFIType.ptr, FFIType.i32],
     returns: FFIType.ptr,
