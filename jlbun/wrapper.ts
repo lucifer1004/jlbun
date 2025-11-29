@@ -330,6 +330,18 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
+  jl_box_voidpointer: {
+    args: [FFIType.ptr],
+    returns: FFIType.ptr,
+  },
+  jl_pointer_from_objref_wrapper: {
+    args: [FFIType.ptr],
+    returns: FFIType.ptr,
+  },
+  jl_ptr_eltype: {
+    args: [FFIType.ptr],
+    returns: FFIType.ptr,
+  },
   jl_get_nth_field: {
     args: [FFIType.ptr, FFIType.i32],
     returns: FFIType.ptr,
