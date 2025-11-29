@@ -38,7 +38,7 @@ import {
   MethodError,
 } from "./index.js";
 
-interface FromBunArrayOptions {
+export interface FromBunArrayOptions {
   juliaGC: boolean;
 }
 

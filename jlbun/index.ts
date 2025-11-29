@@ -21,7 +21,11 @@ export interface JuliaOptions {
   prefetchFilter?: boolean;
 }
 
-export { type BunArray, JuliaArray } from "./arrays.js";
+export {
+  type BunArray,
+  type FromBunArrayOptions,
+  JuliaArray,
+} from "./arrays.js";
 export { JuliaDict, JuliaIdDict } from "./dicts.js";
 export {
   ArgumentError,
@@ -79,4 +83,12 @@ export { jlbun } from "./wrapper.js";
 
 // Re-export types for external use (ScopedJulia is the interface for scope callbacks)
 export { GCManager } from "./gc.js";
-export { JuliaScope, type ScopedJulia } from "./scope.js";
+export {
+  JuliaScope,
+  type ScopedJulia,
+  type ScopedJuliaArray,
+  type ScopedJuliaDict,
+  type ScopedJuliaNamedTuple,
+  type ScopedJuliaSet,
+  type ScopedJuliaTuple,
+} from "./scope.js";

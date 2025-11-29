@@ -38,6 +38,7 @@ import {
   JuliaUInt32,
   JuliaUInt64,
   JuliaValue,
+  MethodError,
   safeCString,
   ScopedJulia,
 } from "./index.js";
