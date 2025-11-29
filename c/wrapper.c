@@ -6,6 +6,12 @@
 #define JL_FUNCTION_TYPE jl_function_t
 #endif
 
+#if JULIA_VERSION_MAJOR >= 1 && JULIA_VERSION_MINOR >= 11
+#define JL_ARRAY_DATA(a) jl_array_data_(a)
+#else
+#define JL_ARRAY_DATA(a) jl_array_data(a)
+#endif
+
 void jl_init0() { jl_init(); }
 
 void jl_init_with_image0(const char *julia_home_dir,
@@ -101,11 +107,7 @@ jl_datatype_t *jl_typeof_getter(jl_value_t *v) {
 // Arrays
 size_t jl_array_len_getter(jl_array_t *a) { return jl_array_len(a); }
 int32_t jl_array_ndims_getter(jl_array_t *a) { return jl_array_ndims(a); }
-#if JULIA_VERSION_MAJOR >= 1 && JULIA_VERSION_MINOR >= 11
-void *jl_array_data_getter(jl_array_t *a) { return jl_array_data_(a); }
-#else
-void *jl_array_data_getter(jl_array_t *a) { return jl_array_data(a); }
-#endif
+void *jl_array_data_getter(jl_array_t *a) { return JL_ARRAY_DATA(a); }
 size_t jl_array_dim_getter(jl_array_t *a, int32_t i) {
   return jl_array_dim(a, i);
 }
@@ -125,11 +127,7 @@ jl_value_t *jl_array_ptr_ref_wrapper(jl_array_t *a, size_t i) {
   } else {
     // For unboxed arrays, we need to box the primitive value
     jl_value_t *eltype = jl_array_eltype((jl_value_t *)a);
-#if JULIA_VERSION_MAJOR >= 1 && JULIA_VERSION_MINOR >= 11
-    void *data = jl_array_data_(a);
-#else
-    void *data = jl_array_data(a);
-#endif
+    void *data = JL_ARRAY_DATA(a);
 
     if (eltype == (jl_value_t *)jl_bool_type) {
       return jl_box_bool(((int8_t *)data)[i]);
@@ -169,11 +167,7 @@ void jl_array_ptr_set_wrapper(jl_array_t *a, size_t i, jl_value_t *v) {
   } else {
     // For unboxed arrays, we need to unbox the value and write directly to memory
     jl_value_t *eltype = jl_array_eltype((jl_value_t *)a);
-#if JULIA_VERSION_MAJOR >= 1 && JULIA_VERSION_MINOR >= 11
-    void *data = jl_array_data_(a);
-#else
-    void *data = jl_array_data(a);
-#endif
+    void *data = JL_ARRAY_DATA(a);
 
     if (eltype == (jl_value_t *)jl_bool_type) {
       ((int8_t *)data)[i] = jl_unbox_bool(v);

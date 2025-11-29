@@ -94,6 +94,13 @@ export class Julia {
   // Type string cache: type pointer -> type string
   private static typeStrCache: Map<Pointer, string> = new Map();
 
+  // Type constructors map: type pointer -> constructor function
+  // Initialized in init() after all types are available
+  private static simpleTypeConstructors: Map<
+    Pointer,
+    (ptr: Pointer) => JuliaValue
+  > = new Map();
+
   private static prefetch(module: JuliaModule): void {
     const props = Julia.getModuleExports(module);
     const failures: string[] = [];
@@ -106,22 +113,13 @@ export class Julia {
       }
     }
 
-    if (failures.length > 0) {
-      const verbosity = Julia.options.verbosity ?? "quiet";
-
-      if (verbosity === "verbose") {
-        // Show first 5 failures as examples
-        const examples = failures.slice(0, 5);
-        console.warn(
-          `Failed to prefetch ${failures.length} properties from ${module.name}: ${examples.join(", ")}${failures.length > 5 ? ` (+${failures.length - 5} more)` : ""}`,
-        );
-      } else if (verbosity === "normal") {
-        // Just show count
-        console.warn(
-          `Failed to prefetch ${failures.length} properties from ${module.name}`,
-        );
-      }
-      // 'quiet' mode: no warnings
+    // Only show prefetch warnings in verbose mode.
+    // Many "failures" are normal (operators, internal symbols, etc.)
+    if (failures.length > 0 && Julia.options.verbosity === "verbose") {
+      const examples = failures.slice(0, 5);
+      console.warn(
+        `Failed to prefetch ${failures.length} properties from ${module.name}: ${examples.join(", ")}${failures.length > 5 ? ` (+${failures.length - 5} more)` : ""}`,
+      );
     }
   }
 
@@ -247,6 +245,72 @@ export class Julia {
       Julia.typeStrCache.set(Julia.DataType.ptr, "DataType");
       Julia.typeStrCache.set(Julia.Module.ptr, "Module");
       Julia.typeStrCache.set(Julia.Task.ptr, "Task");
+
+      // Initialize simple type constructors map for O(1) lookup in wrapPtr
+      Julia.simpleTypeConstructors.set(
+        Julia.String.ptr,
+        (ptr) => new JuliaString(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Bool.ptr,
+        (ptr) => new JuliaBool(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Char.ptr,
+        (ptr) => new JuliaChar(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Int8.ptr,
+        (ptr) => new JuliaInt8(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.UInt8.ptr,
+        (ptr) => new JuliaUInt8(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Int16.ptr,
+        (ptr) => new JuliaInt16(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.UInt16.ptr,
+        (ptr) => new JuliaUInt16(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Int32.ptr,
+        (ptr) => new JuliaInt32(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.UInt32.ptr,
+        (ptr) => new JuliaUInt32(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Int64.ptr,
+        (ptr) => new JuliaInt64(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.UInt64.ptr,
+        (ptr) => new JuliaUInt64(ptr),
+      );
+      // Float16 maps to JuliaFloat32 (no dedicated Float16 wrapper)
+      Julia.simpleTypeConstructors.set(
+        Julia.Float16.ptr,
+        (ptr) => new JuliaFloat32(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Float32.ptr,
+        (ptr) => new JuliaFloat32(ptr),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Float64.ptr,
+        (ptr) => new JuliaFloat64(ptr),
+      );
+      Julia.simpleTypeConstructors.set(Julia.Nothing.ptr, () =>
+        JuliaNothing.getInstance(),
+      );
+      Julia.simpleTypeConstructors.set(
+        Julia.Task.ptr,
+        (ptr) => new JuliaTask(ptr),
+      );
 
       Julia.Core = new JuliaModule(
         jlbun.symbols.jl_core_module_getter()!,
@@ -425,48 +489,22 @@ export class Julia {
 
   /**
    * Wrap a pointer as a `JuliaValue` object.
-   * Uses pointer comparison for common types (O(1)) before falling back
+   * Uses Map lookup for common types (O(1)) before falling back
    * to string comparison for parametric and special types.
    *
    * @param ptr Pointer to the Julia object.
    */
   public static wrapPtr(ptr: Pointer): JuliaValue {
-    // Get the type pointer for comparison
     const typePtr = jlbun.symbols.jl_typeof_getter(ptr)!;
 
-    // Fast path: pointer comparison for primitive types
-    // These comparisons are O(1) and avoid string allocation
-    if (typePtr === Julia.String.ptr) {
-      return new JuliaString(ptr);
-    } else if (typePtr === Julia.Bool.ptr) {
-      return new JuliaBool(ptr);
-    } else if (typePtr === Julia.Char.ptr) {
-      return new JuliaChar(ptr);
-    } else if (typePtr === Julia.Int8.ptr) {
-      return new JuliaInt8(ptr);
-    } else if (typePtr === Julia.UInt8.ptr) {
-      return new JuliaUInt8(ptr);
-    } else if (typePtr === Julia.Int16.ptr) {
-      return new JuliaInt16(ptr);
-    } else if (typePtr === Julia.UInt16.ptr) {
-      return new JuliaUInt16(ptr);
-    } else if (typePtr === Julia.Int32.ptr) {
-      return new JuliaInt32(ptr);
-    } else if (typePtr === Julia.UInt32.ptr) {
-      return new JuliaUInt32(ptr);
-    } else if (typePtr === Julia.Int64.ptr) {
-      return new JuliaInt64(ptr);
-    } else if (typePtr === Julia.UInt64.ptr) {
-      return new JuliaUInt64(ptr);
-    } else if (typePtr === Julia.Float16.ptr) {
-      return new JuliaFloat32(ptr);
-    } else if (typePtr === Julia.Float32.ptr) {
-      return new JuliaFloat32(ptr);
-    } else if (typePtr === Julia.Float64.ptr) {
-      return new JuliaFloat64(ptr);
-    } else if (typePtr === Julia.Nothing.ptr) {
-      return JuliaNothing.getInstance();
-    } else if (typePtr === Julia.Symbol.ptr) {
+    // Fast path: O(1) Map lookup for simple types
+    const simpleCtor = Julia.simpleTypeConstructors.get(typePtr);
+    if (simpleCtor) {
+      return simpleCtor(ptr);
+    }
+
+    // Special types that need extra logic
+    if (typePtr === Julia.Symbol.ptr) {
       const namePtr = jlbun.symbols.jl_symbol_name_getter(ptr);
       if (namePtr === null) {
         throw new Error(
@@ -474,54 +512,57 @@ export class Julia {
         );
       }
       return new JuliaSymbol(ptr, namePtr.toString());
-    } else if (typePtr === Julia.Module.ptr) {
+    }
+    if (typePtr === Julia.Module.ptr) {
       return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
-    } else if (typePtr === Julia.Task.ptr) {
-      return new JuliaTask(ptr);
-    } else if (typePtr === Julia.DataType.ptr) {
+    }
+    if (typePtr === Julia.DataType.ptr) {
       return new JuliaDataType(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
     }
 
-    // Medium path: check if it's an Array type (parametric but common)
-    // Use cached type string to avoid FFI call
+    // Get type string (cached)
     let typeStr = Julia.typeStrCache.get(typePtr);
-
     if (typeStr === undefined) {
-      // Cache miss - get the string and cache it
       typeStr = jlbun.symbols.jl_typeof_str(ptr).toString();
       Julia.typeStrCache.set(typePtr, typeStr);
     }
 
-    // Handle Array type (the type string is "Array" for all array types)
-    if (typeStr === "Array") {
-      const elType = jlbun.symbols.jl_array_eltype(ptr)!;
-      const elTypeStr = Julia.getTypeStr(elType);
-      return new JuliaArray(ptr, new JuliaDataType(elType, elTypeStr));
+    // Handle parametric types by type string
+    switch (typeStr) {
+      case "Array": {
+        const elType = jlbun.symbols.jl_array_eltype(ptr)!;
+        return new JuliaArray(
+          ptr,
+          new JuliaDataType(elType, Julia.getTypeStr(elType)),
+        );
+      }
+      case "Tuple":
+        return new JuliaTuple(ptr);
+      case "Pair":
+        return new JuliaPair(ptr);
+      case "NamedTuple":
+        return new JuliaNamedTuple(ptr);
+      case "Ptr":
+        return new JuliaPtr(ptr);
     }
 
-    // Slow path: string comparison for parametric and special types
-    if (typeStr === "Tuple") {
-      return new JuliaTuple(ptr);
-    } else if (typeStr === "Pair") {
-      return new JuliaPair(ptr);
-    } else if (typeStr === "NamedTuple") {
-      return new JuliaNamedTuple(ptr);
-    } else if (typeStr === "Set" || typeStr.startsWith("Set{")) {
+    // Handle parametric collection types
+    if (typeStr === "Set" || typeStr.startsWith("Set{")) {
       return new JuliaSet(ptr);
-    } else if (typeStr === "Dict" || typeStr.startsWith("Dict{")) {
+    }
+    if (typeStr === "Dict" || typeStr.startsWith("Dict{")) {
       return new JuliaDict(ptr);
-    } else if (typeStr === "IdDict" || typeStr.startsWith("IdDict{")) {
+    }
+    if (typeStr === "IdDict" || typeStr.startsWith("IdDict{")) {
       return new JuliaIdDict(ptr);
-    } else if (typeStr === "Ptr") {
-      return new JuliaPtr(ptr);
-    } else if (typeStr[0] === "#") {
-      // Lambda functions
-      let funcName: string;
-      if (typeStr[1] >= "0" && typeStr[1] <= "9") {
-        funcName = "Lambda" + typeStr;
-      } else {
-        funcName = typeStr.slice(1);
-      }
+    }
+
+    // Handle lambda functions (type starts with #)
+    if (typeStr[0] === "#") {
+      const funcName =
+        typeStr[1] >= "0" && typeStr[1] <= "9"
+          ? "Lambda" + typeStr
+          : typeStr.slice(1);
       return new JuliaFunction(ptr, funcName);
     }
 
@@ -748,7 +789,14 @@ export class Julia {
       codeParts.push(`__jlbun_globals__["${uuids[i]}"]`);
       codeParts.push(strings[i + 1]);
     }
-    return Julia.eval(codeParts.join(""));
+    try {
+      return Julia.eval(codeParts.join(""));
+    } finally {
+      // Clean up temporary globals to prevent memory leak
+      for (const uuid of uuids) {
+        Julia.deleteGlobal(uuid);
+      }
+    }
   }
 
   /**
