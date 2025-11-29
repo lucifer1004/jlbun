@@ -137,6 +137,108 @@ uint16_t jl_unbox_float16(jl_value_t *v) {
 }
 
 /* ============================================================================
+ * Complex Number Support
+ * 
+ * Complex{T} stores two values of type T contiguously: [re, im]
+ * Memory layout:
+ *   ComplexF64: 16 bytes = [Float64 re, Float64 im]
+ *   ComplexF32: 8 bytes  = [Float32 re, Float32 im]
+ *   ComplexF16: 4 bytes  = [Float16 re, Float16 im]
+ * ============================================================================ */
+
+// Cache for Complex types (initialized lazily)
+static jl_datatype_t *complexf64_type = NULL;
+static jl_datatype_t *complexf32_type = NULL;
+static jl_datatype_t *complexf16_type = NULL;
+
+static jl_datatype_t *get_complexf64_type(void) {
+  if (complexf64_type == NULL) {
+    complexf64_type = (jl_datatype_t *)jl_eval_string("ComplexF64");
+  }
+  return complexf64_type;
+}
+
+static jl_datatype_t *get_complexf32_type(void) {
+  if (complexf32_type == NULL) {
+    complexf32_type = (jl_datatype_t *)jl_eval_string("ComplexF32");
+  }
+  return complexf32_type;
+}
+
+static jl_datatype_t *get_complexf16_type(void) {
+  if (complexf16_type == NULL) {
+    complexf16_type = (jl_datatype_t *)jl_eval_string("ComplexF16");
+  }
+  return complexf16_type;
+}
+
+// Type getters
+jl_datatype_t *jl_complexf64_type_getter(void) { return get_complexf64_type(); }
+jl_datatype_t *jl_complexf32_type_getter(void) { return get_complexf32_type(); }
+jl_datatype_t *jl_complexf16_type_getter(void) { return get_complexf16_type(); }
+
+// Get first type parameter (wrapper for jl_tparam0 macro)
+// For Complex{Float64}, returns Float64 type pointer
+jl_value_t *jl_tparam0_getter(jl_datatype_t *t) {
+  if (jl_nparams(t) == 0) return NULL;
+  return jl_tparam0(t);
+}
+
+// Box ComplexF64
+jl_value_t *jl_box_complex64(double re, double im) {
+  jl_value_t *v = jl_new_struct_uninit(get_complexf64_type());
+  double *data = (double *)jl_data_ptr(v);
+  data[0] = re;
+  data[1] = im;
+  return v;
+}
+
+// Box ComplexF32
+jl_value_t *jl_box_complex32(float re, float im) {
+  jl_value_t *v = jl_new_struct_uninit(get_complexf32_type());
+  float *data = (float *)jl_data_ptr(v);
+  data[0] = re;
+  data[1] = im;
+  return v;
+}
+
+// Box ComplexF16 (using raw uint16 bits)
+jl_value_t *jl_box_complex16(uint16_t re, uint16_t im) {
+  jl_value_t *v = jl_new_struct_uninit(get_complexf16_type());
+  uint16_t *data = (uint16_t *)jl_data_ptr(v);
+  data[0] = re;
+  data[1] = im;
+  return v;
+}
+
+// Unbox ComplexF64 - returns re, use jl_unbox_complex64_im for im
+double jl_unbox_complex64_re(jl_value_t *v) {
+  return ((double *)jl_data_ptr(v))[0];
+}
+
+double jl_unbox_complex64_im(jl_value_t *v) {
+  return ((double *)jl_data_ptr(v))[1];
+}
+
+// Unbox ComplexF32
+float jl_unbox_complex32_re(jl_value_t *v) {
+  return ((float *)jl_data_ptr(v))[0];
+}
+
+float jl_unbox_complex32_im(jl_value_t *v) {
+  return ((float *)jl_data_ptr(v))[1];
+}
+
+// Unbox ComplexF16 (returns raw uint16 bits)
+uint16_t jl_unbox_complex16_re(jl_value_t *v) {
+  return ((uint16_t *)jl_data_ptr(v))[0];
+}
+
+uint16_t jl_unbox_complex16_im(jl_value_t *v) {
+  return ((uint16_t *)jl_data_ptr(v))[1];
+}
+
+/* ============================================================================
  * Property Queries
  * ============================================================================ */
 

@@ -104,6 +104,24 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [],
     returns: FFIType.ptr,
   },
+  // Complex type getters
+  jl_complexf64_type_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  jl_complexf32_type_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  jl_complexf16_type_getter: {
+    args: [],
+    returns: FFIType.ptr,
+  },
+  // Get first type parameter (for Complex{T}, returns T)
+  jl_tparam0_getter: {
+    args: [FFIType.ptr], // jl_datatype_t*
+    returns: FFIType.ptr, // jl_value_t* (the type parameter)
+  },
 
   // Modules
   jl_main_module_getter: {
@@ -282,6 +300,19 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.u16], // Float16 is stored as uint16_t in IEEE 754 format
     returns: FFIType.ptr,
   },
+  // Complex boxing
+  jl_box_complex64: {
+    args: [FFIType.f64, FFIType.f64], // re, im
+    returns: FFIType.ptr,
+  },
+  jl_box_complex32: {
+    args: [FFIType.f32, FFIType.f32], // re, im
+    returns: FFIType.ptr,
+  },
+  jl_box_complex16: {
+    args: [FFIType.u16, FFIType.u16], // re, im as Float16 bits
+    returns: FFIType.ptr,
+  },
   jl_box_float32: {
     args: [FFIType.f32],
     returns: FFIType.ptr,
@@ -329,6 +360,31 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   jl_unbox_float16: {
     args: [FFIType.ptr],
     returns: FFIType.u16, // Float16 is stored as uint16_t in IEEE 754 format
+  },
+  // Complex unboxing - separate functions for re and im
+  jl_unbox_complex64_re: {
+    args: [FFIType.ptr],
+    returns: FFIType.f64,
+  },
+  jl_unbox_complex64_im: {
+    args: [FFIType.ptr],
+    returns: FFIType.f64,
+  },
+  jl_unbox_complex32_re: {
+    args: [FFIType.ptr],
+    returns: FFIType.f32,
+  },
+  jl_unbox_complex32_im: {
+    args: [FFIType.ptr],
+    returns: FFIType.f32,
+  },
+  jl_unbox_complex16_re: {
+    args: [FFIType.ptr],
+    returns: FFIType.u16,
+  },
+  jl_unbox_complex16_im: {
+    args: [FFIType.ptr],
+    returns: FFIType.u16,
   },
   jl_unbox_float32: {
     args: [FFIType.ptr],

@@ -20,6 +20,7 @@ jlbun/
 │   ├── arrays.ts        # JuliaArray wrapper class
 │   ├── subarrays.ts     # JuliaSubArray wrapper class (zero-copy views)
 │   ├── ranges.ts        # JuliaRange wrapper class (UnitRange, StepRange, etc.)
+│   ├── complex.ts       # JuliaComplex wrapper class (ComplexF64/F32/F16)
 │   ├── functions.ts     # JuliaFunction wrapper class
 │   ├── values.ts        # Primitive type wrappers (Int, Float, String, etc.)
 │   ├── tuples.ts        # Tuple/NamedTuple/Pair wrapper classes
@@ -38,6 +39,7 @@ jlbun/
 │       ├── arrays.test.ts
 │       ├── ptr.test.ts
 │       ├── collections.test.ts
+│       ├── complex.test.ts
 │       ├── tasks.test.ts
 │       ├── scope.test.ts
 │       └── utils.test.ts
@@ -93,6 +95,7 @@ Julia.scopeAsync(fn)           // Async version of scope()
 | `JuliaUInt64` | `UInt64` | `bigint` |
 | `JuliaFloat16` | `Float16` | `number` |
 | `JuliaFloat32/64` | `Float32/64` | `number` |
+| `JuliaComplex` | `ComplexF64/F32/F16` | `{re: number, im: number}` |
 | `JuliaString` | `String` | `string` |
 | `JuliaBool` | `Bool` | `boolean` |
 | `JuliaChar` | `Char` | `string` |
@@ -515,6 +518,37 @@ const row = matrix.view(0, ":");     // First row
 const block = matrix.view([1, 2], [0, 2]); // 2x3 block
 ```
 
+## JuliaComplex API Reference
+
+`JuliaComplex` wraps Julia's `Complex{T}` types (ComplexF64, ComplexF32, ComplexF16).
+
+| Method/Property | Description |
+|-----------------|-------------|
+| `JuliaComplex.from(re, im?)` | Create ComplexF64 |
+| `JuliaComplex.fromF32(re, im?)` | Create ComplexF32 |
+| `JuliaComplex.fromF16(re, im?)` | Create ComplexF16 |
+| `JuliaComplex.fromPolar(r, theta, elType?)` | Create from polar form |
+| `c.re` | Real part |
+| `c.im` | Imaginary part |
+| `c.abs` | Magnitude (|c|) |
+| `c.arg` | Phase angle (radians) |
+| `c.elType` | Element type (Float16/Float32/Float64) |
+| `c.value` | Get as `{re: number, im: number}` |
+
+```typescript
+// Examples
+const c = JuliaComplex.from(3, 4);          // 3 + 4im
+console.log(c.abs);                          // 5
+console.log(c.arg);                          // 0.927... rad
+
+// Julia interop
+const conj = Julia.Base.conj(c);             // 3 - 4im
+const sum = Julia.Base["+"](c, JuliaComplex.from(1, 1));  // 4 + 5im
+
+// Polar form
+const polar = JuliaComplex.fromPolar(5, Math.PI / 2);  // 0 + 5im
+```
+
 ## JuliaRange API Reference
 
 `JuliaRange` wraps Julia's range types (`UnitRange`, `StepRange`, `StepRangeLen`, `LinRange`).
@@ -705,6 +739,7 @@ jlbun/tests/
 ├── ranges.test.ts      # JuliaRange operations
 ├── ptr.test.ts         # JuliaPtr pointer operations
 ├── collections.test.ts # Tuple, Dict, Set tests
+├── complex.test.ts     # JuliaComplex tests
 ├── tasks.test.ts       # JuliaTask async tests
 ├── scope.test.ts       # Scope and GCManager tests
 ├── scope-stress.test.ts # Scope stress tests

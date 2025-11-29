@@ -403,13 +403,14 @@ jlbun provides TypeScript wrappers for Julia's primitive types:
 | `JuliaFloat16` | `Float16` | `number` |
 | `JuliaFloat32` | `Float32` | `number` |
 | `JuliaFloat64` | `Float64` | `number` |
+| `JuliaComplex` | `ComplexF64/F32/F16` | `{re, im}` |
 | `JuliaString` | `String` | `string` |
 | `JuliaBool` | `Bool` | `boolean` |
 | `JuliaChar` | `Char` | `string` |
 | `JuliaSymbol` | `Symbol` | `Symbol` |
 
 ```typescript
-import { JuliaFloat16, JuliaInt64 } from "jlbun";
+import { JuliaFloat16, JuliaInt64, JuliaComplex } from "jlbun";
 
 // Create from JavaScript
 const f16 = JuliaFloat16.from(3.14);  // Float16 with ~3 decimal precision
@@ -418,6 +419,20 @@ const i64 = JuliaInt64.from(9007199254740993n);  // BigInt for large integers
 // Access value
 console.log(f16.value);  // 3.140625 (Float16 precision)
 console.log(i64.value);  // 9007199254740993n
+
+// Complex numbers
+const c = JuliaComplex.from(3, 4);     // 3 + 4im (ComplexF64)
+console.log(c.re, c.im);               // 3, 4
+console.log(c.abs);                    // 5 (magnitude)
+console.log(c.arg);                    // 0.927... (phase in radians)
+console.log(c.value);                  // { re: 3, im: 4 }
+
+// Different precisions
+const c32 = JuliaComplex.fromF32(1, 2);  // ComplexF32
+const c16 = JuliaComplex.fromF16(1, 2);  // ComplexF16
+
+// From polar form
+const polar = JuliaComplex.fromPolar(5, Math.PI / 4);  // r=5, θ=45°
 ```
 
 ---

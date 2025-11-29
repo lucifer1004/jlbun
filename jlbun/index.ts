@@ -26,6 +26,7 @@ export {
   type FromBunArrayOptions,
   JuliaArray,
 } from "./arrays.js";
+export { ComplexElementType, JuliaComplex } from "./complex.js";
 export { JuliaDict, JuliaIdDict } from "./dicts.js";
 export {
   ArgumentError,

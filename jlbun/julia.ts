@@ -8,6 +8,7 @@ import {
   JuliaArray,
   JuliaBool,
   JuliaChar,
+  JuliaComplex,
   JuliaDataType,
   JuliaDict,
   JuliaFloat16,
@@ -582,6 +583,30 @@ export class Julia {
         ptr,
         new JuliaDataType(elTypePtr, Julia.getTypeStr(elTypePtr)),
       );
+    }
+
+    // Handle Complex types (ComplexF64, ComplexF32, ComplexF16)
+    // Note: jl_typeof_str returns "Complex" for all Complex types
+    if (
+      typeStr === "Complex" ||
+      typeStr === "ComplexF64" ||
+      typeStr === "ComplexF32" ||
+      typeStr === "ComplexF16" ||
+      typeStr.startsWith("Complex{")
+    ) {
+      // Get element type by checking type parameter (Complex{T} -> T)
+      const elTypePtr = jlbun.symbols.jl_tparam0_getter(typePtr);
+      if (elTypePtr !== null) {
+        // Compare element type pointer to known float types
+        if (elTypePtr === Julia.Float64.ptr) {
+          return JuliaComplex.wrap(ptr, "ComplexF64");
+        } else if (elTypePtr === Julia.Float32.ptr) {
+          return JuliaComplex.wrap(ptr, "ComplexF32");
+        } else if (elTypePtr === Julia.Float16.ptr) {
+          return JuliaComplex.wrap(ptr, "ComplexF16");
+        }
+      }
+      // Unsupported complex type (e.g., Complex{Int64}) - fall through to JuliaAny
     }
 
     // Handle lambda functions (type starts with #)

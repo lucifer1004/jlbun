@@ -3,3 +3,4 @@ juliaup default 1.11 && bun build-lib && bun test
 juliaup default nightly && bun build-lib && bun test
 juliaup default 1.12 && bun build-lib && bun test
 bun lint-staged
+bun typedoc
