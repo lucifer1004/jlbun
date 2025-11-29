@@ -91,8 +91,8 @@ describe("Scope stress tests", () => {
     expect(scope.size).toBe(0);
   });
 
-  it("GCManager.protectedCount reflects scope tracking", () => {
-    const countBefore = GCManager.protectedCount;
+  it("GCManager.size reflects scope tracking", () => {
+    const countBefore = GCManager.size;
 
     Julia.scope((julia) => {
       const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
@@ -102,8 +102,8 @@ describe("Scope stress tests", () => {
         julia.Base.view(arr, julia.Base.UnitRange(1, 3));
       }
 
-      // Protected count should have increased
-      const countDuring = GCManager.protectedCount;
+      // Size should have increased
+      const countDuring = GCManager.size;
       expect(countDuring).toBeGreaterThan(countBefore);
     });
 

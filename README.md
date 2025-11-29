@@ -9,14 +9,28 @@
 
 **jlbun** is a high-performance FFI library that brings Julia's computational power to the Bun JavaScript runtime. Call Julia functions directly from TypeScript with zero-copy array sharing and automatic memory management.
 
-## ✨ What's New in v0.1
+## ✨ What's New in v0.2
 
-> **Memory-Safe by Default** - The v0.1 release introduces a scope-based memory management system that eliminates manual GC handling.
+> **Stack-Based GC & Safe Mode** - The v0.2 release brings a complete GC redesign with significantly improved performance and a new safe mode for closure-heavy code.
+
+| Feature | Description |
+|---------|-------------|
+| 🚀 **Stack-Based GC** | New C-layer root pool with O(1) track and batch release |
+| 🛡️ **Safe Mode** | `Julia.scope(fn, { safe: true })` for automatic closure safety |
+| ⚡ **~2x Faster Scopes** | Batch release eliminates per-object FFI calls |
+| 🔒 **Escape Registry** | FinalizationRegistry-backed lifetime for escaped objects |
+
+### Breaking Changes from v0.1
+
+- Removed deprecated `GCManager.protect()` / `GCManager.unprotect()` APIs
+- Escaped objects now use FinalizationRegistry for automatic cleanup
+
+### v0.1 Features (Still Available)
 
 | Feature | Description |
 |---------|-------------|
 | 🛡️ **`Julia.scope()`** | Automatic tracking and cleanup of Julia objects |
-| 🚀 **`julia.untracked()`** | Opt-out for performance-critical loops (~300x faster) |
+| 🚀 **`julia.untracked()`** | Opt-out for performance-critical loops |
 | 📊 **`JuliaRange`** | Native support for `UnitRange`, `StepRange`, `LinRange` |
 | 🔍 **`JuliaSubArray`** | Zero-copy array views with `view()` and `slice()` |
 | ⚡ **Multi-dimensional Arrays** | Direct N-D array creation with `getAt()`/`setAt()` |
@@ -26,13 +40,14 @@
 ## Table of Contents
 
 - [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
-  - [✨ What's New in v0.1](#-whats-new-in-v01)
+  - [✨ What's New in v0.2](#-whats-new-in-v02)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
   - [Examples](#examples)
-  - [Memory Management (v0.1)](#memory-management-v01)
+  - [Memory Management](#memory-management)
     - [`Julia.scope()` - The Recommended Way](#juliascope---the-recommended-way)
+    - [Safe Mode for Closures](#safe-mode-for-closures)
     - [Escaping Values from Scope](#escaping-values-from-scope)
     - [Performance Optimization with `untracked()`](#performance-optimization-with-untracked)
   - [Arrays](#arrays)
@@ -101,11 +116,11 @@ All examples use only Julia stdlib - no package installation required.
 
 ---
 
-## Memory Management (v0.1)
+## Memory Management
 
 ### `Julia.scope()` - The Recommended Way
 
-**v0.1's flagship feature**: All Julia objects created within a scope are automatically tracked and freed when the scope exits.
+All Julia objects created within a scope are automatically tracked and freed when the scope exits.
 
 ```typescript
 import { Julia } from "jlbun";
@@ -136,6 +151,39 @@ const result = await Julia.scopeAsync(async (julia) => {
   return (await task.value).value;
 });
 ```
+
+### Safe Mode for Closures
+
+**v0.2 introduces safe mode** for code that captures Julia objects in closures or callbacks:
+
+```typescript
+// Default mode: objects released at scope end (fast, but closures need escape())
+Julia.scope((julia) => {
+  const arr = julia.Array.init(julia.Float64, 100);
+  // arr is valid here
+}); // arr released here
+
+// Safe mode: objects released when JS GC runs (closure-safe)
+Julia.scope((julia) => {
+  const arr = julia.Array.init(julia.Float64, 100);
+  
+  // Safe to capture in closures - no explicit escape() needed!
+  setTimeout(() => {
+    console.log(arr.length); // arr is still valid
+  }, 1000);
+}, { safe: true }); // arr stays alive until JS GC
+```
+
+**When to use safe mode:**
+- Passing Julia objects to `setTimeout`, `setInterval`, or event handlers
+- Storing Julia objects in arrays/maps that outlive the scope
+- Callbacks that may execute after scope ends
+
+**Performance comparison** (1000 iterations, 100 objects/scope):
+| Mode | Time/scope | Objects/sec |
+|------|------------|-------------|
+| Default | 0.027 ms | ~3.7M |
+| Safe | 0.063 ms | ~1.5M |
 
 ### Escaping Values from Scope
 

@@ -979,8 +979,11 @@ export class Julia {
    * // arr is still valid here
    * ```
    */
-  public static scope<T>(fn: (julia: ScopedJulia) => T): T {
-    const scope = new JuliaScope();
+  public static scope<T>(
+    fn: (julia: ScopedJulia) => T,
+    options?: { safe?: boolean },
+  ): T {
+    const scope = new JuliaScope(options);
     try {
       const result = fn(scope.julia);
 
@@ -1018,8 +1021,9 @@ export class Julia {
    */
   public static async scopeAsync<T>(
     fn: (julia: ScopedJulia) => Promise<T>,
+    options?: { safe?: boolean },
   ): Promise<T> {
-    const scope = new JuliaScope();
+    const scope = new JuliaScope(options);
     try {
       const result = await fn(scope.julia);
 

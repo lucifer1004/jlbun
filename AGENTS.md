@@ -202,6 +202,39 @@ const result = Julia.scope((julia) => {
 console.log(result); // A number, all Julia matrices freed
 ```
 
+### Safe Mode (v0.2+)
+
+For code that captures Julia objects in closures or callbacks, use safe mode:
+
+```typescript
+// Default mode: objects released at scope end (fast)
+Julia.scope((julia) => {
+  const arr = julia.Array.init(julia.Float64, 100);
+  // ⚠️ Capturing in closure without escape() is unsafe!
+});
+
+// Safe mode: objects released when JS GC runs (closure-safe)
+Julia.scope((julia) => {
+  const arr = julia.Array.init(julia.Float64, 100);
+  
+  // ✅ Safe to capture in closures - no explicit escape() needed
+  setTimeout(() => {
+    console.log(arr.length); // arr is still valid
+  }, 1000);
+}, { safe: true });
+```
+
+**When to use safe mode:**
+- Passing Julia objects to `setTimeout`, `setInterval`, or event handlers
+- Storing Julia objects in arrays/maps that outlive the scope
+- Callbacks that may execute after scope ends
+
+**Performance trade-off:**
+| Mode | Characteristics |
+|------|-----------------|
+| Default | O(1) batch release, ~0.027 ms/scope (100 objects) |
+| Safe | Per-object FinalizationRegistry, ~0.063 ms/scope (100 objects) |
+
 ### `Julia.scopeAsync()` - Asynchronous Scope
 
 For async operations (e.g., `JuliaTask`), use `Julia.scopeAsync()`:

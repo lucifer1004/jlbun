@@ -766,13 +766,178 @@ jl_value_t *jl_ptr_add(jl_value_t *ptr_value, int64_t n) {
 }
 
 /* ============================================================================
- * Garbage Collection
+ * Stack-based GC Root Management
+ * 
+ * Provides FFI-friendly GC rooting that mimics Julia's JL_GC_PUSH/POP semantics.
+ * Uses a Julia Vector{Any} as backing storage, registered as a global root.
+ * 
+ * Design:
+ *   - Stack-based: push values, release by mark (scope exit)
+ *   - Thread-safe: protected by mutex
+ *   - Efficient: O(1) push, O(1) mark, O(n) release (batch)
  * ============================================================================ */
 
-void jl_gc_push1(jl_value_t *x) { JL_GC_PUSH1(&x); }
-void jl_gc_push2(jl_value_t *x, jl_value_t *y) { JL_GC_PUSH2(&x, &y); }
-void jl_gc_push3(jl_value_t *x, jl_value_t *y, jl_value_t *z) {
-  JL_GC_PUSH3(&x, &y, &z);
+#include <pthread.h>
+
+typedef struct {
+    jl_array_t *stack;       // Vector{Any} as root storage
+    size_t top;              // Current stack top (next write position)
+    size_t capacity;         // Current capacity
+    pthread_mutex_t lock;    // Thread safety
+    int initialized;         // Initialization flag
+} JlbunGCStack;
+
+static JlbunGCStack gc_stack = {NULL, 0, 0, PTHREAD_MUTEX_INITIALIZER, 0};
+
+// Initialize the GC root stack
+void jlbun_gc_init(size_t initial_capacity) {
+    pthread_mutex_lock(&gc_stack.lock);
+    
+    if (gc_stack.initialized) {
+        pthread_mutex_unlock(&gc_stack.lock);
+        return;  // Already initialized
+    }
+    
+    // Allocate Vector{Any}
+    jl_value_t *any_type = (jl_value_t *)jl_any_type;
+    jl_value_t *array_type = jl_apply_array_type(any_type, 1);
+    gc_stack.stack = jl_alloc_array_1d(array_type, initial_capacity);
+    gc_stack.capacity = initial_capacity;
+    gc_stack.top = 0;
+    
+    // Julia 1.12+ requires declaring global before assignment
+    // Use eval to declare and assign in one step
+    char eval_buf[256];
+    snprintf(eval_buf, sizeof(eval_buf), 
+             "global __jlbun_gc_stack__::Vector{Any} = Vector{Any}(nothing, %zu)", 
+             initial_capacity);
+    jl_eval_string(eval_buf);
+    
+    // Get the array we just created and use it as our stack
+    jl_value_t *stack = jl_get_global(jl_main_module, jl_symbol("__jlbun_gc_stack__"));
+    if (stack != NULL && jl_is_array(stack)) {
+        gc_stack.stack = (jl_array_t *)stack;
+    }
+    
+    gc_stack.initialized = 1;
+    pthread_mutex_unlock(&gc_stack.lock);
 }
-void jl_gc_push(jl_value_t **args, int32_t n) { JL_GC_PUSHARGS(args, n); }
-void jl_gc_pop(void) { JL_GC_POP(); }
+
+// Get current stack position (for scope mark)
+size_t jlbun_gc_mark(void) {
+    // No lock needed - just read current top
+    return gc_stack.top;
+}
+
+// Ensure capacity (internal helper, must be called with lock held)
+static void ensure_capacity_locked(size_t needed) {
+    if (needed <= gc_stack.capacity) return;
+    
+    // Double capacity until sufficient
+    size_t new_cap = gc_stack.capacity;
+    while (new_cap < needed) new_cap *= 2;
+    
+    // Grow via Julia's resize!
+    JL_FUNCTION_TYPE *resize_fn = jl_get_function(jl_base_module, "resize!");
+    jl_call2(resize_fn, (jl_value_t *)gc_stack.stack, jl_box_int64(new_cap));
+    
+    // Fill new slots with nothing
+    for (size_t i = gc_stack.capacity; i < new_cap; i++) {
+        jl_array_ptr_set(gc_stack.stack, i, jl_nothing);
+    }
+    gc_stack.capacity = new_cap;
+}
+
+// Push a value onto the GC root stack, returns index
+size_t jlbun_gc_push(jl_value_t *v) {
+    pthread_mutex_lock(&gc_stack.lock);
+    
+    if (!gc_stack.initialized) {
+        pthread_mutex_unlock(&gc_stack.lock);
+        return SIZE_MAX;  // Error: not initialized
+    }
+    
+    ensure_capacity_locked(gc_stack.top + 1);
+    size_t idx = gc_stack.top++;
+    jl_array_ptr_set(gc_stack.stack, idx, v);
+    
+    pthread_mutex_unlock(&gc_stack.lock);
+    return idx;
+}
+
+// Release all values from mark to top (scope exit)
+void jlbun_gc_release(size_t mark) {
+    pthread_mutex_lock(&gc_stack.lock);
+    
+    if (!gc_stack.initialized || mark > gc_stack.top) {
+        pthread_mutex_unlock(&gc_stack.lock);
+        return;
+    }
+    
+    // Clear all slots from mark to top
+    for (size_t i = mark; i < gc_stack.top; i++) {
+        jl_array_ptr_set(gc_stack.stack, i, jl_nothing);
+    }
+    gc_stack.top = mark;
+    
+    pthread_mutex_unlock(&gc_stack.lock);
+}
+
+// Swap a value at from_idx with the slot at to_idx (for escape)
+// Used to move a value to a lower scope before release
+void jlbun_gc_swap(size_t from_idx, size_t to_idx) {
+    pthread_mutex_lock(&gc_stack.lock);
+    
+    if (!gc_stack.initialized || 
+        from_idx >= gc_stack.top || 
+        to_idx >= gc_stack.top) {
+        pthread_mutex_unlock(&gc_stack.lock);
+        return;
+    }
+    
+    jl_value_t *from_val = jl_array_ptr_ref(gc_stack.stack, from_idx);
+    jl_value_t *to_val = jl_array_ptr_ref(gc_stack.stack, to_idx);
+    jl_array_ptr_set(gc_stack.stack, to_idx, from_val);
+    jl_array_ptr_set(gc_stack.stack, from_idx, to_val);
+    
+    pthread_mutex_unlock(&gc_stack.lock);
+}
+
+// Get value at index (for debugging/escape)
+jl_value_t *jlbun_gc_get(size_t idx) {
+    if (!gc_stack.initialized || idx >= gc_stack.top) {
+        return jl_nothing;
+    }
+    return jl_array_ptr_ref(gc_stack.stack, idx);
+}
+
+// Set value at index (for escape - move value to specific slot)
+void jlbun_gc_set(size_t idx, jl_value_t *v) {
+    pthread_mutex_lock(&gc_stack.lock);
+    
+    if (!gc_stack.initialized || idx >= gc_stack.capacity) {
+        pthread_mutex_unlock(&gc_stack.lock);
+        return;
+    }
+    
+    jl_array_ptr_set(gc_stack.stack, idx, v);
+    
+    pthread_mutex_unlock(&gc_stack.lock);
+}
+
+// Get stack statistics
+size_t jlbun_gc_size(void) { return gc_stack.top; }
+size_t jlbun_gc_capacity(void) { return gc_stack.capacity; }
+
+// Check if initialized
+int jlbun_gc_is_initialized(void) { return gc_stack.initialized; }
+
+// Cleanup (called at Julia.close())
+void jlbun_gc_close(void) {
+    pthread_mutex_lock(&gc_stack.lock);
+    gc_stack.stack = NULL;
+    gc_stack.top = 0;
+    gc_stack.capacity = 0;
+    gc_stack.initialized = 0;
+    pthread_mutex_unlock(&gc_stack.lock);
+}

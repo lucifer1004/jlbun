@@ -217,24 +217,48 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     returns: FFIType.void,
   },
 
-  // GC
-  jl_gc_push1: {
-    args: [FFIType.ptr],
+  // Stack-based GC Root Management
+  jlbun_gc_init: {
+    args: [FFIType.u64], // initial_capacity
     returns: FFIType.void,
   },
-  jl_gc_push2: {
-    args: [FFIType.ptr, FFIType.ptr],
+  jlbun_gc_mark: {
+    args: [],
+    returns: FFIType.u64, // current stack position
+  },
+  jlbun_gc_push: {
+    args: [FFIType.ptr], // value to protect
+    returns: FFIType.u64, // index in stack
+  },
+  jlbun_gc_release: {
+    args: [FFIType.u64], // mark to release to
     returns: FFIType.void,
   },
-  jl_gc_push3: {
-    args: [FFIType.ptr, FFIType.ptr, FFIType.ptr],
+  jlbun_gc_swap: {
+    args: [FFIType.u64, FFIType.u64], // from_idx, to_idx
     returns: FFIType.void,
   },
-  jl_gc_push: {
-    args: [FFIType.ptr, FFIType.i32],
+  jlbun_gc_get: {
+    args: [FFIType.u64], // index
+    returns: FFIType.ptr, // value at index
+  },
+  jlbun_gc_set: {
+    args: [FFIType.u64, FFIType.ptr], // index, value
     returns: FFIType.void,
   },
-  jl_gc_pop: {
+  jlbun_gc_size: {
+    args: [],
+    returns: FFIType.u64,
+  },
+  jlbun_gc_capacity: {
+    args: [],
+    returns: FFIType.u64,
+  },
+  jlbun_gc_is_initialized: {
+    args: [],
+    returns: FFIType.i32,
+  },
+  jlbun_gc_close: {
     args: [],
     returns: FFIType.void,
   },

@@ -190,8 +190,16 @@ export interface ScopedJulia {
 /**
  * A scoped Julia context that automatically tracks and releases Julia objects.
  *
- * Objects created through the scoped `julia` proxy are automatically tracked
- * and released when the scope ends.
+ * Uses a stack-based GC root management system:
+ *   - On construction: records the current stack position (mark)
+ *   - During scope: all tracked values are pushed to the stack
+ *   - On dispose: releases all values from mark to current top in one operation
+ *
+ * This is much more efficient than the previous per-object protect/unprotect
+ * approach because:
+ *   - Push is O(1) - just array append
+ *   - Release is O(1) FFI call + O(n) memset (no Julia function calls)
+ *   - No string allocations for IDs
  *
  * @example
  * ```typescript
@@ -203,14 +211,37 @@ export interface ScopedJulia {
  * // a and b are automatically released
  * ```
  */
+export interface JuliaScopeOptions {
+  /**
+   * Safe mode: all objects are managed by FinalizationRegistry instead of
+   * stack-based release. This prevents issues with closures capturing Julia
+   * objects, but releases are non-deterministic (depends on JS GC).
+   *
+   * Default: false (stack-based, fast but requires explicit escape for closures)
+   */
+  safe?: boolean;
+}
+
 export class JuliaScope {
-  private tracked: Map<JuliaValue, string> = new Map();
+  private mark: number;
+  private tracked: Map<JuliaValue, number> = new Map(); // value -> stack idx
+  private escapedValues: Set<JuliaValue> = new Set();
   private disposed = false;
   private trackingEnabled = true;
+  private safeMode: boolean;
+
+  constructor(options: JuliaScopeOptions = {}) {
+    this.mark = GCManager.mark();
+    this.safeMode = options.safe ?? false;
+  }
 
   /**
    * Track a Julia value in this scope.
    * When the scope is disposed, all tracked values will be released.
+   *
+   * Note: This pushes the value to the GC stack. Calling track() multiple times
+   * on the same value will push it multiple times. This is intentional for
+   * performance - the stack model doesn't do deduplication.
    *
    * @param value The Julia value to track
    * @returns The same value (for chaining)
@@ -220,14 +251,14 @@ export class JuliaScope {
       throw new Error("Cannot track values in a disposed scope");
     }
 
-    // Don't track if already tracked
-    if (this.tracked.has(value)) {
-      return value;
+    // Push to GC stack (O(1) operation)
+    const idx = GCManager.push(value);
+
+    // In safe mode, remember the index for later FinalizationRegistry registration
+    if (this.safeMode) {
+      this.tracked.set(value, idx);
     }
 
-    // Protect from Julia GC and track
-    const id = GCManager.protect(value);
-    this.tracked.set(value, id);
     return value;
   }
 
@@ -249,25 +280,24 @@ export class JuliaScope {
 
   /**
    * Remove a value from tracking (escape from scope).
-   * The value will be transferred to the global GCManager.
+   * The value will survive scope disposal.
+   *
+   * Implementation: We record escaped values and re-push them after release.
    *
    * @param value The Julia value to escape
    * @returns The same value
    */
   escape<T extends JuliaValue>(value: T): T {
-    const id = this.tracked.get(value);
-    if (id) {
-      this.tracked.delete(value);
-      // Value remains protected by GCManager, but scope won't release it
-    }
+    this.escapedValues.add(value);
     return value;
   }
 
   /**
    * Get the number of tracked objects.
+   * Note: This is approximate - returns all values pushed since mark.
    */
   get size(): number {
-    return this.tracked.size;
+    return GCManager.size - this.mark;
   }
 
   /**
@@ -284,10 +314,28 @@ export class JuliaScope {
     if (this.disposed) return;
     this.disposed = true;
 
-    for (const [value, id] of this.tracked) {
-      GCManager.unprotect(id, value);
+    if (this.safeMode) {
+      // Safe mode: ALL objects are managed by FinalizationRegistry
+      // No stack release - prevents closure capture issues
+      for (const [value, idx] of this.tracked) {
+        GCManager.registerEscape(value, idx);
+      }
+      this.tracked.clear();
+    } else {
+      // Fast mode: Stack-based release with explicit escape
+      const escapedArray = Array.from(this.escapedValues);
+
+      // Release all values from mark to current top (single FFI call!)
+      GCManager.release(this.mark);
+
+      // Re-push escaped values and register with FinalizationRegistry
+      for (const value of escapedArray) {
+        const idx = GCManager.push(value);
+        GCManager.registerEscape(value, idx);
+      }
     }
-    this.tracked.clear();
+
+    this.escapedValues.clear();
   }
 
   /**

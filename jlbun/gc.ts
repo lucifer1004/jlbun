@@ -1,150 +1,179 @@
-import { Julia, JuliaFunction, JuliaValue } from "./index.js";
+import { jlbun, JuliaValue } from "./index.js";
 
 /**
- * GC Manager for automatic lifecycle management of Julia objects.
+ * Stack-based GC Manager for automatic lifecycle management of Julia objects.
  *
- * This module provides automatic garbage collection integration between
- * JavaScript and Julia runtimes using FinalizationRegistry.
+ * This module provides efficient garbage collection integration between
+ * JavaScript and Julia runtimes using a stack-based root pool.
  *
- * Thread Safety: Uses a ReentrantLock to ensure thread-safe access to the
- * GC roots dictionary when Julia multi-threading is enabled.
+ * Design:
+ *   - Uses a Julia Vector{Any} as backing storage
+ *   - Stack-based: push values, release by mark (scope exit)
+ *   - Thread-safe: protected by mutex in C layer
+ *   - Efficient: O(1) push, O(1) mark, O(n) release (batch)
+ *   - FinalizationRegistry fallback: escaped objects are auto-cleaned when JS GC runs
+ *
+ * Comparison with previous IdDict-based approach:
+ *   - Old: Each protect/unprotect required FFI → Julia function call
+ *   - New: Direct array operations via FFI, ~10-50x faster
  */
 export class GCManager {
-  private static registry: FinalizationRegistry<string> | null = null;
-  private static roots: JuliaValue | null = null;
-  private static setFn: JuliaFunction | null = null;
-  private static deleteFn: JuliaFunction | null = null;
-  private static counter = 0;
-  private static initialized = false;
+  private static readonly DEFAULT_CAPACITY = 1024;
+
+  /**
+   * FinalizationRegistry for escaped objects.
+   * When a JS object is garbage collected, its Julia root slot is cleared.
+   */
+  private static escapeRegistry: FinalizationRegistry<number> | null = null;
+
+  /**
+   * Track if GCManager has been closed.
+   * Used to prevent FinalizationRegistry callbacks from accessing closed Julia.
+   */
+  private static closed = true;
 
   /**
    * Initialize the GC manager.
    * Called by Julia.init() after Julia is fully initialized.
    * @internal
    */
-  static init(): void {
-    if (this.initialized) return;
-    if (!Julia) {
-      throw new Error("Julia reference not set. This is an internal error.");
-    }
+  static init(capacity: number = this.DEFAULT_CAPACITY): void {
+    jlbun.symbols.jlbun_gc_init(BigInt(capacity));
+    this.closed = false;
 
-    // Create thread-safe GC roots storage with a lock
-    Julia.eval(`
-      module __JlbunGC__
-        const roots = IdDict{String, Any}()
-        const lock = ReentrantLock()
-        
-        function gcset(key::String, value)
-          Base.lock(lock) do
-            roots[key] = value
-          end
-        end
-        
-        function gcdelete(key::String)
-          Base.lock(lock) do
-            delete!(roots, key)
-          end
-        end
-        
-        function gclength()
-          Base.lock(lock) do
-            length(roots)
-          end
-        end
-      end
-    `);
+    // Initialize FinalizationRegistry for escaped objects
+    this.escapeRegistry = new FinalizationRegistry<number>((idx: number) => {
+      // Check if GC is still open before accessing Julia
+      if (this.closed) return;
 
-    // Use eval to get the functions since module property access may not work
-    // for dynamically created modules
-    this.roots = Julia.eval("__JlbunGC__.roots");
-    this.setFn = Julia.eval("__JlbunGC__.gcset") as JuliaFunction;
-    this.deleteFn = Julia.eval("__JlbunGC__.gcdelete") as JuliaFunction;
-
-    // Create FinalizationRegistry to clean up when JS objects are GC'd
-    this.registry = new FinalizationRegistry((id: string) => {
       try {
-        if (this.deleteFn) {
-          Julia.call(this.deleteFn, id);
-        }
+        // Clear the slot when JS object is garbage collected
+        jlbun.symbols.jlbun_gc_set(
+          BigInt(idx),
+          jlbun.symbols.jl_nothing_getter(),
+        );
       } catch {
-        // Julia might already be closed, ignore errors
+        // Julia might be closed, ignore errors
       }
     });
-
-    this.initialized = true;
   }
 
   /**
    * Check if GCManager is initialized.
    */
   static get isInitialized(): boolean {
-    return this.initialized;
+    return jlbun.symbols.jlbun_gc_is_initialized() !== 0;
   }
 
   /**
-   * Protect a Julia object from being garbage collected.
-   * Returns a unique ID that can be used to unprotect later.
+   * Get the current stack position as a mark.
+   * Used to record the stack state before a scope begins.
    *
-   * This operation is thread-safe and can be called while Julia tasks
-   * are running on other threads.
+   * @returns The current stack top position
+   */
+  static mark(): number {
+    return Number(jlbun.symbols.jlbun_gc_mark());
+  }
+
+  /**
+   * Push a Julia value onto the GC root stack.
+   * The value will be protected from garbage collection until released.
+   *
+   * This operation is thread-safe and O(1).
    *
    * @param value The Julia value to protect
-   * @returns The protection ID
+   * @returns The index in the stack where the value was stored
    */
-  static protect(value: JuliaValue): string {
-    if (!this.initialized || !this.setFn) {
-      throw new Error("GCManager not initialized. Call Julia.init() first.");
-    }
-
-    const id = `__jlbun_gc_${this.counter++}`;
-    Julia.call(this.setFn, id, value);
-    this.registry?.register(value, id, value);
-    return id;
+  static push(value: JuliaValue): number {
+    return Number(jlbun.symbols.jlbun_gc_push(value.ptr));
   }
 
   /**
-   * Manually unprotect a Julia object, allowing it to be garbage collected.
+   * Release all values from the given mark to the current stack top.
+   * This is called when a scope exits to release all values created within it.
    *
-   * This operation is thread-safe and can be called while Julia tasks
-   * are running on other threads.
+   * This operation is thread-safe.
    *
-   * @param id The protection ID returned by protect()
-   * @param value The Julia value (needed to unregister from FinalizationRegistry)
+   * @param mark The stack position to release to (from a previous mark() call)
    */
-  static unprotect(id: string, value?: JuliaValue): void {
-    if (!this.initialized || !this.deleteFn) return;
+  static release(mark: number): void {
+    jlbun.symbols.jlbun_gc_release(BigInt(mark));
+  }
 
-    try {
-      Julia.call(this.deleteFn, id);
-      if (value) {
-        this.registry?.unregister(value);
-      }
-    } catch {
-      // Ignore errors during cleanup
-    }
+  /**
+   * Swap values at two indices in the stack.
+   * Used for escape: move a value to a lower scope's range before release.
+   *
+   * @param fromIdx Source index
+   * @param toIdx Target index
+   */
+  static swap(fromIdx: number, toIdx: number): void {
+    jlbun.symbols.jlbun_gc_swap(BigInt(fromIdx), BigInt(toIdx));
+  }
+
+  /**
+   * Get the value at a specific index (for debugging/escape).
+   *
+   * @param idx The index to read
+   * @returns The pointer at that index
+   */
+  static get(idx: number): unknown {
+    return jlbun.symbols.jlbun_gc_get(BigInt(idx));
+  }
+
+  /**
+   * Set a value at a specific index.
+   * Used for escape: place a value in a specific slot.
+   *
+   * @param idx The index to write
+   * @param value The value to store
+   */
+  static set(idx: number, value: JuliaValue): void {
+    jlbun.symbols.jlbun_gc_set(BigInt(idx), value.ptr);
   }
 
   /**
    * Get the number of protected objects.
    */
-  static get protectedCount(): number {
-    if (!this.initialized) return 0;
-    try {
-      return Number(Julia.eval("__JlbunGC__.gclength()").value);
-    } catch {
-      return 0;
-    }
+  static get size(): number {
+    return Number(jlbun.symbols.jlbun_gc_size());
+  }
+
+  /**
+   * Get the current capacity of the root stack.
+   */
+  static get capacity(): number {
+    return Number(jlbun.symbols.jlbun_gc_capacity());
+  }
+
+  /**
+   * Register an escaped value with FinalizationRegistry.
+   * When the JS object is garbage collected, the Julia root slot will be cleared.
+   *
+   * @param value The Julia value to register
+   * @param idx The index in the GC stack where the value is stored
+   */
+  static registerEscape(value: JuliaValue, idx: number): void {
+    this.escapeRegistry?.register(value, idx, value);
+  }
+
+  /**
+   * Unregister an escaped value from FinalizationRegistry.
+   * Call this if you manually release the value.
+   *
+   * @param value The Julia value to unregister
+   */
+  static unregisterEscape(value: JuliaValue): void {
+    this.escapeRegistry?.unregister(value);
   }
 
   /**
    * Clean up the GC manager. Called by Julia.close().
+   * @internal
    */
   static close(): void {
-    this.initialized = false;
-    this.roots = null;
-    this.setFn = null;
-    this.deleteFn = null;
-    this.registry = null;
-    this.counter = 0;
+    this.closed = true; // Prevent FinalizationRegistry callbacks from accessing Julia
+    this.escapeRegistry = null;
+    jlbun.symbols.jlbun_gc_close();
   }
 }

@@ -367,42 +367,121 @@ describe("JuliaScope internal methods", () => {
     const scope = new JuliaScope();
     const arr = JuliaArray.init(Julia.Int64, 5);
 
+    const sizeBefore = scope.size;
     // Track the array
     scope.track(arr);
-    expect(scope.size).toBe(1);
+    expect(scope.size).toBe(sizeBefore + 1);
 
-    // Escape the array
+    // Escape the array - in stack model, escape marks it to survive dispose
+    // but doesn't remove from stack count
     const escaped = scope.escape(arr);
     expect(escaped).toBe(arr);
-    expect(scope.size).toBe(0);
 
     // Dispose
     scope.dispose();
     expect(scope.isDisposed).toBe(true);
+
+    // Escaped array should still be usable
+    expect(arr.length).toBe(5);
   });
 });
 
 describe("GCManager API coverage", () => {
-  it("reports protectedCount", () => {
-    // First check the count before scope
-    const countBefore = Julia.scope((julia) => {
-      // Create some objects
-      const arr1 = julia.Array.init(julia.Float64, 10);
-      const arr2 = julia.Array.init(julia.Int64, 10);
-      // Return a non-Julia value so objects are released
-      return arr1.length + arr2.length;
-    });
-
-    expect(countBefore).toBe(20);
-  });
-
   it("isInitialized returns true after Julia.init()", () => {
-    // Import GCManager to test
     expect(GCManager.isInitialized).toBe(true);
   });
 
-  it("protectedCount returns a number", () => {
-    expect(typeof GCManager.protectedCount).toBe("number");
+  it("capacity returns initial or grown capacity", () => {
+    const cap = GCManager.capacity;
+    expect(typeof cap).toBe("number");
+    expect(cap).toBeGreaterThanOrEqual(1024); // Default initial capacity
+  });
+
+  it("size returns current stack size", () => {
+    const sizeBefore = GCManager.size;
+    const arr = JuliaArray.init(Julia.Float64, 5);
+    GCManager.push(arr);
+    expect(GCManager.size).toBe(sizeBefore + 1);
+  });
+
+  it("mark returns current stack position", () => {
+    const mark1 = GCManager.mark();
+    expect(typeof mark1).toBe("number");
+
+    const arr = JuliaArray.init(Julia.Float64, 5);
+    GCManager.push(arr);
+
+    const mark2 = GCManager.mark();
+    expect(mark2).toBe(mark1 + 1);
+  });
+
+  it("release clears values from mark to top", () => {
+    const mark = GCManager.mark();
+    const arr1 = JuliaArray.init(Julia.Float64, 3);
+    const arr2 = JuliaArray.init(Julia.Int64, 5);
+    GCManager.push(arr1);
+    GCManager.push(arr2);
+
+    expect(GCManager.size).toBe(mark + 2);
+
+    GCManager.release(mark);
+    expect(GCManager.size).toBe(mark);
+  });
+
+  it("get returns value at index", () => {
+    const arr = JuliaArray.init(Julia.Float64, 3);
+    const idx = GCManager.push(arr);
+    const retrieved = GCManager.get(idx);
+    // Retrieved should be the same pointer
+    expect(retrieved).toBe(arr.ptr);
+  });
+
+  it("set can update value at index", () => {
+    const arr1 = JuliaArray.init(Julia.Float64, 3);
+    const arr2 = JuliaArray.init(Julia.Int64, 5);
+    const idx = GCManager.push(arr1);
+    // Replace arr1 with arr2 at the same index
+    GCManager.set(idx, arr2);
+    // Verify by getting the pointer back
+    const retrieved = GCManager.get(idx);
+    expect(retrieved).toBe(arr2.ptr);
+  });
+
+  it("swap exchanges values at two indices", () => {
+    const arr1 = JuliaArray.init(Julia.Float64, 3);
+    const arr2 = JuliaArray.init(Julia.Int64, 5);
+    const idx1 = GCManager.push(arr1);
+    const idx2 = GCManager.push(arr2);
+
+    // Before swap
+    expect(GCManager.get(idx1)).toBe(arr1.ptr);
+    expect(GCManager.get(idx2)).toBe(arr2.ptr);
+
+    // Swap
+    GCManager.swap(idx1, idx2);
+
+    // After swap
+    expect(GCManager.get(idx1)).toBe(arr2.ptr);
+    expect(GCManager.get(idx2)).toBe(arr1.ptr);
+  });
+
+  it("registerEscape and unregisterEscape work correctly", () => {
+    const arr = JuliaArray.init(Julia.Float64, 5);
+    arr.set(0, 42);
+    const idx = GCManager.push(arr);
+
+    // Register escape - value should still be accessible
+    GCManager.registerEscape(arr, idx);
+    expect(arr.get(0).value).toBe(42);
+    expect(GCManager.get(idx)).toBe(arr.ptr);
+
+    // Unregister escape - value should still be in stack
+    GCManager.unregisterEscape(arr);
+    expect(GCManager.get(idx)).toBe(arr.ptr);
+
+    // Can re-register without issues
+    GCManager.registerEscape(arr, idx);
+    expect(arr.get(0).value).toBe(42);
   });
 });
 
@@ -430,9 +509,9 @@ describe("JuliaSubArray and JuliaRange scope compatibility", () => {
     // Verify tracking increased size
     expect(scope.size).toBe(sizeBefore + 1);
 
-    // Track same value again - size should not change
+    // Track same value again - in stack model, this pushes again
     scope.track(sub);
-    expect(scope.size).toBe(sizeBefore + 1);
+    expect(scope.size).toBe(sizeBefore + 2);
 
     // Verify functionality
     expect(sub).toBeInstanceOf(JuliaSubArray);
@@ -481,9 +560,9 @@ describe("JuliaSubArray and JuliaRange scope compatibility", () => {
     // Verify tracking increased size
     expect(scope.size).toBe(sizeBefore + 1);
 
-    // Track same value again - size should not change
+    // Track same value again - in stack model, this pushes again
     scope.track(range);
-    expect(scope.size).toBe(sizeBefore + 1);
+    expect(scope.size).toBe(sizeBefore + 2);
 
     // Verify functionality
     expect(range).toBeInstanceOf(JuliaRange);
@@ -532,6 +611,52 @@ describe("JuliaSubArray and JuliaRange scope compatibility", () => {
     // Range should still be valid outside scope
     expect(range).toBeInstanceOf(JuliaRange);
     expect(range.length).toBe(5);
+  });
+});
+
+describe("Julia.scope safe mode", () => {
+  it("safe mode registers all objects with FinalizationRegistry", () => {
+    let captured: JuliaArray | null = null;
+
+    Julia.scope(
+      (julia) => {
+        // Create array in safe mode
+        captured = julia.Array.init(julia.Float64, 10);
+        captured.set(0, 42);
+      },
+      { safe: true },
+    );
+
+    // In safe mode, the captured array should still be valid
+    // because it's managed by FinalizationRegistry, not stack release
+    expect(captured).not.toBeNull();
+    expect(captured!.get(0).value).toBe(42);
+  });
+
+  it("safe mode works with scopeAsync", async () => {
+    let captured: JuliaArray | null = null;
+
+    await Julia.scopeAsync(
+      async (julia) => {
+        captured = julia.Array.init(julia.Float64, 5);
+        captured.set(0, 100);
+        await Promise.resolve(); // Simulate async
+      },
+      { safe: true },
+    );
+
+    expect(captured).not.toBeNull();
+    expect(captured!.get(0).value).toBe(100);
+  });
+
+  it("default mode (fast) still works", () => {
+    const result = Julia.scope((julia) => {
+      const arr = julia.Array.init(julia.Float64, 5);
+      arr.set(0, 99);
+      return arr.get(0).value;
+    });
+
+    expect(result).toBe(99);
   });
 });
 
