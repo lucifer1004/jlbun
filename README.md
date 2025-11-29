@@ -20,6 +20,7 @@
     - [Call JS functions from Julia](#call-js-functions-from-julia)
     - [Run Julia with multiple threads](#run-julia-with-multiple-threads)
     - [Automatic memory management with scope](#automatic-memory-management-with-scope)
+    - [Low-level pointer operations](#low-level-pointer-operations)
   - [Performance](#performance)
     - [Best Practices for Array Creation](#best-practices-for-array-creation)
   - [Star History](#star-history)
@@ -325,6 +326,43 @@ const asyncResult = await Julia.scopeAsync(async (julia) => {
 
 Julia.close();
 ```
+
+### Low-level pointer operations
+
+`JuliaPtr` provides access to Julia's `Ptr{T}` type for low-level memory operations:
+
+```typescript
+import { Julia, JuliaArray, JuliaPtr } from "jlbun";
+
+Julia.init();
+
+// Get a pointer to array data
+const arr = JuliaArray.from(new Float64Array([1.0, 2.0, 3.0, 4.0, 5.0]));
+const ptr = JuliaPtr.fromArray(arr);
+
+// Read values (0-based indexing)
+console.log(ptr.load(0).value); // 1.0
+console.log(ptr.load(2).value); // 3.0
+
+// Write values
+ptr.store(99.0, 1);
+console.log(arr.get(1).value); // 99.0
+
+// Pointer arithmetic (element-based, not byte-based)
+const ptr2 = ptr.offset(2);
+console.log(ptr2.load(0).value); // 3.0
+
+// Check element type and address
+console.log(Julia.string(ptr.elType)); // "Float64"
+console.log(ptr.address); // Memory address as bigint
+
+// Reinterpret as different type
+const intPtr = ptr.reinterpret(Julia.UInt64);
+
+Julia.close();
+```
+
+**Warning**: `load()` and `store()` are unsafe operations. Ensure the pointer is valid and properly aligned before use.
 
 ## Performance
 

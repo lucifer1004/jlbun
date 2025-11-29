@@ -34,6 +34,7 @@ jlbun/
 │       ├── values.test.ts
 │       ├── functions.test.ts
 │       ├── arrays.test.ts
+│       ├── ptr.test.ts
 │       ├── collections.test.ts
 │       ├── tasks.test.ts
 │       ├── scope.test.ts
@@ -94,6 +95,7 @@ Julia.scopeAsync(fn)           // Async version of scope()
 | `JuliaChar` | `Char` | `string` |
 | `JuliaSymbol` | `Symbol` | `Symbol` |
 | `JuliaArray` | `Array` | `TypedArray` / `any[]` |
+| `JuliaPtr` | `Ptr{T}` | `Pointer` (raw address) |
 | `JuliaTuple` | `Tuple` | `any[]` |
 | `JuliaNamedTuple` | `NamedTuple` | `Record<string, any>` |
 | `JuliaPair` | `Pair` | access via `.first` / `.second` |
@@ -433,15 +435,57 @@ arr.fill(42.0);  // Then fill as needed
 | `arr.pop()` | Remove and return last element (1D only) |
 | `arr.reverse()` | Reverse array in place |
 
+## JuliaPtr API Reference
+
+`JuliaPtr` wraps Julia's `Ptr{T}` type for low-level memory operations and FFI scenarios.
+
+| Method/Property | Description |
+|-----------------|-------------|
+| `JuliaPtr.fromAddress(addr)` | Create `Ptr{Cvoid}` from raw address (number or bigint) |
+| `JuliaPtr.fromArray(arr)` | Get data pointer from a JuliaArray |
+| `JuliaPtr.fromObject(obj)` | Get memory address of any Julia object (unsafe!) |
+| `ptr.address` | Get raw address as bigint |
+| `ptr.value` | Get as Bun's Pointer type |
+| `ptr.elType` | Get element type `T` from `Ptr{T}` |
+| `ptr.isNull` | Check if null pointer (address === 0) |
+| `ptr.load(offset?)` | Read value at offset (0-based, element units) |
+| `ptr.store(value, offset?)` | Write value at offset (0-based, element units) |
+| `ptr.offset(n)` | Create new pointer offset by n elements |
+| `ptr.reinterpret(newType)` | Reinterpret as `Ptr{newType}` |
+
+**Safety Warning**: `load()` and `store()` are **unsafe** operations that can cause segfaults or memory corruption. Ensure:
+- The pointer is valid and properly aligned
+- The memory has not been freed
+- The type matches the actual data in memory
+
+```typescript
+// Example: Direct memory manipulation
+const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
+const ptr = JuliaPtr.fromArray(arr);
+
+// Read (0-based indexing)
+ptr.load(0).value;  // 1.0
+ptr.load(2).value;  // 3.0
+
+// Write
+ptr.store(99.0, 1);  // arr[1] = 99.0
+
+// Pointer arithmetic (element-based, not byte-based)
+const ptr2 = ptr.offset(2);  // Points to arr[2]
+ptr2.load(0).value;  // 3.0
+```
+
 ## C Wrapper Layer (`c/wrapper.c`)
 
 The C layer wraps Julia C API with the following main functions:
 
-1. **Initialization**: `jl_init0`, `jl_init_with_image0`
-2. **Type Getters**: `jl_*_type_getter()` function series (including `datatype`, `module`, `task`, `array`)
-3. **Module Access**: `jl_*_module_getter()` function series
-4. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`, `jl_alloc_array_2d`, `jl_alloc_array_3d`, `jl_alloc_array_nd_wrapper`
-5. **Property Queries**: `jl_hasproperty`, `jl_propertynames`, `jl_propertycount`
+1. **Version Compatibility**: `JL_VERSION_AT_LEAST(major, minor)` macro for clean version checks
+2. **Initialization**: `jl_init0`, `jl_init_with_image0`
+3. **Type Getters**: `jl_*_type_getter()` function series (including `datatype`, `module`, `task`, `array`)
+4. **Module Access**: `jl_*_module_getter()` function series
+5. **Array Operations**: `jl_array_*_getter()`, `jl_array_ptr_ref_wrapper`, `jl_array_ptr_set_wrapper`, `jl_alloc_array_2d`, `jl_alloc_array_3d`, `jl_alloc_array_nd_wrapper`
+6. **Pointer Operations**: `jl_ptr_eltype` (get element type from `Ptr{T}`), `jl_is_ptr_type` (type check helper)
+7. **Property Queries**: `jl_hasproperty`, `jl_propertynames`, `jl_propertycount`
 
 ## Build System
 
