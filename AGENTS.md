@@ -724,6 +724,19 @@ try {
 }
 ```
 
+## Examples
+
+Lightweight examples in `examples/` using only Julia stdlib:
+
+| Example | Description |
+|---------|-------------|
+| `01_linear_algebra.ts` | Matrix ops, eigenvalues, solve (LinearAlgebra) |
+| `02_monte_carlo.ts` | π estimation, random walks (Statistics) |
+| `03_zero_copy.ts` | Memory sharing, views (core jlbun feature) |
+| `04_complex_numbers.ts` | Complex arithmetic, Mandelbrot |
+
+Run with: `bun examples/01_linear_algebra.ts`
+
 ## Testing
 
 Tests are organized by module in `jlbun/tests/`:

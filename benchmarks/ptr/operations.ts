@@ -100,9 +100,9 @@ Julia.scope((julia) => {
   console.log("-".repeat(40));
   {
     const start = performance.now();
-    let sum = 0n;
+    let _sum = 0n;
     for (let i = 0; i < ITERATIONS; i++) {
-      sum += ptr.address;
+      _sum += ptr.address;
     }
     const elapsed = performance.now() - start;
     console.log(`   Total time: ${elapsed.toFixed(2)} ms`);

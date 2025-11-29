@@ -30,6 +30,7 @@
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
+  - [Examples](#examples)
   - [Memory Management (v0.1)](#memory-management-v01)
     - [`Julia.scope()` - The Recommended Way](#juliascope---the-recommended-way)
     - [Escaping Values from Scope](#escaping-values-from-scope)
@@ -82,6 +83,21 @@ console.log(result.value); // 15
 
 Julia.close();
 ```
+
+---
+
+## Examples
+
+See the `examples/` directory for complete working examples:
+
+```bash
+bun examples/01_linear_algebra.ts   # Matrix ops, eigenvalues
+bun examples/02_monte_carlo.ts      # π estimation, random walks
+bun examples/03_zero_copy.ts        # Memory sharing (core feature)
+bun examples/04_complex_numbers.ts  # Complex arithmetic
+```
+
+All examples use only Julia stdlib - no package installation required.
 
 ---
 

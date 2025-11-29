@@ -338,6 +338,7 @@ export class Julia {
         Julia.eval("Pkg.activate(; temp=true)");
       } else if (Julia.options.project !== "") {
         Julia.Pkg.activate(Julia.options.project);
+        Julia.Pkg.instantiate();
       }
 
       Julia.nthreads = Number(Julia.eval("Threads.nthreads()").value);
