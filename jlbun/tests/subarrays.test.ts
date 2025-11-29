@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { Julia, JuliaArray, JuliaSubArray } from "../index.js";
+import { Julia, JuliaArray, JuliaFunction, JuliaSubArray } from "../index.js";
 import { ensureJuliaInitialized } from "./setup.js";
 
 beforeAll(() => {
@@ -459,7 +459,7 @@ describe("JuliaSubArray", () => {
         function get_subarray_test(arr)
           return @view arr[2:4]
         end
-      `);
+      `) as JuliaFunction;
       const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
       const result = Julia.call(getSubArray, arr);
 

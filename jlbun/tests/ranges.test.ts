@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { Julia, JuliaRange } from "../index.js";
+import { Julia, JuliaFunction, JuliaRange } from "../index.js";
 import { ensureJuliaInitialized } from "./setup.js";
 
 beforeAll(() => {
@@ -201,7 +201,7 @@ describe("JuliaRange", () => {
         function get_range_test(start, stop)
           return start:stop
         end
-      `);
+      `) as JuliaFunction;
       const result = Julia.call(getRange, 1, 10);
       expect(result).toBeInstanceOf(JuliaRange);
       expect((result as JuliaRange).length).toBe(10);
@@ -213,7 +213,7 @@ describe("JuliaRange", () => {
         function get_step_range_test(start, step, stop)
           return start:step:stop
         end
-      `);
+      `) as JuliaFunction;
       const result = Julia.call(getStepRange, 1, 2, 9);
       expect(result).toBeInstanceOf(JuliaRange);
       expect((result as JuliaRange).length).toBe(5);
