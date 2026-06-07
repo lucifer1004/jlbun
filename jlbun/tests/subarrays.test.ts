@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { Julia, JuliaArray, JuliaFunction, JuliaSubArray } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => {
   ensureJuliaInitialized();
 });
+useJuliaTestScope();
 
 describe("JuliaSubArray", () => {
   describe("Instance method view()", () => {

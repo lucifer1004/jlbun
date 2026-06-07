@@ -178,6 +178,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
     args: [FFIType.ptr],
     returns: FFIType.ptr,
   },
+  jl_is_function_value: {
+    args: [FFIType.ptr],
+    returns: FFIType.i8,
+  },
 
   // Functions
   jl_function_getter: {
@@ -248,6 +252,10 @@ export const jlbun = dlopen(LIBJLBUN_PATH, {
   },
   jlbun_gc_set: {
     args: [FFIType.u64, FFIType.ptr], // index, value
+    returns: FFIType.void,
+  },
+  jlbun_gc_release: {
+    args: [FFIType.u64], // index
     returns: FFIType.void,
   },
   jlbun_gc_size: {

@@ -1,4 +1,5 @@
 import { Pointer } from "bun:ffi";
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   GCManager,
   Julia,
@@ -6,16 +7,33 @@ import {
   JuliaDataType,
   JuliaDict,
   JuliaFunction,
-  JuliaIdDict,
   JuliaModule,
   JuliaNamedTuple,
-  JuliaPair,
-  JuliaRange,
   JuliaSet,
-  JuliaSubArray,
   JuliaTuple,
   JuliaValue,
+  ScopeOwnershipError,
 } from "./index.js";
+import {
+  getJuliaOwnership,
+  isJuliaValue,
+  isPersistentJuliaValue,
+  setJuliaOwnership,
+} from "./ownership.js";
+
+const scopeStorage = new AsyncLocalStorage<JuliaScope>();
+
+export function getActiveJuliaScope(): JuliaScope | undefined {
+  return scopeStorage.getStore();
+}
+
+export function runWithJuliaScope<T>(scope: JuliaScope, fn: () => T): T {
+  return scopeStorage.run(scope, fn);
+}
+
+export function enterJuliaScope(scope: JuliaScope): void {
+  scopeStorage.enterWith(scope);
+}
 
 /**
  * Proxy for JuliaArray that auto-tracks created arrays.
@@ -242,7 +260,9 @@ export class JuliaScope {
   private scopeId: bigint = 0n;
   private perfMark: number = 0;
   private tracked: Map<JuliaValue, number> = new Map(); // value -> stack idx
-  private escapedValues: Set<JuliaValue> = new Set();
+  private functionProxies = new WeakMap<JuliaFunction, JuliaFunction>();
+  private dataTypeProxies = new WeakMap<JuliaDataType, JuliaDataType>();
+  private moduleProxies = new WeakMap<JuliaModule, JuliaModule>();
   private disposed = false;
   private trackingEnabled = true;
   private mode: ScopeMode;
@@ -266,9 +286,8 @@ export class JuliaScope {
    * Track a Julia value in this scope.
    * When the scope is disposed, all tracked values will be released.
    *
-   * Note: This pushes the value to the GC stack. Calling track() multiple times
-   * on the same value will push it multiple times. This is intentional for
-   * performance - the model doesn't do deduplication.
+   * Note: Calling track() multiple times on the same value in the same scope is
+   * idempotent. Values owned by another active scope are rejected.
    *
    * @param value The Julia value to track
    * @returns The same value (for chaining)
@@ -278,17 +297,120 @@ export class JuliaScope {
       throw new Error("Cannot track values in a disposed scope");
     }
 
+    const ownership = getJuliaOwnership(value);
+    if (
+      ownership?.kind === "scoped" &&
+      ownership.scope === this &&
+      ownership.idx !== undefined
+    ) {
+      this.tracked.set(value, ownership.idx);
+      return value;
+    }
+    if (
+      (ownership?.kind === "scoped" || ownership?.kind === "untracked") &&
+      ownership.scope !== this
+    ) {
+      throw new ScopeOwnershipError(
+        "ScopeOwnershipError: JuliaValue is owned by a different JuliaScope",
+      );
+    }
+    if (isPersistentJuliaValue(value)) {
+      return value;
+    }
+
     if (this.mode === "perf") {
       // Perf mode: simple stack push, no Map tracking (for maximum speed)
-      GCManager.perfPush(value);
+      const idx = GCManager.perfPush(value);
+      setJuliaOwnership(value, { kind: "scoped", scope: this, idx });
     } else {
       // Default/safe mode: push with scope ownership
       const idx = GCManager.pushScoped(value, this.scopeId);
+      if (idx < 0) {
+        throw new Error("Failed to track Julia value in scope");
+      }
       // Remember index for escape transfer and safe mode
       this.tracked.set(value, idx);
+      setJuliaOwnership(value, { kind: "scoped", scope: this, idx });
     }
 
     return value;
+  }
+
+  /**
+   * Root a raw Julia pointer in this scope before wrapping/type inspection.
+   *
+   * @internal
+   */
+  protectPointer(ptr: Pointer): number {
+    if (this.disposed) {
+      throw new Error("Cannot protect values in a disposed scope");
+    }
+    if (this.mode === "perf") {
+      return GCManager.perfPush({ ptr } as JuliaValue);
+    }
+    const idx = GCManager.pushScopedPtr(ptr, this.scopeId);
+    if (idx < 0) {
+      throw new Error("Failed to protect Julia pointer in scope");
+    }
+    return idx;
+  }
+
+  /**
+   * Attach an already-created root slot to a wrapper.
+   *
+   * @internal
+   */
+  adopt<T extends JuliaValue>(value: T, idx: number): T {
+    if (this.disposed) {
+      throw new Error("Cannot adopt values in a disposed scope");
+    }
+    if (isPersistentJuliaValue(value)) {
+      this.releaseProtectedPointer(idx);
+      return value;
+    }
+    this.tracked.set(value, idx);
+    setJuliaOwnership(value, { kind: "scoped", scope: this, idx });
+    return value;
+  }
+
+  /**
+   * Whether auto-tracking is currently enabled.
+   *
+   * @internal
+   */
+  get isTrackingEnabled(): boolean {
+    return this.trackingEnabled;
+  }
+
+  /**
+   * Whether this scope uses the lock-free perf root stack.
+   *
+   * @internal
+   */
+  get isPerfMode(): boolean {
+    return this.mode === "perf";
+  }
+
+  /**
+   * Release a raw pointer root created by protectPointer().
+   *
+   * @internal
+   */
+  releaseProtectedPointer(idx: number): void {
+    if (this.mode === "perf") {
+      GCManager.perfRelease(idx);
+    } else {
+      GCManager.release(idx);
+    }
+  }
+
+  /**
+   * Run a callback with this scope as the active async context.
+   *
+   * @internal
+   */
+  run<T>(fn: () => T): T {
+    return runWithJuliaScope(this, fn);
   }
 
   /**
@@ -301,7 +423,23 @@ export class JuliaScope {
     const wasEnabled = this.trackingEnabled;
     this.trackingEnabled = false;
     try {
-      return fn();
+      const result = this.run(fn);
+      if (
+        result !== null &&
+        (typeof result === "object" || typeof result === "function") &&
+        "then" in result &&
+        typeof result.then === "function"
+      ) {
+        throw new ScopeOwnershipError(
+          "ScopeOwnershipError: untracked() callbacks may not return Promise-like objects",
+        );
+      }
+      if (isJuliaValue(result)) {
+        throw new ScopeOwnershipError(
+          "ScopeOwnershipError: untracked() callbacks may not return JuliaValue objects",
+        );
+      }
+      return result;
     } finally {
       this.trackingEnabled = wasEnabled;
     }
@@ -320,13 +458,37 @@ export class JuliaScope {
    * @returns The same value
    */
   escape<T extends JuliaValue>(value: T): T {
+    const ownership = getJuliaOwnership(value);
+    if (ownership?.kind === "escaped" || ownership?.kind === "runtime") {
+      return value;
+    }
+    if (
+      ownership?.kind !== "scoped" ||
+      ownership.scope !== this ||
+      ownership.idx === undefined
+    ) {
+      throw new ScopeOwnershipError(
+        "ScopeOwnershipError: value is not owned by this JuliaScope",
+      );
+    }
+
     if (this.mode === "perf") {
       // Perf mode: push to default GC with global scope for persistence
       const idx = GCManager.pushScoped(value, 0n);
+      if (idx < 0) {
+        throw new Error("Failed to escape Julia value from perf scope");
+      }
       GCManager.registerEscape(value, idx);
+      setJuliaOwnership(value, { kind: "escaped", idx });
     } else {
-      // Default/safe mode: record for transfer at dispose time
-      this.escapedValues.add(value);
+      const transferred = GCManager.transfer(ownership.idx, 0n);
+      if (transferred < 0) {
+        throw new ScopeOwnershipError(
+          "ScopeOwnershipError: value is not owned by an active root slot",
+        );
+      }
+      GCManager.registerEscape(value, ownership.idx);
+      setJuliaOwnership(value, { kind: "escaped", idx: ownership.idx });
     }
     return value;
   }
@@ -361,75 +523,106 @@ export class JuliaScope {
       // Safe mode: ALL objects are managed by FinalizationRegistry
       // No scope release - prevents closure capture issues
       for (const [value, idx] of this.tracked) {
-        // Transfer to global scope (id=0) so it won't be released
-        GCManager.transfer(idx, 0n);
-        GCManager.registerEscape(value, idx);
-      }
-    } else {
-      // Default mode: Scope-based release with explicit escape
-      // First, transfer escaped values to global scope (id=0)
-      for (const value of this.escapedValues) {
-        const idx = this.tracked.get(value);
-        if (idx !== undefined) {
+        const ownership = getJuliaOwnership(value);
+        if (ownership?.kind === "scoped" && ownership.scope === this) {
+          // Transfer to global scope (id=0) so it won't be released
           GCManager.transfer(idx, 0n);
           GCManager.registerEscape(value, idx);
-        } else {
-          // Value not tracked - push it now with global scope
-          const newIdx = GCManager.pushScoped(value, 0n);
-          GCManager.registerEscape(value, newIdx);
+          setJuliaOwnership(value, { kind: "escaped", idx });
         }
       }
-
-      // Release all values belonging to this scope (escaped ones are now in global scope)
+    } else {
+      // Default mode: release values still belonging to this scope.
+      // Escaped values have already been transferred to global scope.
       GCManager.scopeEnd(this.scopeId);
     }
 
     this.tracked.clear();
-    this.escapedValues.clear();
   }
 
   /**
    * Get a proxy wrapper for a JuliaFunction that auto-tracks results.
    */
   private wrapFunction(fn: JuliaFunction): JuliaFunction {
+    const cached = this.functionProxies.get(fn);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     // Use arrow function to capture 'this' and check trackingEnabled at call time
     const maybeTrack = (result: JuliaValue | undefined) => {
-      if (this.trackingEnabled && result && this.shouldTrack(result)) {
+      if (this.trackingEnabled && result) {
         this.track(result);
       }
       return result;
     };
 
-    return new Proxy(fn, {
+    const proxy = new Proxy(fn, {
       apply: (_target, _thisArg, args) => {
-        return maybeTrack(Julia.call(fn, ...args));
+        return this.run(() => maybeTrack(Julia.call(fn, ...args)));
       },
       get: (target, prop) => {
         if (prop === "callWithKwargs") {
           return (kwargs: Record<string, unknown>, ...args: unknown[]) => {
-            return maybeTrack(Julia.callWithKwargs(fn, kwargs, ...args));
+            return this.run(() =>
+              maybeTrack(Julia.callWithKwargs(fn, kwargs, ...args)),
+            );
           };
         }
         return Reflect.get(target, prop);
       },
     }) as JuliaFunction;
+
+    this.functionProxies.set(fn, proxy);
+    return proxy;
+  }
+
+  /**
+   * Get a proxy wrapper for callable Julia type constructors.
+   */
+  private wrapDataType(dataType: JuliaDataType): JuliaDataType {
+    const cached = this.dataTypeProxies.get(dataType);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const maybeTrack = (result: JuliaValue | undefined) => {
+      if (this.trackingEnabled && result) {
+        this.track(result);
+      }
+      return result;
+    };
+
+    const proxy = new Proxy(dataType, {
+      apply: (_target, _thisArg, args) => {
+        return this.run(() => maybeTrack(Julia.call(dataType, ...args)));
+      },
+      get: (target, prop) => Reflect.get(target, prop),
+    }) as JuliaDataType;
+
+    this.dataTypeProxies.set(dataType, proxy);
+    return proxy;
   }
 
   /**
    * Get a proxy wrapper for a JuliaModule that auto-tracks results.
    */
   private wrapModule(module: JuliaModule): JuliaModule {
-    return new Proxy(module, {
+    const cached = this.moduleProxies.get(module);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const proxy = new Proxy(module, {
       get: (target, prop) => {
-        const value = Reflect.get(target, prop);
+        const value = this.run(() => Reflect.get(target, prop));
 
         // Don't wrap special properties
         if (
           prop === "ptr" ||
           prop === "name" ||
           prop === "value" ||
-          prop === "toString" ||
-          prop === "cache"
+          prop === "toString"
         ) {
           return value;
         }
@@ -437,6 +630,10 @@ export class JuliaScope {
         // Wrap functions to auto-track their results
         if (value instanceof JuliaFunction) {
           return this.wrapFunction(value);
+        }
+
+        if (value instanceof JuliaDataType) {
+          return this.wrapDataType(value);
         }
 
         // Wrap nested modules
@@ -447,25 +644,9 @@ export class JuliaScope {
         return value;
       },
     }) as JuliaModule;
-  }
 
-  /**
-   * Check if a value should be tracked (non-primitive types).
-   */
-  private shouldTrack(value: JuliaValue): boolean {
-    return (
-      value instanceof JuliaArray ||
-      value instanceof JuliaSubArray ||
-      value instanceof JuliaRange ||
-      value instanceof JuliaDict ||
-      value instanceof JuliaIdDict ||
-      value instanceof JuliaSet ||
-      value instanceof JuliaTuple ||
-      value instanceof JuliaNamedTuple ||
-      value instanceof JuliaPair ||
-      value instanceof JuliaFunction ||
-      value instanceof JuliaModule
-    );
+    this.moduleProxies.set(module, proxy);
+    return proxy;
   }
 
   /**
@@ -477,7 +658,7 @@ export class JuliaScope {
   private trackIfNeeded(
     result: JuliaValue | undefined,
   ): JuliaValue | undefined {
-    if (this.trackingEnabled && result && this.shouldTrack(result)) {
+    if (this.trackingEnabled && result) {
       this.track(result);
     }
     return result;
@@ -501,13 +682,13 @@ export class JuliaScope {
     // Create proxies for collection types that auto-track
     const scopedArray: ScopedJuliaArray = {
       init: (elType: JuliaDataType, ...dims: number[]): JuliaArray => {
-        const arr = JuliaArray.init(elType, ...dims);
+        const arr = this.run(() => JuliaArray.init(elType, ...dims));
         trackValue(arr);
         return arr;
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       from: (arr: any, options?: { juliaGC?: boolean }): JuliaArray => {
-        const result = JuliaArray.from(arr, options);
+        const result = this.run(() => JuliaArray.from(arr, options));
         trackValue(result);
         return result;
       },
@@ -516,7 +697,7 @@ export class JuliaScope {
     const scopedDict: ScopedJuliaDict = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       from: (map: IterableIterator<[any, any]> | [any, any][]): JuliaDict => {
-        const dict = JuliaDict.from(map);
+        const dict = this.run(() => JuliaDict.from(map));
         trackValue(dict);
         return dict;
       },
@@ -525,7 +706,7 @@ export class JuliaScope {
     const scopedSet: ScopedJuliaSet = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       from: (set: IterableIterator<any> | any[]): JuliaSet => {
-        const result = JuliaSet.from(set);
+        const result = this.run(() => JuliaSet.from(set));
         trackValue(result);
         return result;
       },
@@ -534,7 +715,7 @@ export class JuliaScope {
     const scopedTuple: ScopedJuliaTuple = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       from: (arr: any[]): JuliaTuple => {
-        const tuple = JuliaTuple.from(...arr);
+        const tuple = this.run(() => JuliaTuple.from(...arr));
         trackValue(tuple);
         return tuple;
       },
@@ -543,7 +724,7 @@ export class JuliaScope {
     const scopedNamedTuple: ScopedJuliaNamedTuple = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       from: (obj: Record<string, any>): JuliaNamedTuple => {
-        const tuple = JuliaNamedTuple.from(obj);
+        const tuple = this.run(() => JuliaNamedTuple.from(obj));
         trackValue(tuple);
         return tuple;
       },
@@ -571,24 +752,24 @@ export class JuliaScope {
       NamedTuple: scopedNamedTuple,
 
       eval: (code: string): JuliaValue => {
-        return trackIfNeeded(Julia.eval(code));
+        return this.run(() => trackIfNeeded(Julia.eval(code)));
       },
 
       tagEval: (
         strings: TemplateStringsArray,
         ...values: unknown[]
       ): JuliaValue => {
-        return trackIfNeeded(Julia.tagEval(strings, ...values));
+        return this.run(() => trackIfNeeded(Julia.tagEval(strings, ...values)));
       },
 
       import: (name: string): JuliaModule => {
-        const module = Julia.import(name);
+        const module = this.run(() => Julia.import(name));
         trackValue(module);
         return wrapModule(module);
       },
 
       call: (fn: JuliaFunction, ...args: unknown[]): JuliaValue | undefined => {
-        return trackIfNeeded(Julia.call(fn, ...args));
+        return this.run(() => trackIfNeeded(Julia.call(fn, ...args)));
       },
 
       callWithKwargs: (
@@ -596,7 +777,9 @@ export class JuliaScope {
         kwargs: JuliaNamedTuple | Record<string, unknown>,
         ...args: unknown[]
       ): JuliaValue => {
-        return trackIfNeeded(Julia.callWithKwargs(fn, kwargs, ...args));
+        return this.run(() =>
+          trackIfNeeded(Julia.callWithKwargs(fn, kwargs, ...args)),
+        );
       },
 
       // Expose scope methods
@@ -607,9 +790,11 @@ export class JuliaScope {
       // Expose type utilities
       typeof: Julia.typeof.bind(Julia),
       getTypeStr: Julia.getTypeStr.bind(Julia),
-      autoWrap: Julia.autoWrap.bind(Julia),
+      autoWrap: (value: unknown): JuliaValue => {
+        return this.run(() => Julia.autoWrap(value));
+      },
       wrapPtr: (ptr: Pointer): JuliaValue => {
-        return trackIfNeeded(Julia.wrapPtr(ptr));
+        return this.run(() => trackIfNeeded(Julia.wrapPtr(ptr)));
       },
 
       // Expose static properties

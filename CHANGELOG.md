@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Scope-first lifecycle enforcement**: Object-producing APIs now require an active `Julia.scope()` or `Julia.scopeAsync()` unless using the explicit `Julia.unsafe.*` namespace.
+- **`ScopeRequiredError`**: Thrown when APIs such as `Julia.eval()`, `Julia.call()`, `Julia.import()`, `Julia.wrapPtr()`, `Julia.Base.*`, or wrapper constructors would expose a Julia object without active scope ownership.
+- **`ScopeOwnershipError`**: Thrown when attempting to return or escape a borrowed, untracked, or non-owned `JuliaValue`.
+- **`Julia.unsafe.*` namespace**: Low-level `eval`, `call`, `callWithKwargs`, `import`, and `wrapPtr` entry points for bootstrap/debugging paths that intentionally opt out of lifecycle guarantees.
+- **Hidden ownership metadata**: Julia wrappers now carry internal ownership state without changing the public `JuliaValue` interface.
+- **Scope-first regression tests**: Added tests for missing-scope failures, escaped return values surviving JS/Julia GC, untracked ownership rejection, module wrapping, and zero-copy owner retention.
+
+### Changed
+
+- **Breaking: Static object-producing APIs require scope**: Ordinary users should call APIs through the scoped `julia` proxy. Scope return values and `julia.escape()` are the supported long-lived ownership paths.
+- **Breaking: `julia.untracked()` only permits temporary values**: Returning a `JuliaValue` from an `untracked()` callback now throws `ScopeOwnershipError`.
+- **Breaking: Module property access uses actual Julia types**: `JuliaModule` no longer wraps every property as `JuliaFunction`; types such as `Ptr` and `Cvoid` now remain data type wrappers.
+- **`Julia.wrapPtr()` roots before type inspection**: Raw pointers are first protected in the active scope root slot before `jl_typeof` and wrapper dispatch.
+- **Call argument rooting**: `Julia.call()` and `Julia.callWithKwargs()` keep wrapped argument references alive and root auto-wrapped temporaries in the active scope.
+- **Exception handling rooting**: `jl_exception_occurred()` pointers are rooted before conversion to JavaScript error messages.
+- **Zero-copy arrays retain JavaScript owners**: `JuliaArray.from(typedArray)` wrappers keep the original `TypedArray` / `ArrayBuffer` alive while the Julia array exists.
+- **Legacy global retention discouraged**: `Julia.setGlobal()` and `Julia.deleteGlobal()` remain available for compatibility but are documented as legacy/unsafe lifecycle tools.
+
+### Fixed
+
+- **GC root stack growth corruption**: Rooted incoming values and boxed resize capacities while growing normal and perf C root stacks, fixing stress-only corruption that could manifest as invalid Julia method/type inference state or segfaults.
+- **C helper rooting**: Added `JL_GC_PUSH/POP` protection around C helpers that allocate Julia objects and continue using intermediate values.
+- **Julia 1.10 N-D array allocation**: Fixed `jl_alloc_array_nd_wrapper` to construct dimension tuples through Julia values instead of writing tuple memory with an invalid cast.
+- **Property name wrapper**: Fixed `jl_propertynames` to read array entries with `jl_array_ptr_ref`.
+- **`GCManager.transfer()` error detection**: Correctly handles `SIZE_MAX` from the C layer as an error sentinel.
+
 ## [0.2.0] - 2025-11-29
 
 ### Added
@@ -14,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scope-Based GC Root Management**: New C-layer implementation using `Vector{Any}` with scope isolation for concurrent async operations
 - **Concurrent Async Scope Support**: Scopes can now be released in any order, enabling safe use of `Promise.all()` with multiple `Julia.scopeAsync()` calls
 - **Safe Mode for Scopes**: `Julia.scope(fn, { mode: "safe" })` manages Julia object lifetimes with `FinalizationRegistry`, making it safe to capture objects in closures
-- **New GCManager APIs**: 
+- **New GCManager APIs**:
   - `scopeBegin()` - Create a new scope, returns unique scope_id
   - `pushScoped(value, scopeId)` - Push value to specific scope
   - `scopeEnd(scopeId)` - Release all values in scope
@@ -95,4 +123,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.2.0]: https://github.com/lucifer1004/jlbun/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lucifer1004/jlbun/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lucifer1004/jlbun/releases/tag/v0.1.0
-

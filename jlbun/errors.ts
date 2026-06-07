@@ -15,6 +15,28 @@ export abstract class JuliaError extends Error {
 }
 
 /**
+ * Thrown when an API that exposes Julia object pointers is called without an
+ * active `Julia.scope()` / `Julia.scopeAsync()` context.
+ */
+export class ScopeRequiredError extends JuliaError {
+  constructor(message?: string) {
+    super(message ?? "ScopeRequiredError", "ScopeRequiredError");
+    this.name = "ScopeRequiredError";
+  }
+}
+
+/**
+ * Thrown when a Julia value is returned or escaped without being owned by the
+ * active scope.
+ */
+export class ScopeOwnershipError extends JuliaError {
+  constructor(message?: string) {
+    super(message ?? "ScopeOwnershipError", "ScopeOwnershipError");
+    this.name = "ScopeOwnershipError";
+  }
+}
+
+/**
  * Thrown when a type conversion cannot be done exactly.
  *
  * Julia equivalent: `InexactError`
@@ -321,6 +343,10 @@ export function createJuliaError(errType: string, message: string): JuliaError {
       return new TaskFailedException(message);
     case "InterruptException":
       return new InterruptException(message);
+    case "ScopeRequiredError":
+      return new ScopeRequiredError(message);
+    case "ScopeOwnershipError":
+      return new ScopeOwnershipError(message);
     default:
       return new UnknownJuliaError(message, errType);
   }

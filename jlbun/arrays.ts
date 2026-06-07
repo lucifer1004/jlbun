@@ -94,10 +94,12 @@ const DEFAULT_FROM_BUN_ARRAY_OPTIONS: FromBunArrayOptions = {
 export class JuliaArray implements JuliaValue {
   ptr: Pointer;
   elType: JuliaDataType;
+  private readonly owner?: unknown;
 
-  constructor(ptr: Pointer, elType: JuliaDataType) {
+  constructor(ptr: Pointer, elType: JuliaDataType, owner?: unknown) {
     this.ptr = ptr;
     this.elType = elType;
+    this.owner = owner;
   }
 
   /**
@@ -123,6 +125,10 @@ export class JuliaArray implements JuliaValue {
    * ```
    */
   static init(elType: JuliaDataType, ...dims: number[]): JuliaArray {
+    return Julia.adoptValue(JuliaArray.unsafeInit(elType, ...dims));
+  }
+
+  static unsafeInit(elType: JuliaDataType, ...dims: number[]): JuliaArray {
     if (dims.length === 0) {
       throw new MethodError("At least one dimension must be provided");
     }
@@ -170,6 +176,13 @@ export class JuliaArray implements JuliaValue {
     arr: BunArray,
     extraOptions: Partial<FromBunArrayOptions> = {},
   ): JuliaArray {
+    return Julia.adoptValue(JuliaArray.unsafeFrom(arr, extraOptions));
+  }
+
+  static unsafeFrom(
+    arr: BunArray,
+    extraOptions: Partial<FromBunArrayOptions> = {},
+  ): JuliaArray {
     const options = { ...DEFAULT_FROM_BUN_ARRAY_OPTIONS, ...extraOptions };
     const rawPtr = ptr(arr.buffer);
     const juliaGC = options.juliaGC ? 1 : 0;
@@ -202,6 +215,7 @@ export class JuliaArray implements JuliaValue {
     return new JuliaArray(
       jlbun.symbols.jl_ptr_to_array_1d(arrType, rawPtr, arr.length, juliaGC)!,
       elType,
+      arr,
     );
   }
 
@@ -212,9 +226,23 @@ export class JuliaArray implements JuliaValue {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromAny(values: any[]): JuliaArray {
-    const arr = JuliaArray.init(Julia.Any, 0);
+    const arr = Julia.adoptValue(JuliaArray.unsafeInit(Julia.Any, 0));
+    return JuliaArray.unsafePushAny(arr, values);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static unsafeFromAny(values: any[]): JuliaArray {
+    return JuliaArray.unsafePushAny(
+      JuliaArray.unsafeInit(Julia.Any, 0),
+      values,
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static unsafePushAny(arr: JuliaArray, values: any[]): JuliaArray {
+    const push = Julia.getFunction(Julia.Base, "push!");
     for (const v of values) {
-      arr.push(Julia.autoWrap(v));
+      Julia.unsafe.call(push, arr, v);
     }
     return arr;
   }
@@ -349,31 +377,31 @@ export class JuliaArray implements JuliaValue {
     ) {
       ptr = value.ptr;
     } else if (this.elType.isEqual(Julia.Int8)) {
-      ptr = JuliaInt8.from(value).ptr;
+      ptr = JuliaInt8.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.UInt8)) {
-      ptr = JuliaUInt8.from(value).ptr;
+      ptr = JuliaUInt8.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.Int16)) {
-      ptr = JuliaInt16.from(value).ptr;
+      ptr = JuliaInt16.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.UInt16)) {
-      ptr = JuliaUInt16.from(value).ptr;
+      ptr = JuliaUInt16.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.Int32)) {
-      ptr = JuliaInt32.from(value).ptr;
+      ptr = JuliaInt32.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.UInt32)) {
-      ptr = JuliaUInt32.from(value).ptr;
+      ptr = JuliaUInt32.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.Int64)) {
-      ptr = JuliaInt64.from(value).ptr;
+      ptr = JuliaInt64.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.UInt64)) {
-      ptr = JuliaUInt64.from(value).ptr;
+      ptr = JuliaUInt64.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.Float32)) {
-      ptr = JuliaFloat32.from(value).ptr;
+      ptr = JuliaFloat32.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.Float64)) {
-      ptr = JuliaFloat64.from(value).ptr;
+      ptr = JuliaFloat64.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.String)) {
-      ptr = JuliaString.from(value).ptr;
+      ptr = JuliaString.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.Bool)) {
-      ptr = JuliaBool.from(value).ptr;
+      ptr = JuliaBool.unsafeFrom(value).ptr;
     } else if (this.elType.isEqual(Julia.Symbol)) {
-      ptr = JuliaSymbol.from(value).ptr;
+      ptr = JuliaSymbol.unsafeFrom(value).ptr;
     } else {
       throw new MethodError("Cannot convert to the array's element type.");
     }
@@ -487,7 +515,7 @@ export class JuliaArray implements JuliaValue {
    */
   reshape(...shape: number[]): JuliaArray {
     const arr = Julia.Base.reshape(this, ...shape);
-    return new JuliaArray(arr.ptr, this.elType);
+    return Julia.adoptValue(new JuliaArray(arr.ptr, this.elType, this.owner));
   }
 
   /**
@@ -509,7 +537,9 @@ export class JuliaArray implements JuliaValue {
     const arr = Julia.Base.map(f, this);
     const elType = jlbun.symbols.jl_array_eltype(arr.ptr)!;
     const typeStr = Julia.getTypeStr(elType);
-    return new JuliaArray(arr.ptr, new JuliaDataType(elType, typeStr));
+    return Julia.adoptValue(
+      new JuliaArray(arr.ptr, new JuliaDataType(elType, typeStr)),
+    );
   }
 
   /**
@@ -521,7 +551,7 @@ export class JuliaArray implements JuliaValue {
    */
   copy(): JuliaArray {
     const copied = Julia.Base.copy(this);
-    return new JuliaArray(copied.ptr, this.elType);
+    return Julia.adoptValue(new JuliaArray(copied.ptr, this.elType));
   }
 
   /**

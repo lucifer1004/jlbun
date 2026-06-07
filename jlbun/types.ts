@@ -1,16 +1,24 @@
 import { Pointer } from "bun:ffi";
-import { JuliaValue } from "./index.js";
+import { Julia, JuliaValue } from "./index.js";
 
 /**
  * Wrapper for Julia `DataType`.
  */
-export class JuliaDataType implements JuliaValue {
+export class JuliaDataType extends Function implements JuliaValue {
   ptr: Pointer;
-  name: string;
+  name!: string;
 
   constructor(ptr: Pointer, name: string) {
+    super();
     this.ptr = ptr;
-    this.name = name;
+    Object.defineProperty(this, "name", {
+      configurable: true,
+      value: name,
+      writable: false,
+    });
+    return new Proxy(this, {
+      apply: (target, _thisArg, args) => Julia.call(target, ...args),
+    });
   }
 
   get value(): string {

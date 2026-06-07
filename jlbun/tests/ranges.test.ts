@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { Julia, JuliaFunction, JuliaRange } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => {
   ensureJuliaInitialized();
 });
+useJuliaTestScope();
 
 describe("JuliaRange", () => {
   describe("Creation via Julia.eval", () => {

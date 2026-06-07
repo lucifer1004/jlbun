@@ -46,7 +46,7 @@ export class JuliaTask implements JuliaValue {
    */
   static from(func: JuliaFunction): JuliaTask {
     const task = Julia.Base.Task(func);
-    return new JuliaTask(task.ptr, true);
+    return Julia.adoptValue(new JuliaTask(task.ptr, true));
   }
 
   /**

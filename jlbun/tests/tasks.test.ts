@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { Julia, JuliaFunction, JuliaTask, MethodError } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
+useJuliaTestScope();
 
 describe("JuliaTask", () => {
   it("can be created from Julia", async () => {

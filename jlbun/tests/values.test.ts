@@ -18,9 +18,10 @@ import {
   JuliaUInt32,
   JuliaUInt64,
 } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
+useJuliaTestScope();
 
 describe("JuliaInt8", () => {
   it("can be created from Julia", () => {

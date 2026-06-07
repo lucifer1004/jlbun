@@ -18,7 +18,7 @@
   (JULIA_VERSION_MAJOR > (major) ||                                            \
    (JULIA_VERSION_MAJOR == (major) && JULIA_VERSION_MINOR >= (minor)))
 
-#if JL_VERSION_AT_LEAST(1, 14)
+#if JL_VERSION_AT_LEAST(1, 13)
 #define JL_FUNCTION_TYPE jl_value_t
 #else
 #define JL_FUNCTION_TYPE jl_function_t
@@ -108,6 +108,10 @@ JL_FUNCTION_TYPE *jl_function_getter(jl_module_t *m, const char *name) {
 
 jl_datatype_t *jl_typeof_getter(jl_value_t *v) {
   return (jl_datatype_t *)jl_typeof(v);
+}
+
+int8_t jl_is_function_value(jl_value_t *v) {
+  return jl_subtype((jl_value_t *)jl_typeof(v), (jl_value_t *)jl_function_type);
 }
 
 size_t jl_nfields_getter(jl_datatype_t *t) { return jl_nfields(t); }
@@ -246,31 +250,58 @@ uint16_t jl_unbox_complex16_im(jl_value_t *v) {
 int8_t jl_hasproperty(jl_value_t *v, const char *name) {
   JL_FUNCTION_TYPE *hasproperty =
       jl_get_function(jl_base_module, "hasproperty");
-  jl_value_t *ret = jl_call2(hasproperty, v, (jl_value_t *)jl_symbol(name));
-  return jl_unbox_bool(ret);
+  jl_value_t *ret = NULL;
+  jl_value_t *sym = (jl_value_t *)jl_symbol(name);
+  JL_GC_PUSH2(&ret, &sym);
+  ret = jl_call2(hasproperty, v, sym);
+  if (ret == NULL || jl_exception_occurred() != NULL) {
+    JL_GC_POP();
+    return -1;
+  }
+  int8_t result = jl_unbox_bool(ret);
+  JL_GC_POP();
+  return result;
 }
 
 size_t jl_propertycount(jl_value_t *v) {
   JL_FUNCTION_TYPE *propertynames =
       jl_get_function(jl_base_module, "propertynames");
-  jl_array_t *properties = (jl_array_t *)jl_call1(propertynames, v);
-  return jl_array_len(properties);
+  jl_value_t *properties = NULL;
+  JL_GC_PUSH1(&properties);
+  properties = jl_call1(propertynames, v);
+  if (properties == NULL || jl_exception_occurred() != NULL ||
+      !jl_is_array(properties)) {
+    JL_GC_POP();
+    return SIZE_MAX;
+  }
+  size_t len = jl_array_len((jl_array_t *)properties);
+  JL_GC_POP();
+  return len;
 }
 
 const char **jl_propertynames(jl_value_t *v) {
   JL_FUNCTION_TYPE *propertynames =
       jl_get_function(jl_base_module, "propertynames");
-  jl_array_t *properties = (jl_array_t *)jl_call1(propertynames, v);
+  jl_value_t *properties_value = NULL;
+  JL_GC_PUSH1(&properties_value);
+  properties_value = jl_call1(propertynames, v);
+  if (properties_value == NULL || jl_exception_occurred() != NULL ||
+      !jl_is_array(properties_value)) {
+    JL_GC_POP();
+    return NULL;
+  }
+  jl_array_t *properties = (jl_array_t *)properties_value;
   size_t len = jl_array_len(properties);
   const char **names = (const char **)malloc(len * sizeof(char *));
+  if (names == NULL) {
+    JL_GC_POP();
+    return NULL;
+  }
   for (size_t i = 0; i < len; i++) {
-#if JL_VERSION_AT_LEAST(1, 11)
-    jl_value_t *name = jl_array_data(properties, jl_value_t);
-#else
-    jl_value_t *name = jl_array_data(properties);
-#endif
+    jl_value_t *name = jl_array_ptr_ref(properties, i);
     names[i] = jl_symbol_name((jl_sym_t *)name);
   }
+  JL_GC_POP();
   return names;
 }
 
@@ -477,22 +508,20 @@ jl_array_t *jl_alloc_array_nd_wrapper(jl_value_t *atype, size_t *dims,
 
 jl_array_t *jl_alloc_array_nd_wrapper(jl_value_t *atype, size_t *dims,
                                       size_t ndims) {
-  // Create NTuple{N, Int} type for dimensions
-  jl_value_t **types = (jl_value_t **)alloca(ndims * sizeof(jl_value_t *));
-  for (size_t i = 0; i < ndims; i++) {
-    types[i] = (jl_value_t *)jl_long_type;
-  }
-  jl_datatype_t *tuple_type =
-      (jl_datatype_t *)jl_apply_tuple_type_v(types, ndims);
+  jl_value_t *dims_tuple = NULL;
+  JL_GC_PUSH2(&atype, &dims_tuple);
 
-  // Tuple layout: fields stored contiguously, can write directly
-  jl_value_t *dims_tuple = jl_new_struct_uninit(tuple_type);
-  size_t *tuple_data = (size_t *)dims_tuple;
+  jl_value_t **values;
+  JL_GC_PUSHARGS(values, ndims);
   for (size_t i = 0; i < ndims; i++) {
-    tuple_data[i] = dims[i];
+    values[i] = jl_box_long((long)dims[i]);
   }
-
-  return jl_new_array(atype, dims_tuple);
+  jl_function_t *tuple_func = jl_get_function(jl_core_module, "tuple");
+  dims_tuple = jl_call(tuple_func, values, (uint32_t)ndims);
+  jl_array_t *array = jl_new_array(atype, dims_tuple);
+  JL_GC_POP();
+  JL_GC_POP();
+  return array;
 }
 
 #endif
@@ -815,6 +844,7 @@ jl_value_t *jl_ptr_add(jl_value_t *ptr_value, int64_t n) {
  *   - jlbun_gc_transfer(idx, new_scope_id): Move value to another scope
  * (escape)
  *   - jlbun_gc_get_scope(idx): Get scope_id of value at index
+ *   - jlbun_gc_release(idx): Release one temporary slot
  *
  * Global scope (id=0):
  *   - Values in scope_id=0 are never auto-released
@@ -883,35 +913,49 @@ void jlbun_gc_init(size_t initial_capacity) {
 }
 
 // Ensure capacity (internal helper, must be called with lock held)
-static void ensure_capacity_locked(size_t needed) {
+static int ensure_capacity_locked(size_t needed) {
   if (needed <= gc_stack.capacity)
-    return;
+    return 1;
 
   // Double capacity until sufficient
+  size_t old_cap = gc_stack.capacity;
   size_t new_cap = gc_stack.capacity;
+  if (new_cap == 0)
+    new_cap = 1;
   while (new_cap < needed)
     new_cap *= 2;
 
+  uint64_t *new_scope_ids =
+      (uint64_t *)malloc(new_cap * sizeof(uint64_t));
+  if (new_scope_ids == NULL) {
+    return 0;
+  }
+  if (old_cap > 0) {
+    memcpy(new_scope_ids, gc_stack.scope_ids, old_cap * sizeof(uint64_t));
+  }
+  memset(new_scope_ids + old_cap, 0, (new_cap - old_cap) * sizeof(uint64_t));
+
   // Grow Julia Vector{Any} via resize!
   JL_FUNCTION_TYPE *resize_fn = jl_get_function(jl_base_module, "resize!");
-  jl_call2(resize_fn, (jl_value_t *)gc_stack.values, jl_box_int64(new_cap));
+  jl_value_t *new_cap_value = jl_box_int64(new_cap);
+  JL_GC_PUSH1(&new_cap_value);
+  jl_call2(resize_fn, (jl_value_t *)gc_stack.values, new_cap_value);
+  if (jl_exception_occurred() != NULL) {
+    JL_GC_POP();
+    free(new_scope_ids);
+    return 0;
+  }
+  JL_GC_POP();
 
   // Fill new value slots with nothing
-  for (size_t i = gc_stack.capacity; i < new_cap; i++) {
+  for (size_t i = old_cap; i < new_cap; i++) {
     jl_array_ptr_set(gc_stack.values, i, jl_nothing);
   }
 
-  // Grow C array for scope IDs
-  uint64_t *new_scope_ids =
-      (uint64_t *)realloc(gc_stack.scope_ids, new_cap * sizeof(uint64_t));
-  if (new_scope_ids) {
-    // Zero-initialize new slots
-    memset(new_scope_ids + gc_stack.capacity, 0,
-           (new_cap - gc_stack.capacity) * sizeof(uint64_t));
-    gc_stack.scope_ids = new_scope_ids;
-  }
-
+  free(gc_stack.scope_ids);
+  gc_stack.scope_ids = new_scope_ids;
   gc_stack.capacity = new_cap;
+  return 1;
 }
 
 // Begin a new scope, returns unique scope_id
@@ -937,10 +981,16 @@ size_t jlbun_gc_push_scoped(jl_value_t *v, uint64_t scope_id) {
     return SIZE_MAX; // Error: not initialized
   }
 
-  ensure_capacity_locked(gc_stack.top + 1);
+  JL_GC_PUSH1(&v);
+  if (!ensure_capacity_locked(gc_stack.top + 1)) {
+    JL_GC_POP();
+    pthread_mutex_unlock(&gc_stack.lock);
+    return SIZE_MAX;
+  }
   size_t idx = gc_stack.top++;
   jl_array_ptr_set(gc_stack.values, idx, v);
   gc_stack.scope_ids[idx] = scope_id;
+  JL_GC_POP();
 
   pthread_mutex_unlock(&gc_stack.lock);
   return idx;
@@ -1031,6 +1081,26 @@ void jlbun_gc_set(size_t idx, jl_value_t *v) {
   pthread_mutex_unlock(&gc_stack.lock);
 }
 
+// Release a single slot. Intended for temporary roots created during wrapping.
+void jlbun_gc_release(size_t idx) {
+  pthread_mutex_lock(&gc_stack.lock);
+
+  if (!gc_stack.initialized || idx >= gc_stack.top) {
+    pthread_mutex_unlock(&gc_stack.lock);
+    return;
+  }
+
+  jl_array_ptr_set(gc_stack.values, idx, jl_nothing);
+  gc_stack.scope_ids[idx] = 0;
+
+  while (gc_stack.top > 0 && gc_stack.scope_ids[gc_stack.top - 1] == 0 &&
+         jl_array_ptr_ref(gc_stack.values, gc_stack.top - 1) == jl_nothing) {
+    gc_stack.top--;
+  }
+
+  pthread_mutex_unlock(&gc_stack.lock);
+}
+
 // Get stack statistics (thread-safe)
 size_t jlbun_gc_size(void) {
   pthread_mutex_lock(&gc_stack.lock);
@@ -1103,25 +1173,36 @@ typedef struct {
 static JlbunPerfGCStack perf_gc_stack = {NULL, 0, 0, 0};
 
 // Ensure capacity (internal helper, NO LOCKS)
-static void perf_ensure_capacity(size_t needed) {
+static int perf_ensure_capacity(size_t needed) {
   if (needed <= perf_gc_stack.capacity)
-    return;
+    return 1;
 
   // Double capacity until sufficient
+  size_t old_cap = perf_gc_stack.capacity;
   size_t new_cap = perf_gc_stack.capacity;
+  if (new_cap == 0)
+    new_cap = 1;
   while (new_cap < needed)
     new_cap *= 2;
 
   // Grow Julia Vector{Any} via resize!
   JL_FUNCTION_TYPE *resize_fn = jl_get_function(jl_base_module, "resize!");
-  jl_call2(resize_fn, (jl_value_t *)perf_gc_stack.values, jl_box_int64(new_cap));
+  jl_value_t *new_cap_value = jl_box_int64(new_cap);
+  JL_GC_PUSH1(&new_cap_value);
+  jl_call2(resize_fn, (jl_value_t *)perf_gc_stack.values, new_cap_value);
+  if (jl_exception_occurred() != NULL) {
+    JL_GC_POP();
+    return 0;
+  }
+  JL_GC_POP();
 
   // Fill new slots with nothing
-  for (size_t i = perf_gc_stack.capacity; i < new_cap; i++) {
+  for (size_t i = old_cap; i < new_cap; i++) {
     jl_array_ptr_set(perf_gc_stack.values, i, jl_nothing);
   }
 
   perf_gc_stack.capacity = new_cap;
+  return 1;
 }
 
 // Initialize the perf mode GC stack
@@ -1163,9 +1244,14 @@ size_t jlbun_gc_perf_push(jl_value_t *v) {
   if (!perf_gc_stack.initialized)
     return SIZE_MAX;
 
-  perf_ensure_capacity(perf_gc_stack.top + 1);
+  JL_GC_PUSH1(&v);
+  if (!perf_ensure_capacity(perf_gc_stack.top + 1)) {
+    JL_GC_POP();
+    return SIZE_MAX;
+  }
   size_t idx = perf_gc_stack.top++;
   jl_array_ptr_set(perf_gc_stack.values, idx, v);
+  JL_GC_POP();
   return idx;
 }
 

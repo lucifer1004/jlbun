@@ -81,38 +81,39 @@ Julia.defaultScopeMode         // Get/set default scope mode for Julia.scope()
 ```
 
 **Built-in Module Access**:
+
 - `Julia.Core` - Julia Core module
-- `Julia.Base` - Julia Base module  
+- `Julia.Base` - Julia Base module
 - `Julia.Main` - Julia Main module
 - `Julia.Pkg` - Julia package manager
 
 ### Data Type Wrapper Classes
 
-| TypeScript Class | Julia Type | JS Value Type |
-|------------------|------------|---------------|
-| `JuliaInt8/16/32` | `Int8/16/32` | `number` |
-| `JuliaInt64` | `Int64` | `bigint` |
-| `JuliaUInt8/16/32` | `UInt8/16/32` | `number` |
-| `JuliaUInt64` | `UInt64` | `bigint` |
-| `JuliaFloat16` | `Float16` | `number` |
-| `JuliaFloat32/64` | `Float32/64` | `number` |
-| `JuliaComplex` | `ComplexF64/F32/F16` | `{re: number, im: number}` |
-| `JuliaString` | `String` | `string` |
-| `JuliaBool` | `Bool` | `boolean` |
-| `JuliaChar` | `Char` | `string` |
-| `JuliaSymbol` | `Symbol` | `Symbol` |
-| `JuliaArray` | `Array` | `TypedArray` / `any[]` |
-| `JuliaSubArray` | `SubArray` | `TypedArray` / `any[]` (via `.value`) |
-| `JuliaRange` | `UnitRange/StepRange/LinRange` | `TypedArray` (via `.value`) |
-| `JuliaPtr` | `Ptr{T}` | `Pointer` (raw address) |
-| `JuliaTuple` | `Tuple` | `any[]` |
-| `JuliaNamedTuple` | `NamedTuple` | `Record<string, any>` |
-| `JuliaPair` | `Pair` | access via `.first` / `.second` |
-| `JuliaSet` | `Set` | `Set<any>` |
-| `JuliaDict` | `Dict` | `Map<any, any>` |
-| `JuliaFunction` | `Function` | callable |
-| `JuliaModule` | `Module` | property accessible |
-| `JuliaTask` | `Task` | `Promise<JuliaValue>` |
+| TypeScript Class   | Julia Type                     | JS Value Type                         |
+| ------------------ | ------------------------------ | ------------------------------------- |
+| `JuliaInt8/16/32`  | `Int8/16/32`                   | `number`                              |
+| `JuliaInt64`       | `Int64`                        | `bigint`                              |
+| `JuliaUInt8/16/32` | `UInt8/16/32`                  | `number`                              |
+| `JuliaUInt64`      | `UInt64`                       | `bigint`                              |
+| `JuliaFloat16`     | `Float16`                      | `number`                              |
+| `JuliaFloat32/64`  | `Float32/64`                   | `number`                              |
+| `JuliaComplex`     | `ComplexF64/F32/F16`           | `{re: number, im: number}`            |
+| `JuliaString`      | `String`                       | `string`                              |
+| `JuliaBool`        | `Bool`                         | `boolean`                             |
+| `JuliaChar`        | `Char`                         | `string`                              |
+| `JuliaSymbol`      | `Symbol`                       | `Symbol`                              |
+| `JuliaArray`       | `Array`                        | `TypedArray` / `any[]`                |
+| `JuliaSubArray`    | `SubArray`                     | `TypedArray` / `any[]` (via `.value`) |
+| `JuliaRange`       | `UnitRange/StepRange/LinRange` | `TypedArray` (via `.value`)           |
+| `JuliaPtr`         | `Ptr{T}`                       | `Pointer` (raw address)               |
+| `JuliaTuple`       | `Tuple`                        | `any[]`                               |
+| `JuliaNamedTuple`  | `NamedTuple`                   | `Record<string, any>`                 |
+| `JuliaPair`        | `Pair`                         | access via `.first` / `.second`       |
+| `JuliaSet`         | `Set`                          | `Set<any>`                            |
+| `JuliaDict`        | `Dict`                         | `Map<any, any>`                       |
+| `JuliaFunction`    | `Function`                     | callable                              |
+| `JuliaModule`      | `Module`                       | property accessible                   |
+| `JuliaTask`        | `Task`                         | `Promise<JuliaValue>`                 |
 
 ### `JuliaValue` Interface
 
@@ -120,9 +121,9 @@ All Julia value wrapper classes implement this interface:
 
 ```typescript
 interface JuliaValue {
-  ptr: Pointer;           // Raw pointer to Julia object
-  get value(): any;       // Get native JS value
-  toString(): string;     // String representation
+  ptr: Pointer; // Raw pointer to Julia object
+  get value(): any; // Get native JS value
+  toString(): string; // String representation
 }
 ```
 
@@ -133,10 +134,12 @@ interface JuliaValue {
 `JuliaArray` supports memory sharing with JavaScript `TypedArray`:
 
 ```typescript
-const bunArray = new Float64Array([1, 2, 3]);
-const juliaArray = JuliaArray.from(bunArray);
-// bunArray and juliaArray share the same memory
-bunArray[0] = 100;  // Julia array will also see this change
+Julia.scope(() => {
+  const bunArray = new Float64Array([1, 2, 3]);
+  const juliaArray = JuliaArray.from(bunArray);
+  // bunArray and juliaArray share the same memory
+  bunArray[0] = 100; // Julia array will also see this change
+});
 ```
 
 ### Multi-Dimensional Arrays
@@ -144,11 +147,13 @@ bunArray[0] = 100;  // Julia array will also see this change
 `JuliaArray.init()` supports creating arrays with arbitrary dimensions:
 
 ```typescript
-// Create arrays with different dimensions
-const arr1d = JuliaArray.init(Julia.Float64, 100);        // 1D
-const matrix = JuliaArray.init(Julia.Float64, 10, 20);    // 2D (10 rows, 20 cols)
-const tensor = JuliaArray.init(Julia.Float64, 3, 4, 5);   // 3D
-const arr4d = JuliaArray.init(Julia.Float64, 2, 3, 4, 5); // 4D+
+Julia.scope(() => {
+  // Create arrays with different dimensions
+  const arr1d = JuliaArray.init(Julia.Float64, 100); // 1D
+  const matrix = JuliaArray.init(Julia.Float64, 10, 20); // 2D (10 rows, 20 cols)
+  const tensor = JuliaArray.init(Julia.Float64, 3, 4, 5); // 3D
+  const arr4d = JuliaArray.init(Julia.Float64, 2, 3, 4, 5); // 4D+
+});
 ```
 
 **Column-Major Order**: Julia uses column-major order (like Fortran). Elements are stored column-by-column:
@@ -162,15 +167,18 @@ Julia 2x3 matrix:     Memory layout: [a00, a10, a01, a11, a02, a12]
 For multi-dimensional indexing, use `getAt()` and `setAt()`:
 
 ```typescript
-const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 cols
+Julia.scope(() => {
+  const matrix = JuliaArray.init(Julia.Float64, 3, 4); // 3 rows, 4 cols
+  const tensor = JuliaArray.init(Julia.Float64, 2, 3, 4);
 
-// Multi-dimensional access (0-based indices)
-matrix.setAt(row, col, value);
-const val = matrix.getAt(row, col);
+  // Multi-dimensional access (0-based indices)
+  matrix.setAt(row, col, value);
+  const val = matrix.getAt(row, col);
 
-// For 3D arrays
-tensor.setAt(i, j, k, value);
-const val3d = tensor.getAt(i, j, k);
+  // For 3D arrays
+  tensor.setAt(i, j, k, value);
+  const val3d = tensor.getAt(i, j, k);
+});
 ```
 
 Linear indexing with `get(index)` and `set(index, value)` follows column-major order.
@@ -215,17 +223,21 @@ Julia.scope((julia) => {
 });
 
 // Safe mode: objects released when JS GC runs (closure-safe)
-Julia.scope((julia) => {
-  const arr = julia.Array.init(julia.Float64, 100);
-  
-  // ✅ Safe to capture in closures - no explicit escape() needed
-  setTimeout(() => {
-    console.log(arr.length); // arr is still valid
-  }, 1000);
-}, { mode: "safe" });
+Julia.scope(
+  (julia) => {
+    const arr = julia.Array.init(julia.Float64, 100);
+
+    // ✅ Safe to capture in closures - no explicit escape() needed
+    setTimeout(() => {
+      console.log(arr.length); // arr is still valid
+    }, 1000);
+  },
+  { mode: "safe" },
+);
 ```
 
 **When to use safe mode:**
+
 - Passing Julia objects to `setTimeout`, `setInterval`, or event handlers
 - Storing Julia objects in arrays/maps that outlive the scope
 - Callbacks that may execute after scope ends
@@ -239,21 +251,23 @@ Julia.scope((julia) => {
 
 ### Choosing the Right Mode
 
-| Scenario | Recommended Mode | Why |
-|----------|-----------------|-----|
-| General purpose / unsure | `default` | Safe for most use cases, supports concurrency |
-| High-performance batch processing | `perf` | ~2-3x faster than default for many objects |
-| Closures / callbacks (setTimeout, etc.) | `safe` | Objects survive scope disposal |
-| `Julia.scopeAsync()` | (automatic) | Always uses `safe` internally |
-| `JuliaTask` parallelism | `default` | Thread-safe, supports concurrent scopes |
-| Simple synchronous loops | `perf` | Maximum performance, no locking overhead |
+| Scenario                                | Recommended Mode | Why                                           |
+| --------------------------------------- | ---------------- | --------------------------------------------- |
+| General purpose / unsure                | `default`        | Safe for most use cases, supports concurrency |
+| High-performance batch processing       | `perf`           | ~2-3x faster than default for many objects    |
+| Closures / callbacks (setTimeout, etc.) | `safe`           | Objects survive scope disposal                |
+| `Julia.scopeAsync()`                    | (automatic)      | Always uses `safe` internally                 |
+| `JuliaTask` parallelism                 | `default`        | Thread-safe, supports concurrent scopes       |
+| Simple synchronous loops                | `perf`           | Maximum performance, no locking overhead      |
 
 **Performance characteristics:**
+
 - `perf` is ~2-3x faster than `default` when scopes contain many objects (100+)
 - `safe` has higher overhead due to FinalizationRegistry registration
 - For small object counts (<50), the difference is negligible
 
 **Set default mode globally:**
+
 ```typescript
 // Set default for all subsequent Julia.scope() calls
 Julia.defaultScopeMode = "perf";
@@ -271,14 +285,18 @@ For single-threaded, non-concurrent scenarios where maximum performance is requi
 
 ```typescript
 // Perf mode: fastest, but ONLY for single-threaded LIFO scopes
-Julia.scope((julia) => {
-  const arr = julia.Array.init(julia.Float64, 1000);
-  // ... do work ...
-  return julia.Base.sum(arr).value;
-}, { mode: "perf" });
+Julia.scope(
+  (julia) => {
+    const arr = julia.Array.init(julia.Float64, 1000);
+    // ... do work ...
+    return julia.Base.sum(arr).value;
+  },
+  { mode: "perf" },
+);
 ```
 
 **WARNING**: Perf mode is NOT safe for:
+
 - Concurrent `Julia.scopeAsync()` calls
 - `JuliaTask` parallelism
 - Non-LIFO scope disposal order (e.g., inner scope outliving outer scope)
@@ -306,23 +324,23 @@ The callback receives a `ScopedJulia` proxy object that mirrors the `Julia` stat
 
 #### Available Properties and Methods
 
-| Property/Method | Description |
-|-----------------|-------------|
-| `julia.eval(code)` | Execute Julia code, track result |
-| `julia.tagEval\`...\`` | Template string evaluation |
-| `julia.import(name)` | Import Julia module |
-| `julia.call(func, ...args)` | Call function with tracking |
-| `julia.callWithKwargs(func, kwargs, ...args)` | Call with keyword args |
-| `julia.escape(value)` | Remove from tracking, return value |
-| `julia.untracked(fn)` | Execute fn without auto-tracking (for performance) |
-| `julia.Base` / `julia.Core` / `julia.Main` / `julia.Pkg` | Module access |
-| `julia.version` | Julia version string |
-| `julia.nthreads` | Number of Julia threads |
-| `julia.Int64` / `julia.Float64` / ... | Data type accessors |
-| `julia.typeof(value)` | Get Julia type |
-| `julia.getTypeStr(value)` | Get type as string |
-| `julia.autoWrap(jsValue)` | Auto-wrap JS value |
-| `julia.wrapPtr(ptr)` | Wrap raw pointer |
+| Property/Method                                          | Description                                        |
+| -------------------------------------------------------- | -------------------------------------------------- |
+| `julia.eval(code)`                                       | Execute Julia code, track result                   |
+| `julia.tagEval\`...\``                                   | Template string evaluation                         |
+| `julia.import(name)`                                     | Import Julia module                                |
+| `julia.call(func, ...args)`                              | Call function with tracking                        |
+| `julia.callWithKwargs(func, kwargs, ...args)`            | Call with keyword args                             |
+| `julia.escape(value)`                                    | Remove from tracking, return value                 |
+| `julia.untracked(fn)`                                    | Execute fn without auto-tracking (for performance) |
+| `julia.Base` / `julia.Core` / `julia.Main` / `julia.Pkg` | Module access                                      |
+| `julia.version`                                          | Julia version string                               |
+| `julia.nthreads`                                         | Number of Julia threads                            |
+| `julia.Int64` / `julia.Float64` / ...                    | Data type accessors                                |
+| `julia.typeof(value)`                                    | Get Julia type                                     |
+| `julia.getTypeStr(value)`                                | Get type as string                                 |
+| `julia.autoWrap(jsValue)`                                | Auto-wrap JS value                                 |
+| `julia.wrapPtr(ptr)`                                     | Wrap raw pointer                                   |
 
 #### Scoped Collection Constructors
 
@@ -332,7 +350,7 @@ The scoped proxy also provides convenient constructors for collection types:
 Julia.scope((julia) => {
   // Create arrays (auto-tracked) - supports multi-dimensional
   const arr1d = julia.Array.init(julia.Float64, 1000);
-  const matrix = julia.Array.init(julia.Float64, 100, 100);  // 2D matrix
+  const matrix = julia.Array.init(julia.Float64, 100, 100); // 2D matrix
   const tensor = julia.Array.init(julia.Float64, 10, 10, 10); // 3D tensor
   const arr2 = julia.Array.from(new Float64Array([1, 2, 3, 4, 5]));
 
@@ -436,7 +454,7 @@ For performance-critical loops, auto-tracking can add overhead. Use `untracked()
 ```typescript
 Julia.scope((julia) => {
   const arr = julia.Array.from(new Float64Array([1, 2, 3, 4, 5, 6, 7, 8]));
-  
+
   // ~300x faster than tracked calls for high-iteration loops
   julia.untracked(() => {
     for (let i = 0; i < 10000; i++) {
@@ -444,13 +462,14 @@ Julia.scope((julia) => {
       julia.Base.view(arr, range); // Temporary objects not tracked
     }
   });
-  
+
   // Normal tracking resumes here
   return julia.Base.sum(arr).value;
 });
 ```
 
 **Key behaviors**:
+
 - Only affects current scope (nested `Julia.scope()` calls have independent tracking)
 - Explicit `julia.track(value)` still works inside `untracked()`
 - Tracking state is restored even if an exception is thrown
@@ -462,10 +481,10 @@ Julia.scope((julia) => {
 Callbacks created with `JuliaFunction.from()` are automatically cleaned up when garbage collected. Manual `.close()` is still available for early cleanup:
 
 ```typescript
-const jlFunc = JuliaFunction.from(
-  (x: number) => x * 2,
-  { args: [FFIType.f64], returns: FFIType.f64 }
-);
+const jlFunc = JuliaFunction.from((x: number) => x * 2, {
+  args: [FFIType.f64],
+  returns: FFIType.f64,
+});
 // Optional: call jlFunc.close() for early cleanup
 // Otherwise, cleaned up automatically when GC'd
 ```
@@ -473,6 +492,7 @@ const jlFunc = JuliaFunction.from(
 ### Manual Management (Legacy)
 
 For manual control without scopes, you can still use:
+
 - `Julia.setGlobal(name, obj)` - Keep Julia objects alive
 - `Julia.deleteGlobal(name)` - Allow Julia objects to be GC'd
 
@@ -495,6 +515,7 @@ if (typePtr === Julia.Int64.ptr) {
 ```
 
 Supported fast-path types:
+
 - Primitives: String, Bool, Char, Int8/16/32/64, UInt8/16/32/64, Float16/32/64
 - Special: Nothing, Symbol, Module, Task, DataType
 
@@ -519,23 +540,26 @@ Pre-populated with 20 common types at initialization.
 `JuliaArray.from()` wraps TypedArray memory directly without copying:
 
 ```typescript
-const bunArray = new Float64Array([1, 2, 3]);
-const juliaArray = JuliaArray.from(bunArray);
-// Both arrays share the same memory buffer
+Julia.scope(() => {
+  const bunArray = new Float64Array([1, 2, 3]);
+  const juliaArray = JuliaArray.from(bunArray);
+  // Both arrays share the same memory buffer
+});
 ```
 
 ### Array Creation Best Practices
 
 Based on benchmarks, here are the recommended approaches for array creation:
 
-| Use Case | Recommended Method | Performance |
-|----------|-------------------|-------------|
-| Zero-initialized | `Julia.Base.zeros(Julia.Float64, m, n)` | Fastest (uses `calloc`) |
-| Filled with value | `Julia.Base.fill(value, m, n)` | Clean API, good performance |
-| Will overwrite all | `JuliaArray.init(Julia.Float64, m, n)` | Fastest (no init) |
-| From JS TypedArray | `JuliaArray.from(typedArray)` | Zero-copy |
+| Use Case           | Recommended Method                      | Performance                 |
+| ------------------ | --------------------------------------- | --------------------------- |
+| Zero-initialized   | `Julia.Base.zeros(Julia.Float64, m, n)` | Fastest (uses `calloc`)     |
+| Filled with value  | `Julia.Base.fill(value, m, n)`          | Clean API, good performance |
+| Will overwrite all | `JuliaArray.init(Julia.Float64, m, n)`  | Fastest (no init)           |
+| From JS TypedArray | `JuliaArray.from(typedArray)`           | Zero-copy                   |
 
 **Performance comparison** (1000x1000 Float64 matrix):
+
 - `JuliaArray.init()` FFI: ~0.6 µs
 - `Julia.eval("Array{...}(undef,...)")`: ~5 µs (**~8x slower**)
 
@@ -548,66 +572,67 @@ const arr = Julia.Base.zeros(Julia.Float64, 1000, 1000);
 
 // ✅ Fastest: uninitialized allocation
 const arr = JuliaArray.init(Julia.Float64, 1000, 1000);
-arr.fill(42.0);  // Then fill as needed
+arr.fill(42.0); // Then fill as needed
 ```
 
 **Key insight**: `Julia.eval()` has string parsing overhead. Cache function references and use direct FFI calls for performance-critical code.
 
 ## JuliaArray API Reference
 
-| Method | Description |
-|--------|-------------|
+| Method                             | Description                                   |
+| ---------------------------------- | --------------------------------------------- |
 | `JuliaArray.init(elType, ...dims)` | Create array with element type and dimensions |
-| `JuliaArray.from(typedArray)` | Create from TypedArray (zero-copy) |
-| `JuliaArray.fromAny(values)` | Create from arbitrary JS array |
-| `arr.get(linearIndex)` | Get element at linear index (column-major) |
-| `arr.set(linearIndex, value)` | Set element at linear index |
-| `arr.getAt(...indices)` | Get element at multi-dimensional indices |
-| `arr.setAt(...indices, value)` | Set element at multi-dimensional indices |
-| `arr.length` | Total number of elements |
-| `arr.ndims` | Number of dimensions |
-| `arr.size` | Array of dimension sizes |
-| `arr.value` | Get as TypedArray or JS array |
-| `arr.reshape(...shape)` | Reshape array (shares memory) |
-| `arr.fill(value)` | Fill array with value |
-| `arr.map(fn)` | Map function over array |
-| `arr.push(...values)` | Append elements (1D only) |
-| `arr.pop()` | Remove and return last element (1D only) |
-| `arr.reverse()` | Reverse array in place |
-| `arr.copy()` | Create independent copy of the array |
-| `arr.view(...indices)` | Create a SubArray view (zero-copy) |
-| `arr.slice(start, stop)` | Create a 1D contiguous view |
-| `arr[Symbol.iterator]` | Iterate over elements |
+| `JuliaArray.from(typedArray)`      | Create from TypedArray (zero-copy)            |
+| `JuliaArray.fromAny(values)`       | Create from arbitrary JS array                |
+| `arr.get(linearIndex)`             | Get element at linear index (column-major)    |
+| `arr.set(linearIndex, value)`      | Set element at linear index                   |
+| `arr.getAt(...indices)`            | Get element at multi-dimensional indices      |
+| `arr.setAt(...indices, value)`     | Set element at multi-dimensional indices      |
+| `arr.length`                       | Total number of elements                      |
+| `arr.ndims`                        | Number of dimensions                          |
+| `arr.size`                         | Array of dimension sizes                      |
+| `arr.value`                        | Get as TypedArray or JS array                 |
+| `arr.reshape(...shape)`            | Reshape array (shares memory)                 |
+| `arr.fill(value)`                  | Fill array with value                         |
+| `arr.map(fn)`                      | Map function over array                       |
+| `arr.push(...values)`              | Append elements (1D only)                     |
+| `arr.pop()`                        | Remove and return last element (1D only)      |
+| `arr.reverse()`                    | Reverse array in place                        |
+| `arr.copy()`                       | Create independent copy of the array          |
+| `arr.view(...indices)`             | Create a SubArray view (zero-copy)            |
+| `arr.slice(start, stop)`           | Create a 1D contiguous view                   |
+| `arr[Symbol.iterator]`             | Iterate over elements                         |
 
 ## JuliaSubArray API Reference
 
 `JuliaSubArray` wraps Julia's `SubArray` type, providing zero-copy views into arrays.
 
-| Method/Property | Description |
-|-----------------|-------------|
-| `JuliaSubArray.view(array, ...indices)` | Create view from array |
-| `sub.parent` | Get parent array |
-| `sub.parentindices` | Get indices into parent array |
-| `sub.length` | Total number of elements |
-| `sub.ndims` | Number of dimensions |
-| `sub.size` | Array of dimension sizes |
-| `sub.elType` | Element type (JuliaDataType) |
-| `sub.isContiguous` | Whether memory is contiguous |
-| `sub.get(index)` | Get element at linear index |
-| `sub.set(index, value)` | Set element at linear index |
-| `sub.getAt(...indices)` | Get element at multi-dimensional indices |
-| `sub.setAt(...indices, value)` | Set element at multi-dimensional indices |
-| `sub.fill(value)` | Fill all elements with value |
-| `sub.copy()` | Create independent copy (JuliaArray) |
-| `sub.collect()` | Convert to JuliaArray |
-| `sub.value` | Get as TypedArray or JS array |
-| `sub.view(...indices)` | Create nested view |
-| `sub.slice(start, stop)` | Create 1D slice of this view |
-| `sub.map(fn)` | Map function over elements |
-| `sub.rawPtr` | Get raw data pointer (if contiguous) |
-| `sub.fastValue` | Fast TypedArray access (if contiguous) |
+| Method/Property                         | Description                              |
+| --------------------------------------- | ---------------------------------------- |
+| `JuliaSubArray.view(array, ...indices)` | Create view from array                   |
+| `sub.parent`                            | Get parent array                         |
+| `sub.parentindices`                     | Get indices into parent array            |
+| `sub.length`                            | Total number of elements                 |
+| `sub.ndims`                             | Number of dimensions                     |
+| `sub.size`                              | Array of dimension sizes                 |
+| `sub.elType`                            | Element type (JuliaDataType)             |
+| `sub.isContiguous`                      | Whether memory is contiguous             |
+| `sub.get(index)`                        | Get element at linear index              |
+| `sub.set(index, value)`                 | Set element at linear index              |
+| `sub.getAt(...indices)`                 | Get element at multi-dimensional indices |
+| `sub.setAt(...indices, value)`          | Set element at multi-dimensional indices |
+| `sub.fill(value)`                       | Fill all elements with value             |
+| `sub.copy()`                            | Create independent copy (JuliaArray)     |
+| `sub.collect()`                         | Convert to JuliaArray                    |
+| `sub.value`                             | Get as TypedArray or JS array            |
+| `sub.view(...indices)`                  | Create nested view                       |
+| `sub.slice(start, stop)`                | Create 1D slice of this view             |
+| `sub.map(fn)`                           | Map function over elements               |
+| `sub.rawPtr`                            | Get raw data pointer (if contiguous)     |
+| `sub.fastValue`                         | Fast TypedArray access (if contiguous)   |
 
 **Index Specification for `view()`**:
+
 - `number`: Single index (0-based)
 - `":"`: All elements in dimension
 - `[start, stop]`: Range (0-based, inclusive)
@@ -615,121 +640,130 @@ arr.fill(42.0);  // Then fill as needed
 
 ```typescript
 // Examples
-const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
-const sub = arr.view([1, 3]);        // Elements 1-3
-const all = arr.view(":");           // All elements
-const matrix = JuliaArray.init(Julia.Float64, 4, 4);
-const row = matrix.view(0, ":");     // First row
-const block = matrix.view([1, 2], [0, 2]); // 2x3 block
+Julia.scope(() => {
+  const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
+  const sub = arr.view([1, 3]); // Elements 1-3
+  const all = arr.view(":"); // All elements
+  const matrix = JuliaArray.init(Julia.Float64, 4, 4);
+  const row = matrix.view(0, ":"); // First row
+  const block = matrix.view([1, 2], [0, 2]); // 2x3 block
+});
 ```
 
 ## JuliaComplex API Reference
 
 `JuliaComplex` wraps Julia's `Complex{T}` types (ComplexF64, ComplexF32, ComplexF16).
 
-| Method/Property | Description |
-|-----------------|-------------|
-| `JuliaComplex.from(re, im?)` | Create ComplexF64 |
-| `JuliaComplex.fromF32(re, im?)` | Create ComplexF32 |
-| `JuliaComplex.fromF16(re, im?)` | Create ComplexF16 |
-| `JuliaComplex.fromPolar(r, theta, elType?)` | Create from polar form |
-| `c.re` | Real part |
-| `c.im` | Imaginary part |
-| `c.abs` | Magnitude (|c|) |
-| `c.arg` | Phase angle (radians) |
-| `c.elType` | Element type (Float16/Float32/Float64) |
-| `c.value` | Get as `{re: number, im: number}` |
+| Method/Property                             | Description                            |
+| ------------------------------------------- | -------------------------------------- |
+| `JuliaComplex.from(re, im?)`                | Create ComplexF64                      |
+| `JuliaComplex.fromF32(re, im?)`             | Create ComplexF32                      |
+| `JuliaComplex.fromF16(re, im?)`             | Create ComplexF16                      |
+| `JuliaComplex.fromPolar(r, theta, elType?)` | Create from polar form                 |
+| `c.re`                                      | Real part                              |
+| `c.im`                                      | Imaginary part                         |
+| `c.abs`                                     | Magnitude (&#124;c&#124;)              |
+| `c.arg`                                     | Phase angle (radians)                  |
+| `c.elType`                                  | Element type (Float16/Float32/Float64) |
+| `c.value`                                   | Get as `{re: number, im: number}`      |
 
 ```typescript
 // Examples
-const c = JuliaComplex.from(3, 4);          // 3 + 4im
-console.log(c.abs);                          // 5
-console.log(c.arg);                          // 0.927... rad
+Julia.scope(() => {
+  const c = JuliaComplex.from(3, 4); // 3 + 4im
+  console.log(c.abs); // 5
+  console.log(c.arg); // 0.927... rad
 
-// Julia interop
-const conj = Julia.Base.conj(c);             // 3 - 4im
-const sum = Julia.Base["+"](c, JuliaComplex.from(1, 1));  // 4 + 5im
+  // Julia interop
+  const conj = Julia.Base.conj(c); // 3 - 4im
+  const sum = Julia.Base["+"](c, JuliaComplex.from(1, 1)); // 4 + 5im
 
-// Polar form
-const polar = JuliaComplex.fromPolar(5, Math.PI / 2);  // 0 + 5im
+  // Polar form
+  const polar = JuliaComplex.fromPolar(5, Math.PI / 2); // 0 + 5im
+});
 ```
 
 ## JuliaRange API Reference
 
 `JuliaRange` wraps Julia's range types (`UnitRange`, `StepRange`, `StepRangeLen`, `LinRange`).
 
-| Method/Property | Description |
-|-----------------|-------------|
-| `JuliaRange.from(start, stop, step?)` | Create UnitRange or StepRange |
-| `JuliaRange.linspace(start, stop, length)` | Create LinRange (evenly spaced) |
+| Method/Property                               | Description                        |
+| --------------------------------------------- | ---------------------------------- |
+| `JuliaRange.from(start, stop, step?)`         | Create UnitRange or StepRange      |
+| `JuliaRange.linspace(start, stop, length)`    | Create LinRange (evenly spaced)    |
 | `JuliaRange.withLength(start, length, step?)` | Create range with specified length |
-| `range.first` | First element (JuliaValue) |
-| `range.last` | Last element (JuliaValue) |
-| `range.step` | Step size (JuliaValue) |
-| `range.length` | Number of elements |
-| `range.isEmpty` | Whether range is empty |
-| `range.elType` | Element type (JuliaDataType) |
-| `range.get(index)` | Get element at index (0-based) |
-| `range.contains(value)` | Check if value is in range |
-| `range.reverse()` | Create reversed range |
-| `range.map(fn)` | Map function over range |
-| `range.value` | Convert to TypedArray |
-| `range[Symbol.iterator]` | Iterate over elements |
+| `range.first`                                 | First element (JuliaValue)         |
+| `range.last`                                  | Last element (JuliaValue)          |
+| `range.step`                                  | Step size (JuliaValue)             |
+| `range.length`                                | Number of elements                 |
+| `range.isEmpty`                               | Whether range is empty             |
+| `range.elType`                                | Element type (JuliaDataType)       |
+| `range.get(index)`                            | Get element at index (0-based)     |
+| `range.contains(value)`                       | Check if value is in range         |
+| `range.reverse()`                             | Create reversed range              |
+| `range.map(fn)`                               | Map function over range            |
+| `range.value`                                 | Convert to TypedArray              |
+| `range[Symbol.iterator]`                      | Iterate over elements              |
 
 ```typescript
 // Examples
-const unit = JuliaRange.from(1, 10);       // 1:10
-const step = JuliaRange.from(1, 10, 2);    // 1:2:10 -> [1,3,5,7,9]
-const lin = JuliaRange.linspace(0, 1, 5);  // LinRange(0.0, 1.0, 5)
-const len = JuliaRange.withLength(0, 10);  // 0:9
+Julia.scope(() => {
+  const unit = JuliaRange.from(1, 10); // 1:10
+  const step = JuliaRange.from(1, 10, 2); // 1:2:10 -> [1,3,5,7,9]
+  const lin = JuliaRange.linspace(0, 1, 5); // LinRange(0.0, 1.0, 5)
+  const len = JuliaRange.withLength(0, 10); // 0:9
 
-// Iterate
-for (const val of unit) {
-  console.log(val.value);
-}
+  // Iterate
+  for (const val of unit) {
+    console.log(val.value);
+  }
 
-// Use with Julia functions
-Julia.Base.sum(unit).value; // 55n
+  // Use with Julia functions
+  Julia.Base.sum(unit).value; // 55n
+});
 ```
 
 ## JuliaPtr API Reference
 
 `JuliaPtr` wraps Julia's `Ptr{T}` type for low-level memory operations and FFI scenarios.
 
-| Method/Property | Description |
-|-----------------|-------------|
+| Method/Property              | Description                                             |
+| ---------------------------- | ------------------------------------------------------- |
 | `JuliaPtr.fromAddress(addr)` | Create `Ptr{Cvoid}` from raw address (number or bigint) |
-| `JuliaPtr.fromArray(arr)` | Get data pointer from a JuliaArray |
-| `JuliaPtr.fromObject(obj)` | Get memory address of any Julia object (unsafe!) |
-| `ptr.address` | Get raw address as bigint |
-| `ptr.value` | Get as Bun's Pointer type |
-| `ptr.elType` | Get element type `T` from `Ptr{T}` |
-| `ptr.isNull` | Check if null pointer (address === 0) |
-| `ptr.load(offset?)` | Read value at offset (0-based, element units) |
-| `ptr.store(value, offset?)` | Write value at offset (0-based, element units) |
-| `ptr.offset(n)` | Create new pointer offset by n elements |
-| `ptr.reinterpret(newType)` | Reinterpret as `Ptr{newType}` |
+| `JuliaPtr.fromArray(arr)`    | Get data pointer from a JuliaArray                      |
+| `JuliaPtr.fromObject(obj)`   | Get memory address of any Julia object (unsafe!)        |
+| `ptr.address`                | Get raw address as bigint                               |
+| `ptr.value`                  | Get as Bun's Pointer type                               |
+| `ptr.elType`                 | Get element type `T` from `Ptr{T}`                      |
+| `ptr.isNull`                 | Check if null pointer (address === 0)                   |
+| `ptr.load(offset?)`          | Read value at offset (0-based, element units)           |
+| `ptr.store(value, offset?)`  | Write value at offset (0-based, element units)          |
+| `ptr.offset(n)`              | Create new pointer offset by n elements                 |
+| `ptr.reinterpret(newType)`   | Reinterpret as `Ptr{newType}`                           |
 
 **Safety Warning**: `load()` and `store()` are **unsafe** operations that can cause segfaults or memory corruption. Ensure:
+
 - The pointer is valid and properly aligned
 - The memory has not been freed
 - The type matches the actual data in memory
 
 ```typescript
 // Example: Direct memory manipulation
-const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
-const ptr = JuliaPtr.fromArray(arr);
+Julia.scope(() => {
+  const arr = JuliaArray.from(new Float64Array([1, 2, 3, 4, 5]));
+  const ptr = JuliaPtr.fromArray(arr);
 
-// Read (0-based indexing)
-ptr.load(0).value;  // 1.0
-ptr.load(2).value;  // 3.0
+  // Read (0-based indexing)
+  ptr.load(0).value; // 1.0
+  ptr.load(2).value; // 3.0
 
-// Write
-ptr.store(99.0, 1);  // arr[1] = 99.0
+  // Write
+  ptr.store(99.0, 1); // arr[1] = 99.0
 
-// Pointer arithmetic (element-based, not byte-based)
-const ptr2 = ptr.offset(2);  // Points to arr[2]
-ptr2.load(0).value;  // 3.0
+  // Pointer arithmetic (element-based, not byte-based)
+  const ptr2 = ptr.offset(2); // Points to arr[2]
+  ptr2.load(0).value; // 3.0
+});
 ```
 
 ## C Wrapper Layer (`c/wrapper.c`)
@@ -807,27 +841,27 @@ All Julia exceptions are mapped to TypeScript error classes inheriting from `Jul
 
 ```typescript
 // Base class
-JuliaError           // Base class with `juliaType` property
+JuliaError; // Base class with `juliaType` property
 
 // Common Julia errors (mapped automatically)
-MethodError          // No method matches the given arguments
-InexactError         // Type conversion cannot be done exactly
-BoundsError          // Array index out of bounds
-ArgumentError        // Invalid argument to function
-TypeError            // Argument is of wrong type
-DomainError          // Argument outside valid domain (e.g., sqrt(-1))
-DivideError          // Integer division by zero
-OverflowError        // Integer overflow in checked arithmetic
-KeyError             // Key not found in collection
-DimensionMismatch    // Array dimensions don't match
-UndefVarError        // Variable not defined
-UndefRefError        // Uninitialized reference
-LoadError            // Module/package loading failed
-StringIndexError     // Invalid string index
-StackOverflowError   // Deep recursion
-TaskFailedException  // Error in Julia task
-InterruptException   // Interrupt signal (Ctrl+C)
-UnknownJuliaError    // Other Julia exceptions (check `juliaType`)
+MethodError; // No method matches the given arguments
+InexactError; // Type conversion cannot be done exactly
+BoundsError; // Array index out of bounds
+ArgumentError; // Invalid argument to function
+TypeError; // Argument is of wrong type
+DomainError; // Argument outside valid domain (e.g., sqrt(-1))
+DivideError; // Integer division by zero
+OverflowError; // Integer overflow in checked arithmetic
+KeyError; // Key not found in collection
+DimensionMismatch; // Array dimensions don't match
+UndefVarError; // Variable not defined
+UndefRefError; // Uninitialized reference
+LoadError; // Module/package loading failed
+StringIndexError; // Invalid string index
+StackOverflowError; // Deep recursion
+TaskFailedException; // Error in Julia task
+InterruptException; // Interrupt signal (Ctrl+C)
+UnknownJuliaError; // Other Julia exceptions (check `juliaType`)
 ```
 
 Usage:
@@ -850,12 +884,12 @@ try {
 
 Lightweight examples in `examples/` using only Julia stdlib:
 
-| Example | Description |
-|---------|-------------|
-| `01_linear_algebra.ts` | Matrix ops, eigenvalues, solve (LinearAlgebra) |
-| `02_monte_carlo.ts` | π estimation, random walks (Statistics) |
-| `03_zero_copy.ts` | Memory sharing, views (core jlbun feature) |
-| `04_complex_numbers.ts` | Complex arithmetic, Mandelbrot |
+| Example                 | Description                                    |
+| ----------------------- | ---------------------------------------------- |
+| `01_linear_algebra.ts`  | Matrix ops, eigenvalues, solve (LinearAlgebra) |
+| `02_monte_carlo.ts`     | π estimation, random walks (Statistics)        |
+| `03_zero_copy.ts`       | Memory sharing, views (core jlbun feature)     |
+| `04_complex_numbers.ts` | Complex arithmetic, Mandelbrot                 |
 
 Run with: `bun examples/01_linear_algebra.ts`
 
@@ -893,6 +927,7 @@ bun test --coverage   # Run with coverage report
 Current coverage: **~98%** (excluding cleanup code)
 
 Coverage includes:
+
 - All data type creation and conversion
 - Function calls (regular/keyword arguments)
 - Array operations (shared memory/reshape/map)
@@ -955,6 +990,7 @@ coveragePathIgnorePatterns = ["**/tests/**"]
 3. Publish to npm: `npm publish`
 
 Release package contents (see `files` field):
+
 - `dist/**/*.js` - Compiled JS
 - `dist/**/*.d.ts` - Type declarations
 - `c/wrapper.c` - C source code

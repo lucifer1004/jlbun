@@ -1,8 +1,13 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { Julia, JuliaArray, MethodError, UnknownJuliaError } from "../index.js";
-import { canResizeSharedBuffers, ensureJuliaInitialized } from "./setup.js";
+import {
+  canResizeSharedBuffers,
+  ensureJuliaInitialized,
+  useJuliaTestScope,
+} from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
+useJuliaTestScope();
 
 describe("JuliaArray", () => {
   it("can be created from Julia", () => {

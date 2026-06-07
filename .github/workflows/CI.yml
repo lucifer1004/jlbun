@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: jwlawson/actions-setup-cmake@v2
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.arch }}
@@ -48,7 +48,7 @@ jobs:
           bun-version: ${{ matrix.bun-version }}
       - run: |
           bun install --silent && JULIA_NUM_THREADS=auto bun test --coverage --coverage-reporter=lcov
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           disable_search: true
           files: ./coverage/lcov.info
@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: jwlawson/actions-setup-cmake@v2
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: '1.12'
           arch: x64

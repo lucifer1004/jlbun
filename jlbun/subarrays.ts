@@ -120,6 +120,9 @@ export class JuliaSubArray implements JuliaValue {
 
     // Call Julia's view() function
     const subArray = Julia.Base.view(array, ...juliaIndices);
+    if (subArray instanceof JuliaSubArray) {
+      return subArray;
+    }
 
     // Get element type
     const elTypePtr = jlbun.symbols.jl_array_eltype(subArray.ptr);
@@ -128,7 +131,7 @@ export class JuliaSubArray implements JuliaValue {
     }
     const elType = new JuliaDataType(elTypePtr, Julia.getTypeStr(elTypePtr));
 
-    return new JuliaSubArray(subArray.ptr, elType);
+    return Julia.adoptValue(new JuliaSubArray(subArray.ptr, elType));
   }
 
   /**
@@ -309,7 +312,10 @@ export class JuliaSubArray implements JuliaValue {
    */
   copy(): JuliaArray {
     const copied = Julia.Base.copy(this);
-    return new JuliaArray(copied.ptr, this.elType);
+    if (copied instanceof JuliaArray) {
+      return copied;
+    }
+    return Julia.adoptValue(new JuliaArray(copied.ptr, this.elType));
   }
 
   /**
@@ -319,7 +325,10 @@ export class JuliaSubArray implements JuliaValue {
    */
   collect(): JuliaArray {
     const collected = Julia.Base.collect(this);
-    return new JuliaArray(collected.ptr, this.elType);
+    if (collected instanceof JuliaArray) {
+      return collected;
+    }
+    return Julia.adoptValue(new JuliaArray(collected.ptr, this.elType));
   }
 
   /**
@@ -352,9 +361,14 @@ export class JuliaSubArray implements JuliaValue {
    */
   map(f: JuliaValue): JuliaArray {
     const arr = Julia.Base.map(f, this);
+    if (arr instanceof JuliaArray) {
+      return arr;
+    }
     const elType = jlbun.symbols.jl_array_eltype(arr.ptr)!;
     const typeStr = Julia.getTypeStr(elType);
-    return new JuliaArray(arr.ptr, new JuliaDataType(elType, typeStr));
+    return Julia.adoptValue(
+      new JuliaArray(arr.ptr, new JuliaDataType(elType, typeStr)),
+    );
   }
 
   /**

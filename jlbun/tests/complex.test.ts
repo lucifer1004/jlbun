@@ -5,9 +5,10 @@ import {
   JuliaComplex,
   JuliaFunction,
 } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
+useJuliaTestScope();
 
 describe("JuliaComplex", () => {
   describe("ComplexF64 creation", () => {
