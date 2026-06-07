@@ -4,6 +4,10 @@
   "module": "index.ts",
   "license": "MIT",
   "description": "Using Julia in Bun",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucifer1004/jlbun.git"
+  },
   "keywords": [
     "julia",
     "ffi"

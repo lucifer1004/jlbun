@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    outputs:
+      package_name: ${{ steps.release.outputs.package_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - uses: jwlawson/actions-setup-cmake@v2
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: "1.12"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Validate release metadata
+        id: release
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          package_name="$(node -p "require('./package.json').name")"
+          package_version="$(node -p "require('./package.json').version")"
+
+          if [[ "${GITHUB_REF_NAME}" != v* ]]; then
+            echo "::error::Release tags must start with v"
+            exit 1
+          fi
+
+          if [[ "${tag_version}" != "${package_version}" ]]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${package_version}"
+            exit 1
+          fi
+
+          awk -v version="${package_version}" '
+            index($0, "## [" version "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > release-notes.md
+          sed -i '1{/^$/d;}' release-notes.md
+          test -s release-notes.md
+
+          echo "package_name=${package_name}" >> "${GITHUB_OUTPUT}"
+          echo "version=${package_version}" >> "${GITHUB_OUTPUT}"
+
+      - run: bun install --silent
+      - run: bunx tsc --noEmit
+      - run: bunx eslint '**/*.{js,ts,json}' '*.{js,ts,cjs}'
+      - run: JULIA_NUM_THREADS=auto bun test
+      - run: bun run typedoc
+      - run: bun run rollup -c rollup.config.js
+
+  publish:
+    name: Publish release
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/${{ needs.validate.outputs.package_name }}/v/${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Validate release metadata
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          package_version="$(node -p "require('./package.json').version")"
+
+          if [[ "${tag_version}" != "${package_version}" ]]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${package_version}"
+            exit 1
+          fi
+
+      - run: bun install --ignore-scripts --silent
+
+      - name: Extract release notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v version="${version}" '
+            index($0, "## [" version "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+            END { if (!found) exit 1 }
+          ' CHANGELOG.md > release-notes.md
+          sed -i '1{/^$/d;}' release-notes.md
+          test -s release-notes.md
+
+      - name: Publish to npm
+        shell: bash
+        run: |
+          package_name="$(node -p "require('./package.json').name")"
+          package_version="$(node -p "require('./package.json').version")"
+
+          if npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
+            echo "::notice::${package_name}@${package_version} is already published; skipping npm publish"
+            exit 0
+          fi
+
+          npm publish
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "::notice::GitHub release ${GITHUB_REF_NAME} already exists; skipping release creation"
+            exit 0
+          fi
+
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md
