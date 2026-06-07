@@ -13,12 +13,12 @@ bun examples/04_complex_numbers.ts
 
 ## Overview
 
-| Example | Topics | Key Features |
-|---------|--------|--------------|
-| **01_linear_algebra** | Matrix ops, eigenvalues, solve | `LinearAlgebra` stdlib |
-| **02_monte_carlo** | π estimation, random walks | Random, Statistics |
-| **03_zero_copy** | Memory sharing, views | `JuliaArray`, `JuliaSubArray` |
-| **04_complex_numbers** | Complex arithmetic, Mandelbrot | `JuliaComplex` |
+| Example                | Topics                         | Key Features                  |
+| ---------------------- | ------------------------------ | ----------------------------- |
+| **01_linear_algebra**  | Matrix ops, eigenvalues, solve | `LinearAlgebra` stdlib        |
+| **02_monte_carlo**     | π estimation, random walks     | Random, Statistics            |
+| **03_zero_copy**       | Memory sharing, views          | `JuliaArray`, `JuliaSubArray` |
+| **04_complex_numbers** | Complex arithmetic, Mandelbrot | `JuliaComplex`                |
 
 ## Key Concepts
 
@@ -38,9 +38,11 @@ Julia.scope((julia) => {
 TypedArrays share memory directly with Julia:
 
 ```typescript
-const bunArray = new Float64Array([1, 2, 3]);
-const juliaArray = JuliaArray.from(bunArray);
-// Modifications in one are visible in the other!
+Julia.scope((julia) => {
+  const bunArray = new Float64Array([1, 2, 3]);
+  const juliaArray = julia.Array.from(bunArray);
+  // Modifications in one are visible in the other!
+});
 ```
 
 ### Calling Julia

@@ -8,9 +8,10 @@ import {
   JuliaSet,
   JuliaTuple,
 } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
+useJuliaTestScope();
 
 describe("JuliaPair", () => {
   it("can be created from Julia", () => {

@@ -44,7 +44,17 @@ import {
   safeCString,
   ScopedJulia,
   ScopeMode,
+  ScopeOwnershipError,
+  ScopeRequiredError,
 } from "./index.js";
+import {
+  getJuliaOwnership,
+  isJuliaValue,
+  isPersistentJuliaValue,
+  markJuliaRuntimeValue,
+  setJuliaOwnership,
+} from "./ownership.js";
+import { getActiveJuliaScope, runWithJuliaScope } from "./scope.js";
 
 export enum MIME {
   Default = "",
@@ -121,6 +131,7 @@ export class Julia {
 
   // Type string cache: type pointer -> type string
   private static typeStrCache: Map<Pointer, string> = new Map();
+  private static runtimeRootPtrs: Set<Pointer> = new Set();
 
   // Type constructors map: type pointer -> constructor function
   // Initialized in init() after all types are available
@@ -129,13 +140,106 @@ export class Julia {
     (ptr: Pointer) => JuliaValue
   > = new Map();
 
+  public static unsafe = {
+    eval: (code: string): JuliaValue => Julia.unsafeEval(code),
+    call: (
+      func: JuliaValue & { name?: string },
+      ...args: unknown[]
+    ): JuliaValue | undefined => Julia.unsafeCall(func, ...args),
+    callWithKwargs: (
+      func: JuliaFunction,
+      kwargs: JuliaNamedTuple | Record<string, unknown>,
+      ...args: unknown[]
+    ): JuliaValue => Julia.unsafeCallWithKwargs(func, kwargs, ...args),
+    import: (name: string): JuliaModule => Julia.unsafeImport(name),
+    wrapPtr: (ptr: Pointer): JuliaValue => Julia.unsafeWrapPtr(ptr),
+  };
+
+  private static requireActiveScope(api: string): JuliaScope {
+    const scope = getActiveJuliaScope();
+    if (scope === undefined || scope.isDisposed) {
+      throw new ScopeRequiredError(
+        `ScopeRequiredError: ${api} requires an active Julia.scope() context`,
+      );
+    }
+    return scope;
+  }
+
+  private static markRuntimeValues(...values: JuliaValue[]): void {
+    for (const value of values) {
+      Julia.runtimeRootPtrs.add(value.ptr);
+      markJuliaRuntimeValue(value);
+    }
+  }
+
+  private static markRuntimePointerValue<T extends JuliaValue>(value: T): T {
+    if (Julia.runtimeRootPtrs.has(value.ptr)) {
+      return markJuliaRuntimeValue(value);
+    }
+    return value;
+  }
+
+  /**
+   * Adopt a newly-created wrapper into the current active scope.
+   *
+   * @internal
+   */
+  public static adoptValue<T extends JuliaValue>(value: T): T {
+    const scope = Julia.requireActiveScope("Julia object creation");
+
+    const ownership = getJuliaOwnership(value);
+    if (isPersistentJuliaValue(value)) {
+      return value;
+    }
+    if (
+      ownership?.kind === "scoped" &&
+      ownership.scope === scope &&
+      ownership.idx !== undefined
+    ) {
+      return value;
+    }
+    if (ownership?.kind === "untracked" && ownership.scope === scope) {
+      return value;
+    }
+    if (ownership?.kind === "scoped" || ownership?.kind === "untracked") {
+      throw new ScopeOwnershipError(
+        "ScopeOwnershipError: JuliaValue is owned by a different JuliaScope",
+      );
+    }
+
+    if (!scope.isTrackingEnabled) {
+      setJuliaOwnership(value, { kind: "untracked", scope });
+      return value;
+    }
+
+    return scope.track(value);
+  }
+
+  private static unsafeString(ptr: Pointer): string {
+    const stringFunc = Julia.getFunction(Julia.Base, "string");
+    const value = Julia.unsafeCall(stringFunc, new JuliaAny(ptr));
+    return value instanceof JuliaString ? value.value : (value?.value ?? "");
+  }
+
+  private static functionNameFromType(typeStr: string): string {
+    if (typeStr.startsWith("typeof(") && typeStr.endsWith(")")) {
+      return typeStr.slice("typeof(".length, -1);
+    }
+    if (typeStr[0] === "#") {
+      return typeStr[1] >= "0" && typeStr[1] <= "9"
+        ? `Lambda${typeStr}`
+        : typeStr.slice(1);
+    }
+    return typeStr;
+  }
+
   private static prefetch(module: JuliaModule): void {
     const props = Julia.getModuleExports(module);
     const failures: string[] = [];
 
     for (const prop of props) {
       try {
-        module.get(prop);
+        void module[prop];
       } catch (_) {
         failures.push(prop);
       }
@@ -252,6 +356,29 @@ export class Julia {
         jlbun.symbols.jl_task_type_getter()!,
         "Task",
       );
+      Julia.markRuntimeValues(
+        Julia.Any,
+        Julia.Nothing,
+        Julia.Symbol,
+        Julia.Function,
+        Julia.String,
+        Julia.Bool,
+        Julia.Char,
+        Julia.Int8,
+        Julia.UInt8,
+        Julia.Int16,
+        Julia.UInt16,
+        Julia.Int32,
+        Julia.UInt32,
+        Julia.Int64,
+        Julia.UInt64,
+        Julia.Float16,
+        Julia.Float32,
+        Julia.Float64,
+        Julia.DataType,
+        Julia.Module,
+        Julia.Task,
+      );
 
       // Pre-populate type string cache for common types
       Julia.typeStrCache.set(Julia.String.ptr, "String");
@@ -351,30 +478,30 @@ export class Julia {
         jlbun.symbols.jl_main_module_getter()!,
         "Main",
       );
-      Julia.Pkg = Julia.import("Pkg");
-
-      // Prefetch all the properties of Core, Base and Main
-      // Note: Pkg is already prefetched during import
-      Julia.prefetch(Julia.Core);
-      Julia.prefetch(Julia.Base);
-      Julia.prefetch(Julia.Main);
+      Julia.Pkg = Julia.unsafe.import("Pkg");
+      Julia.markRuntimeValues(Julia.Core, Julia.Base, Julia.Main, Julia.Pkg);
 
       if (Julia.options.project === null) {
-        Julia.eval("Pkg.activate(; temp=true)");
+        Julia.unsafe.eval("Pkg.activate(; temp=true)");
       } else if (Julia.options.project !== "") {
-        Julia.Pkg.activate(Julia.options.project);
-        Julia.Pkg.instantiate();
+        Julia.unsafe.eval(
+          `Pkg.activate(${JSON.stringify(Julia.options.project)})`,
+        );
+        Julia.unsafe.eval("Pkg.instantiate()");
       }
 
-      Julia.nthreads = Number(Julia.eval("Threads.nthreads()").value);
-      Julia.version = (Julia.eval("string(VERSION)") as JuliaString).value;
-      Julia.eval("__jlbun_globals__ = IdDict()");
+      Julia.nthreads = Number(Julia.unsafe.eval("Threads.nthreads()").value);
+      Julia.version = (
+        Julia.unsafe.eval("string(VERSION)") as JuliaString
+      ).value;
+      Julia.unsafe.eval("__jlbun_globals__ = IdDict()");
       Julia.globals = new JuliaIdDict(
         jlbun.symbols.jl_get_global(
           Julia.Main.ptr,
-          JuliaSymbol.from("__jlbun_globals__").ptr,
+          JuliaSymbol.unsafeFrom("__jlbun_globals__").ptr,
         )!,
       );
+      Julia.markRuntimeValues(Julia.globals);
 
       // Initialize thread-safe GC manager
       GCManager.init();
@@ -455,6 +582,19 @@ export class Julia {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public static autoWrap(value: any): JuliaValue {
+    const scope = Julia.requireActiveScope("Julia.autoWrap");
+    if (Array.isArray(value)) {
+      return JuliaArray.fromAny(value);
+    }
+    const wrapped = Julia.unsafeAutoWrap(value);
+    if (wrapped === value && isJuliaValue(wrapped)) {
+      return Julia.adoptExistingWrappedValue(wrapped, scope);
+    }
+    return Julia.adoptAutoWrappedValue(wrapped);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static unsafeAutoWrap(value: any): JuliaValue {
     if (
       ((typeof value === "function" || typeof value === "object") &&
         "ptr" in value) ||
@@ -463,16 +603,16 @@ export class Julia {
       return value;
     } else if (typeof value === "number") {
       if (Number.isInteger(value)) {
-        return JuliaInt64.from(value);
+        return JuliaInt64.unsafeFrom(value);
       } else {
-        return JuliaFloat64.from(value);
+        return JuliaFloat64.unsafeFrom(value);
       }
     } else if (typeof value === "bigint") {
-      return JuliaInt64.from(value);
+      return JuliaInt64.unsafeFrom(value);
     } else if (typeof value === "string") {
-      return JuliaString.from(value);
+      return JuliaString.unsafeFrom(value);
     } else if (typeof value === "boolean") {
-      return JuliaBool.from(value);
+      return JuliaBool.unsafeFrom(value);
     } else if (typeof value === "undefined") {
       return JuliaNothing.getInstance();
     } else if (
@@ -488,16 +628,49 @@ export class Julia {
       value instanceof BigInt64Array ||
       value instanceof BigUint64Array
     ) {
-      return JuliaArray.from(value);
+      return JuliaArray.unsafeFrom(value);
     } else if (Array.isArray(value)) {
-      return JuliaArray.fromAny(value);
+      return JuliaArray.unsafeFromAny(value);
     } else {
       try {
-        return JuliaNamedTuple.from(value);
+        return JuliaNamedTuple.unsafeFrom(value);
       } catch (_) {
         throw new MethodError(`Cannot convert to Julia value: ${value}`);
       }
     }
+  }
+
+  private static adoptAutoWrappedValue<T extends JuliaValue>(value: T): T {
+    const ownership = getJuliaOwnership(value);
+    if (isPersistentJuliaValue(value)) {
+      return value;
+    }
+    if (ownership?.kind === "scoped" || ownership?.kind === "untracked") {
+      return Julia.adoptExistingWrappedValue(
+        value,
+        Julia.requireActiveScope("Julia.autoWrap"),
+      );
+    }
+    return Julia.adoptValue(value);
+  }
+
+  private static adoptExistingWrappedValue<T extends JuliaValue>(
+    value: T,
+    scope: JuliaScope,
+  ): T {
+    const ownership = getJuliaOwnership(value);
+    if (isPersistentJuliaValue(value)) {
+      return value;
+    }
+    if (ownership?.kind === "scoped" || ownership?.kind === "untracked") {
+      if (ownership.scope === scope) {
+        return value;
+      }
+      throw new ScopeOwnershipError(
+        "ScopeOwnershipError: JuliaValue is owned by a different JuliaScope",
+      );
+    }
+    return scope.track(value);
   }
 
   /**
@@ -523,12 +696,33 @@ export class Julia {
    * @param ptr Pointer to the Julia object.
    */
   public static wrapPtr(ptr: Pointer): JuliaValue {
+    const scope = Julia.requireActiveScope("Julia.wrapPtr");
+    if (!scope.isTrackingEnabled) {
+      const value = Julia.unsafeWrapPtr(ptr);
+      if (!isPersistentJuliaValue(value)) {
+        setJuliaOwnership(value, { kind: "untracked", scope });
+      }
+      return value;
+    }
+
+    const idx = scope.protectPointer(ptr);
+    const value = Julia.unsafeWrapPtr(ptr);
+    if (isPersistentJuliaValue(value)) {
+      scope.releaseProtectedPointer(idx);
+      return value;
+    }
+    return scope.adopt(value, idx);
+  }
+
+  private static unsafeWrapPtr(ptr: Pointer): JuliaValue {
+    const finish = <T extends JuliaValue>(value: T): T =>
+      Julia.markRuntimePointerValue(value);
     const typePtr = jlbun.symbols.jl_typeof_getter(ptr)!;
 
     // Fast path: O(1) Map lookup for simple types
     const simpleCtor = Julia.simpleTypeConstructors.get(typePtr);
     if (simpleCtor) {
-      return simpleCtor(ptr);
+      return finish(simpleCtor(ptr));
     }
 
     // Special types that need extra logic
@@ -539,13 +733,19 @@ export class Julia {
           "Failed to get symbol name pointer from Julia symbol object",
         );
       }
-      return new JuliaSymbol(ptr, namePtr.toString());
+      return finish(new JuliaSymbol(ptr, namePtr.toString()));
+    }
+    if (jlbun.symbols.jl_is_function_value(ptr) === 1) {
+      const typeStr = jlbun.symbols.jl_typeof_str(ptr).toString();
+      return finish(
+        new JuliaFunction(ptr, Julia.functionNameFromType(typeStr)),
+      );
     }
     if (typePtr === Julia.Module.ptr) {
-      return new JuliaModule(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
+      return finish(new JuliaModule(ptr, Julia.unsafeString(ptr)));
     }
     if (typePtr === Julia.DataType.ptr) {
-      return new JuliaDataType(ptr, Julia.Base.string(new JuliaAny(ptr)).value);
+      return finish(new JuliaDataType(ptr, Julia.unsafeString(ptr)));
     }
 
     // Get type string (cached)
@@ -557,32 +757,36 @@ export class Julia {
 
     // Handle parametric types by type string
     switch (typeStr) {
+      case "UnionAll":
+        return finish(new JuliaDataType(ptr, Julia.unsafeString(ptr)));
       case "Array": {
         const elType = jlbun.symbols.jl_array_eltype(ptr)!;
-        return new JuliaArray(
-          ptr,
-          new JuliaDataType(elType, Julia.getTypeStr(elType)),
+        return finish(
+          new JuliaArray(
+            ptr,
+            new JuliaDataType(elType, Julia.getTypeStr(elType)),
+          ),
         );
       }
       case "Tuple":
-        return new JuliaTuple(ptr);
+        return finish(new JuliaTuple(ptr));
       case "Pair":
-        return new JuliaPair(ptr);
+        return finish(new JuliaPair(ptr));
       case "NamedTuple":
-        return new JuliaNamedTuple(ptr);
+        return finish(new JuliaNamedTuple(ptr));
       case "Ptr":
-        return new JuliaPtr(ptr);
+        return finish(new JuliaPtr(ptr));
     }
 
     // Handle parametric collection types
     if (typeStr === "Set" || typeStr.startsWith("Set{")) {
-      return new JuliaSet(ptr);
+      return finish(new JuliaSet(ptr));
     }
     if (typeStr === "Dict" || typeStr.startsWith("Dict{")) {
-      return new JuliaDict(ptr);
+      return finish(new JuliaDict(ptr));
     }
     if (typeStr === "IdDict" || typeStr.startsWith("IdDict{")) {
-      return new JuliaIdDict(ptr);
+      return finish(new JuliaIdDict(ptr));
     }
 
     // Handle Range types (UnitRange, StepRange, StepRangeLen, LinRange)
@@ -596,18 +800,20 @@ export class Julia {
       typeStr === "LinRange" ||
       typeStr.startsWith("LinRange{")
     ) {
-      return new JuliaRange(ptr);
+      return finish(new JuliaRange(ptr));
     }
 
     // Handle SubArray type
     if (typeStr === "SubArray" || typeStr.startsWith("SubArray{")) {
       const elTypePtr = jlbun.symbols.jl_array_eltype(ptr);
       if (elTypePtr === null) {
-        return new JuliaAny(ptr);
+        return finish(new JuliaAny(ptr));
       }
-      return new JuliaSubArray(
-        ptr,
-        new JuliaDataType(elTypePtr, Julia.getTypeStr(elTypePtr)),
+      return finish(
+        new JuliaSubArray(
+          ptr,
+          new JuliaDataType(elTypePtr, Julia.getTypeStr(elTypePtr)),
+        ),
       );
     }
 
@@ -625,11 +831,11 @@ export class Julia {
       if (elTypePtr !== null) {
         // Compare element type pointer to known float types
         if (elTypePtr === Julia.Float64.ptr) {
-          return JuliaComplex.wrap(ptr, "ComplexF64");
+          return finish(JuliaComplex.wrap(ptr, "ComplexF64"));
         } else if (elTypePtr === Julia.Float32.ptr) {
-          return JuliaComplex.wrap(ptr, "ComplexF32");
+          return finish(JuliaComplex.wrap(ptr, "ComplexF32"));
         } else if (elTypePtr === Julia.Float16.ptr) {
-          return JuliaComplex.wrap(ptr, "ComplexF16");
+          return finish(JuliaComplex.wrap(ptr, "ComplexF16"));
         }
       }
       // Unsupported complex type (e.g., Complex{Int64}) - fall through to JuliaAny
@@ -637,14 +843,12 @@ export class Julia {
 
     // Handle lambda functions (type starts with #)
     if (typeStr[0] === "#") {
-      const funcName =
-        typeStr[1] >= "0" && typeStr[1] <= "9"
-          ? "Lambda" + typeStr
-          : typeStr.slice(1);
-      return new JuliaFunction(ptr, funcName);
+      return finish(
+        new JuliaFunction(ptr, Julia.functionNameFromType(typeStr)),
+      );
     }
 
-    return new JuliaAny(ptr);
+    return finish(new JuliaAny(ptr));
   }
 
   /**
@@ -678,7 +882,7 @@ export class Julia {
     return wrappedFunc;
   }
 
-  private static handleEvalException(code: string): void {
+  private static handleEvalException(code: string, unsafe = false): void {
     const errPtr = jlbun.symbols.jl_exception_occurred();
     if (errPtr !== null) {
       const errType = Julia.getTypeStr(errPtr);
@@ -686,12 +890,18 @@ export class Julia {
       // Try to get the exception message
       let errMsg = code;
       try {
-        const stringFunc = Julia.Base?.["string"];
+        const stringFunc = Julia.getFunction(Julia.Base, "string");
         if (stringFunc) {
-          const errJuliaValue = new JuliaAny(errPtr);
-          const msgPtr = Julia.call(stringFunc, errJuliaValue);
+          const errJuliaValue = unsafe
+            ? new JuliaAny(errPtr)
+            : Julia.wrapPtr(errPtr);
+          const msgPtr = unsafe
+            ? Julia.unsafeCall(stringFunc, errJuliaValue)
+            : Julia.call(stringFunc, errJuliaValue);
           if (msgPtr && msgPtr.ptr) {
-            errMsg = `${code}: ${msgPtr.toString()}`;
+            errMsg = `${code}: ${
+              msgPtr instanceof JuliaString ? msgPtr.value : msgPtr.toString()
+            }`;
           }
         }
       } catch {
@@ -703,17 +913,18 @@ export class Julia {
   }
 
   public static handleCallException(
-    func: JuliaFunction,
+    func: JuliaValue & { name?: string },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     kwargs: JuliaNamedTuple | Record<string, any> = {},
+    unsafe = false,
   ): void {
     const errPtr = jlbun.symbols.jl_exception_occurred();
     if (errPtr !== null) {
       const errType = Julia.getTypeStr(errPtr);
       const funcCallParts = [
-        func.name,
+        func.name ?? Julia.getTypeStr(func),
         "(",
         args.map((arg) => arg.toString()).join(", "),
         "; ",
@@ -732,12 +943,17 @@ export class Julia {
       let errMsg = errType;
       try {
         // Create a Julia string from the exception
-        const stringFunc = Julia.Base["string"];
+        const stringFunc = Julia.getFunction(Julia.Base, "string");
         if (stringFunc) {
-          const errJuliaValue = new JuliaAny(errPtr);
-          const msgPtr = Julia.call(stringFunc, errJuliaValue);
+          const errJuliaValue = unsafe
+            ? new JuliaAny(errPtr)
+            : Julia.wrapPtr(errPtr);
+          const msgPtr = unsafe
+            ? Julia.unsafeCall(stringFunc, errJuliaValue)
+            : Julia.call(stringFunc, errJuliaValue);
           if (msgPtr && msgPtr.ptr) {
-            errMsg = msgPtr.toString();
+            errMsg =
+              msgPtr instanceof JuliaString ? msgPtr.value : msgPtr.toString();
           }
         }
       } catch {
@@ -756,19 +972,45 @@ export class Julia {
    * @param args The arguments to be passed to the function. Non-`JuliaValue` objects will be automatically wrapped by `Julia.autoWrap`. Since the automatic wrapping does not work perfectly all the time, be sure to wrap the objects yourself in order to feed the function with the exact types.
    */
   public static call(
-    func: JuliaFunction,
+    func: JuliaValue & { name?: string },
     ...args: unknown[]
   ): JuliaValue | undefined {
-    const wrappedArgs = args.map((arg) => Julia.autoWrap(arg).ptr);
+    Julia.requireActiveScope("Julia.call");
+    return Julia.scopedCall(func, args);
+  }
+
+  private static scopedCall(
+    func: JuliaValue & { name?: string },
+    args: unknown[],
+  ): JuliaValue | undefined {
+    const wrappedArgValues = args.map((arg) => Julia.autoWrap(arg));
+    return Julia.invokeCall(func, args, wrappedArgValues, false);
+  }
+
+  private static unsafeCall(
+    func: JuliaValue & { name?: string },
+    ...args: unknown[]
+  ): JuliaValue | undefined {
+    const wrappedArgValues = args.map((arg) => Julia.unsafeAutoWrap(arg));
+    return Julia.invokeCall(func, args, wrappedArgValues, true);
+  }
+
+  private static invokeCall(
+    func: JuliaValue & { name?: string },
+    originalArgs: unknown[],
+    wrappedArgValues: JuliaValue[],
+    unsafe: boolean,
+  ): JuliaValue | undefined {
+    const wrappedArgs = wrappedArgValues.map((arg) => arg.ptr);
 
     let ret: Pointer | null;
-    if (args.length == 0) {
+    if (originalArgs.length == 0) {
       ret = jlbun.symbols.jl_call0(func.ptr);
-    } else if (args.length == 1) {
+    } else if (originalArgs.length == 1) {
       ret = jlbun.symbols.jl_call1(func.ptr, wrappedArgs[0]);
-    } else if (args.length == 2) {
+    } else if (originalArgs.length == 2) {
       ret = jlbun.symbols.jl_call2(func.ptr, wrappedArgs[0], wrappedArgs[1]);
-    } else if (args.length == 3) {
+    } else if (originalArgs.length == 3) {
       ret = jlbun.symbols.jl_call3(
         func.ptr,
         wrappedArgs[0],
@@ -779,15 +1021,15 @@ export class Julia {
       ret = jlbun.symbols.jl_call(
         func.ptr,
         new BigInt64Array(wrappedArgs.map(BigInt)),
-        args.length,
+        originalArgs.length,
       );
     }
 
     if (ret === null) {
-      Julia.handleCallException(func, args);
+      Julia.handleCallException(func, originalArgs, {}, unsafe);
       return undefined;
     } else {
-      return Julia.wrapPtr(ret);
+      return unsafe ? Julia.unsafeWrapPtr(ret) : Julia.wrapPtr(ret);
     }
   }
 
@@ -805,33 +1047,99 @@ export class Julia {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...args: any[]
   ): JuliaValue {
+    Julia.requireActiveScope("Julia.callWithKwargs");
+    return Julia.scopedCallWithKwargs(func, kwargs, args);
+  }
+
+  private static scopedCallWithKwargs(
+    func: JuliaFunction,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: JuliaNamedTuple | Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    args: any[],
+  ): JuliaValue {
     const kwsorter = Julia.Core.kwfunc(func);
     const wrappedKwargs =
       kwargs instanceof JuliaNamedTuple ? kwargs : JuliaNamedTuple.from(kwargs);
 
-    const wrappedArgs = args.map((arg) => Julia.autoWrap(arg).ptr);
+    const wrappedArgValues = args.map((arg) => Julia.autoWrap(arg));
+    return Julia.invokeCallWithKwargs(
+      func,
+      kwsorter,
+      kwargs,
+      args,
+      wrappedKwargs,
+      wrappedArgValues,
+      false,
+    );
+  }
 
-    let ret: Pointer;
+  private static unsafeCallWithKwargs(
+    func: JuliaFunction,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: JuliaNamedTuple | Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...args: any[]
+  ): JuliaValue {
+    const kwsorter = Julia.unsafeCall(
+      Julia.getFunction(Julia.Core, "kwfunc"),
+      func,
+    ) as JuliaFunction;
+    const wrappedKwargs =
+      kwargs instanceof JuliaNamedTuple ? kwargs : Julia.unsafeAutoWrap(kwargs);
+    if (!(wrappedKwargs instanceof JuliaNamedTuple)) {
+      throw new MethodError("Keyword arguments must wrap to a NamedTuple");
+    }
+    const wrappedArgValues = args.map((arg) => Julia.unsafeAutoWrap(arg));
+    return Julia.invokeCallWithKwargs(
+      func,
+      kwsorter,
+      kwargs,
+      args,
+      wrappedKwargs,
+      wrappedArgValues,
+      true,
+    );
+  }
+
+  private static invokeCallWithKwargs(
+    func: JuliaFunction,
+    kwsorter: JuliaFunction,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    kwargs: JuliaNamedTuple | Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    args: any[],
+    wrappedKwargs: JuliaNamedTuple,
+    wrappedArgValues: JuliaValue[],
+    unsafe: boolean,
+  ): JuliaValue {
+    const wrappedArgs = wrappedArgValues.map((arg) => arg.ptr);
+
+    let ret: Pointer | null;
     if (args.length == 0) {
-      ret = jlbun.symbols.jl_call2(kwsorter.ptr, wrappedKwargs.ptr, func.ptr)!;
+      ret = jlbun.symbols.jl_call2(kwsorter.ptr, wrappedKwargs.ptr, func.ptr);
     } else if (args.length == 1) {
       ret = jlbun.symbols.jl_call3(
         kwsorter.ptr,
         wrappedKwargs.ptr,
         func.ptr,
         wrappedArgs[0],
-      )!;
+      );
     } else {
       wrappedArgs.splice(0, 0, wrappedKwargs.ptr, func.ptr);
       ret = jlbun.symbols.jl_call(
         kwsorter.ptr,
         new BigInt64Array(wrappedArgs.map(BigInt)),
         args.length + 2,
-      )!;
+      );
     }
 
-    Julia.handleCallException(func, args, kwargs);
-    return Julia.wrapPtr(ret);
+    if (ret === null) {
+      Julia.handleCallException(func, args, kwargs, unsafe);
+      throw new Error("unreachable");
+    }
+    Julia.handleCallException(func, args, kwargs, unsafe);
+    return unsafe ? Julia.unsafeWrapPtr(ret) : Julia.wrapPtr(ret);
   }
 
   /**
@@ -840,10 +1148,15 @@ export class Julia {
    * @param code Julia code to be evaluated.
    */
   public static eval(code: string): JuliaValue {
+    Julia.requireActiveScope("Julia.eval");
+    return Julia.unsafeEval(code, false);
+  }
+
+  private static unsafeEval(code: string, unsafe = true): JuliaValue {
     const cCode = safeCString(code);
     const ret = jlbun.symbols.jl_eval_string(cCode)!;
-    Julia.handleEvalException(code);
-    return Julia.wrapPtr(ret);
+    Julia.handleEvalException(code, unsafe);
+    return unsafe ? Julia.unsafeWrapPtr(ret) : Julia.wrapPtr(ret);
   }
 
   /**
@@ -859,6 +1172,7 @@ export class Julia {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...values: any[]
   ): JuliaValue {
+    Julia.requireActiveScope("Julia.tagEval");
     const uuids = Array.from(
       { length: values.length },
       () => `${randomUUID()}`,
@@ -887,9 +1201,27 @@ export class Julia {
    * @param name Name of the module to be imported.
    */
   public static import(name: string): JuliaModule {
-    Julia.eval(`import ${name}`);
-    const module = new JuliaModule(Julia.Main[name].ptr, `Main.${name}`);
-    Julia.prefetch(module);
+    Julia.requireActiveScope("Julia.import");
+    Julia.unsafe.eval(`import ${name}`);
+    const sym = JuliaSymbol.from(name);
+    const modulePtr = jlbun.symbols.jl_get_global(Julia.Main.ptr, sym.ptr);
+    if (modulePtr === null) {
+      throw new Error(`Failed to import Julia module: ${name}`);
+    }
+    const module = Julia.wrapPtr(modulePtr) as JuliaModule;
+    module.name = `Main.${name}`;
+    return module;
+  }
+
+  private static unsafeImport(name: string): JuliaModule {
+    Julia.unsafeEval(`import ${name}`);
+    const sym = JuliaSymbol.unsafeFrom(name);
+    const modulePtr = jlbun.symbols.jl_get_global(Julia.Main.ptr, sym.ptr);
+    if (modulePtr === null) {
+      throw new Error(`Failed to import Julia module: ${name}`);
+    }
+    const module = Julia.unsafeWrapPtr(modulePtr) as JuliaModule;
+    module.name = `Main.${name}`;
     return module;
   }
 
@@ -1014,19 +1346,16 @@ export class Julia {
     };
     const scope = new JuliaScope(effectiveOptions);
     try {
-      const result = fn(scope.julia);
+      return runWithJuliaScope(scope, () => {
+        const result = fn(scope.julia);
 
-      // If result is a JuliaValue that wasn't escaped, escape it automatically
-      if (
-        result &&
-        typeof result === "object" &&
-        "ptr" in result &&
-        !scope.isDisposed
-      ) {
-        scope.escape(result as unknown as JuliaValue);
-      }
+        // If result is a JuliaValue that wasn't escaped, escape it automatically
+        if (isJuliaValue(result) && !scope.isDisposed) {
+          scope.escape(result);
+        }
 
-      return result;
+        return result;
+      });
     } finally {
       scope.dispose();
     }
@@ -1065,19 +1394,16 @@ export class Julia {
     }
     const scope = new JuliaScope({ mode: "safe" });
     try {
-      const result = await fn(scope.julia);
+      return await runWithJuliaScope(scope, async () => {
+        const result = await fn(scope.julia);
 
-      // If result is a JuliaValue that wasn't escaped, escape it automatically
-      if (
-        result &&
-        typeof result === "object" &&
-        "ptr" in result &&
-        !scope.isDisposed
-      ) {
-        scope.escape(result as unknown as JuliaValue);
-      }
+        // If result is a JuliaValue that wasn't escaped, escape it automatically
+        if (isJuliaValue(result) && !scope.isDisposed) {
+          scope.escape(result);
+        }
 
-      return result;
+        return result;
+      });
     } finally {
       scope.dispose();
     }

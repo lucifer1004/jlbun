@@ -155,7 +155,7 @@ lint:
 # Check formatting without writing files
 [group("checks")]
 fmt-check:
-    bunx prettier --check './**/*.{ts,tsx,cjs,js,jsx,json}'
+    bunx prettier --check './**/*.{ts,tsx,cjs,js,jsx,json,md,markdown}'
 
 # Format source files
 [group("checks")]

@@ -1,5 +1,5 @@
 import { Pointer } from "bun:ffi";
-import { jlbun, JuliaDataType, JuliaValue } from "./index.js";
+import { jlbun, Julia, JuliaDataType, JuliaValue } from "./index.js";
 
 // Float16 conversion utilities (reuse from values.ts)
 function float32ToFloat16Bits(value: number): number {
@@ -192,7 +192,7 @@ export class JuliaComplex implements JuliaValue {
    */
   static from(re: number, im: number = 0): JuliaComplex {
     const ptr = jlbun.symbols.jl_box_complex64(re, im)!;
-    return new JuliaComplex(ptr, ComplexElementType.Float64);
+    return Julia.adoptValue(new JuliaComplex(ptr, ComplexElementType.Float64));
   }
 
   /**
@@ -203,7 +203,7 @@ export class JuliaComplex implements JuliaValue {
    */
   static fromF32(re: number, im: number = 0): JuliaComplex {
     const ptr = jlbun.symbols.jl_box_complex32(re, im)!;
-    return new JuliaComplex(ptr, ComplexElementType.Float32);
+    return Julia.adoptValue(new JuliaComplex(ptr, ComplexElementType.Float32));
   }
 
   /**
@@ -216,7 +216,7 @@ export class JuliaComplex implements JuliaValue {
     const reBits = float32ToFloat16Bits(re);
     const imBits = float32ToFloat16Bits(im);
     const ptr = jlbun.symbols.jl_box_complex16(reBits, imBits)!;
-    return new JuliaComplex(ptr, ComplexElementType.Float16);
+    return Julia.adoptValue(new JuliaComplex(ptr, ComplexElementType.Float16));
   }
 
   /**

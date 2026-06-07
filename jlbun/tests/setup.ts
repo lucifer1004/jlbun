@@ -1,4 +1,5 @@
-import { Julia } from "../index.js";
+import { afterEach, beforeEach } from "bun:test";
+import { enterJuliaScope, Julia, JuliaScope } from "../index.js";
 
 // Track if Julia has been initialized
 let juliaInitialized = false;
@@ -31,4 +32,25 @@ export function canResizeSharedBuffers(): boolean {
   const majorNum = Number(major);
   const minorNum = Number(minor);
   return majorNum > 1 || (majorNum === 1 && minorNum >= 11);
+}
+
+/**
+ * Run each test in an active scope for legacy API coverage.
+ *
+ * v0.3 requires object-producing APIs to have an active scope. Most historical
+ * tests exercise wrapper behavior rather than the no-scope error path, so they
+ * opt into this harness. Dedicated scope-first tests intentionally do not.
+ */
+export function useJuliaTestScope(): void {
+  let scope: JuliaScope | undefined;
+
+  beforeEach(() => {
+    scope = new JuliaScope({ mode: "safe" });
+    enterJuliaScope(scope);
+  });
+
+  afterEach(() => {
+    scope?.dispose();
+    scope = undefined;
+  });
 }

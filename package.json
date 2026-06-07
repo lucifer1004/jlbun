@@ -22,7 +22,7 @@
     "install": "bun build-lib",
     "build-lib": "rimraf ./build && mkdirp build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make",
     "typedoc": "typedoc --tsconfig tsconfig.typedoc.json",
-    "fmt": "prettier --write './**/*.{ts,tsx,cjs,js,jsx,json}'",
+    "fmt": "prettier --write './**/*.{ts,tsx,cjs,js,jsx,json,md,markdown}'",
     "lint": "eslint '**/*.{js,ts,json}' '*.{js,ts,cjs}' --fix",
     "lint-staged": "lint-staged",
     "prepare": "bun run husky",
@@ -33,6 +33,9 @@
   "lint-staged": {
     "*.{ts,tsx,cjs,js,jsx,json}": [
       "eslint --fix"
+    ],
+    "*.{md,markdown}": [
+      "prettier --write"
     ]
   },
   "dependencies": {

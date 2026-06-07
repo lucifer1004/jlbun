@@ -84,7 +84,7 @@ export class JuliaRange implements JuliaValue {
         Julia.autoWrap(start),
       );
     }
-    return new JuliaRange(rangeValue.ptr);
+    return Julia.adoptValue(new JuliaRange(rangeValue.ptr));
   }
 
   /**
@@ -103,7 +103,7 @@ export class JuliaRange implements JuliaValue {
    */
   static linspace(start: number, stop: number, length: number): JuliaRange {
     const rangeValue = Julia.Base.LinRange(start, stop, length);
-    return new JuliaRange(rangeValue.ptr);
+    return Julia.adoptValue(new JuliaRange(rangeValue.ptr));
   }
 
   /**
@@ -126,7 +126,7 @@ export class JuliaRange implements JuliaValue {
       { length, step },
       start,
     );
-    return new JuliaRange(rangeValue.ptr);
+    return Julia.adoptValue(new JuliaRange(rangeValue.ptr));
   }
 
   /**
@@ -233,7 +233,7 @@ export class JuliaRange implements JuliaValue {
    * @returns A new JuliaRange with reversed order.
    */
   reverse(): JuliaRange {
-    return new JuliaRange(Julia.Base.reverse(this).ptr);
+    return Julia.adoptValue(new JuliaRange(Julia.Base.reverse(this).ptr));
   }
 
   /**

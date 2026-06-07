@@ -24,9 +24,10 @@ import {
 } from "../errors.js";
 import { Julia, JuliaArray, JuliaDict } from "../index.js";
 import { mapFFITypeToJulia } from "../utils.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
+useJuliaTestScope();
 
 describe("mapFFITypeToJulia coverage", () => {
   it("maps void types", () => {

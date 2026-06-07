@@ -18,6 +18,13 @@ export class JuliaTuple implements JuliaValue {
     return Julia.Core.tuple(...args);
   }
 
+  static unsafeFrom(...args: any[]): JuliaTuple {
+    return Julia.unsafe.call(
+      Julia.getFunction(Julia.Core, "tuple"),
+      ...args,
+    ) as JuliaTuple;
+  }
+
   get(index: number): JuliaValue {
     if (index < 0 || index >= this.length) {
       throw new RangeError(`Index out of bounds: ${index}`);
@@ -121,6 +128,37 @@ export class JuliaNamedTuple implements JuliaValue {
       throw new Error("Failed to create Julia named tuple from object");
     }
     Julia.handleCallException(tupleType as JuliaFunction, [values]);
+    return Julia.adoptValue(new JuliaNamedTuple(ptr, keys));
+  }
+
+  public static unsafeFrom(obj: Record<string, any>): JuliaNamedTuple {
+    const keys = Array.from(Object.keys(obj));
+    if (keys.length === 0) {
+      const namedTupleType = Julia.unsafe.eval("NamedTuple");
+      const ptr = jlbun.symbols.jl_call0(namedTupleType.ptr);
+      if (ptr === null) {
+        Julia.handleCallException(
+          namedTupleType as JuliaFunction,
+          [],
+          {},
+          true,
+        );
+        throw new Error("Failed to create empty Julia named tuple");
+      }
+      Julia.handleCallException(namedTupleType as JuliaFunction, [], {}, true);
+      return new JuliaNamedTuple(ptr, keys);
+    }
+
+    const tupleType = Julia.unsafe.eval(
+      `NamedTuple{(${keys.map((key) => `Symbol("${key}")`).join(",")},)}`,
+    );
+    const values = JuliaTuple.unsafeFrom(...keys.map((key) => obj[key]));
+    const ptr = jlbun.symbols.jl_call1(tupleType.ptr, values.ptr);
+    if (ptr === null) {
+      Julia.handleCallException(tupleType as JuliaFunction, [values], {}, true);
+      throw new Error("Failed to create Julia named tuple from object");
+    }
+    Julia.handleCallException(tupleType as JuliaFunction, [values], {}, true);
     return new JuliaNamedTuple(ptr, keys);
   }
 

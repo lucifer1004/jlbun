@@ -1,3 +1,4 @@
+import { Pointer } from "bun:ffi";
 import { jlbun, JuliaValue } from "./index.js";
 
 /**
@@ -93,7 +94,23 @@ export class GCManager {
    * @returns The index in the stack where the value was stored
    */
   static pushScoped(value: JuliaValue, scopeId: bigint): number {
-    return Number(jlbun.symbols.jlbun_gc_push_scoped(value.ptr, scopeId));
+    return this.pushScopedPtr(value.ptr, scopeId);
+  }
+
+  /**
+   * Push a raw Julia pointer with explicit scope ownership.
+   * Used by wrapPtr() to root a returned pointer before type inspection.
+   *
+   * @param ptr The Julia pointer to protect
+   * @param scopeId The scope this value belongs to
+   * @returns The index in the stack where the value was stored
+   */
+  static pushScopedPtr(ptr: Pointer, scopeId: bigint): number {
+    const result = jlbun.symbols.jlbun_gc_push_scoped(ptr, scopeId);
+    if (result === 0xffffffffffffffffn) {
+      return -1;
+    }
+    return Number(result);
   }
 
   /**
@@ -115,11 +132,8 @@ export class GCManager {
    * @returns The same index, or -1 on error
    */
   static transfer(idx: number, newScopeId: bigint): number {
-    const result = Number(
-      jlbun.symbols.jlbun_gc_transfer(BigInt(idx), newScopeId),
-    );
-    // SIZE_MAX (2^64-1) indicates error, convert to -1
-    return result === Number.MAX_SAFE_INTEGER || result < 0 ? -1 : result;
+    const result = jlbun.symbols.jlbun_gc_transfer(BigInt(idx), newScopeId);
+    return result === 0xffffffffffffffffn ? -1 : Number(result);
   }
 
   /**
@@ -155,6 +169,15 @@ export class GCManager {
    */
   static set(idx: number, value: JuliaValue): void {
     jlbun.symbols.jlbun_gc_set(BigInt(idx), value.ptr);
+  }
+
+  /**
+   * Release a single temporary root slot.
+   *
+   * @internal
+   */
+  static release(idx: number): void {
+    jlbun.symbols.jlbun_gc_release(BigInt(idx));
   }
 
   /**
@@ -242,7 +265,11 @@ export class GCManager {
    * @returns The index where the value was stored
    */
   static perfPush(value: JuliaValue): number {
-    return Number(jlbun.symbols.jlbun_gc_perf_push(value.ptr));
+    const result = jlbun.symbols.jlbun_gc_perf_push(value.ptr);
+    if (result === 0xffffffffffffffffn) {
+      return -1;
+    }
+    return Number(result);
   }
 
   /**

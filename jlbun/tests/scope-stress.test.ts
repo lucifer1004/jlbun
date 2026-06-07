@@ -14,9 +14,10 @@ import {
   JuliaScope,
   JuliaSubArray,
 } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
+useJuliaTestScope();
 
 describe("Scope stress tests", () => {
   it("handles many tracked SubArrays via julia.Base.view", () => {
@@ -83,9 +84,10 @@ describe("Scope stress tests", () => {
       expect(sub).toBeInstanceOf(JuliaSubArray);
     }
 
-    // Each view call tracks: 1 UnitRange + 1 SubArray = 2 objects
-    // So we should have: 1 (arr) + 100 * 2 = 201 tracked objects
-    expect(scope.size).toBe(initialSize + 1 + 100 * 2);
+    // Each view call roots at least 1 UnitRange + 1 SubArray. v0.3 also
+    // roots temporary boxed arguments before calls, so the exact count is an
+    // implementation detail.
+    expect(scope.size).toBeGreaterThanOrEqual(initialSize + 1 + 100 * 2);
 
     scope.dispose();
     expect(scope.size).toBe(0);

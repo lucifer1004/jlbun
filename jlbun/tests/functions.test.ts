@@ -1,11 +1,13 @@
 import { CString, FFIType, Pointer, ptr, toArrayBuffer } from "bun:ffi";
 import { beforeAll, describe, expect, it } from "bun:test";
 import { Julia, JuliaArray, JuliaFunction, safeCString } from "../index.js";
-import { ensureJuliaInitialized } from "./setup.js";
+import { ensureJuliaInitialized, useJuliaTestScope } from "./setup.js";
 
 beforeAll(() => ensureJuliaInitialized());
 
 describe("JuliaFunction", () => {
+  useJuliaTestScope();
+
   it("can be called with keyword arguments", () => {
     const arr = JuliaArray.from(new Int32Array([1, 5, 4, 2, 3]));
     Julia.Base["sort!"](arr);
@@ -122,13 +124,15 @@ describe("JuliaFunction", () => {
 describe("JuliaFunction FinalizationRegistry coverage", () => {
   it("cleans up JSCallback when JuliaFunction is garbage collected", async () => {
     // Create a function that will be garbage collected
-    let func: JuliaFunction | null = JuliaFunction.from((x: number) => x * 3, {
-      args: [FFIType.f64],
-      returns: FFIType.f64,
-    });
+    let func: JuliaFunction | null = Julia.scope(() =>
+      JuliaFunction.from((x: number) => x * 3, {
+        args: [FFIType.f64],
+        returns: FFIType.f64,
+      }),
+    );
 
     // Use the function to make sure it works
-    const result = Julia.call(func, 10);
+    const result = Julia.scope(() => Julia.call(func!, 10));
     expect(result?.value).toBe(30);
 
     // Remove reference and trigger GC

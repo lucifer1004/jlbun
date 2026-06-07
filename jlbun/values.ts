@@ -1,5 +1,6 @@
 import { Pointer } from "bun:ffi";
 import { jlbun, Julia, JuliaValue, MethodError, safeCString } from "./index.js";
+import { markJuliaRuntimeValue } from "./ownership.js";
 
 abstract class JuliaPrimitive implements JuliaValue {
   ptr: Pointer;
@@ -24,6 +25,10 @@ export class JuliaInt8 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaInt8 {
+    return Julia.adoptValue(JuliaInt8.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaInt8 {
     return new JuliaInt8(jlbun.symbols.jl_box_int8(value)!);
   }
 
@@ -41,6 +46,10 @@ export class JuliaUInt8 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaUInt8 {
+    return Julia.adoptValue(JuliaUInt8.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaUInt8 {
     return new JuliaUInt8(jlbun.symbols.jl_box_uint8(value)!);
   }
 
@@ -58,6 +67,10 @@ export class JuliaInt16 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaInt16 {
+    return Julia.adoptValue(JuliaInt16.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaInt16 {
     return new JuliaInt16(jlbun.symbols.jl_box_int16(value)!);
   }
 
@@ -75,6 +88,10 @@ export class JuliaUInt16 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaUInt16 {
+    return Julia.adoptValue(JuliaUInt16.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaUInt16 {
     return new JuliaUInt16(jlbun.symbols.jl_box_uint16(value)!);
   }
 
@@ -92,6 +109,10 @@ export class JuliaInt32 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaInt32 {
+    return Julia.adoptValue(JuliaInt32.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaInt32 {
     return new JuliaInt32(jlbun.symbols.jl_box_int32(value)!);
   }
 
@@ -109,6 +130,10 @@ export class JuliaUInt32 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaUInt32 {
+    return Julia.adoptValue(JuliaUInt32.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaUInt32 {
     return new JuliaUInt32(jlbun.symbols.jl_box_uint32(value)!);
   }
 
@@ -126,6 +151,10 @@ export class JuliaInt64 extends JuliaPrimitive {
   }
 
   static from(value: number | bigint): JuliaInt64 {
+    return Julia.adoptValue(JuliaInt64.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number | bigint): JuliaInt64 {
     return new JuliaInt64(jlbun.symbols.jl_box_int64(value)!);
   }
 
@@ -143,6 +172,10 @@ export class JuliaUInt64 extends JuliaPrimitive {
   }
 
   static from(value: number | bigint): JuliaUInt64 {
+    return Julia.adoptValue(JuliaUInt64.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number | bigint): JuliaUInt64 {
     return new JuliaUInt64(jlbun.symbols.jl_box_uint64(value)!);
   }
 
@@ -254,6 +287,10 @@ export class JuliaFloat16 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaFloat16 {
+    return Julia.adoptValue(JuliaFloat16.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaFloat16 {
     const bits = float32ToFloat16Bits(value);
     return new JuliaFloat16(jlbun.symbols.jl_box_float16(bits)!);
   }
@@ -273,6 +310,10 @@ export class JuliaFloat32 extends JuliaPrimitive {
   }
 
   static from(value: number): JuliaFloat32 {
+    return Julia.adoptValue(JuliaFloat32.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number): JuliaFloat32 {
     return new JuliaFloat32(jlbun.symbols.jl_box_float32(value)!);
   }
 
@@ -290,6 +331,10 @@ export class JuliaFloat64 extends JuliaPrimitive {
   }
 
   static from(value: number | bigint): JuliaFloat64 {
+    return Julia.adoptValue(JuliaFloat64.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: number | bigint): JuliaFloat64 {
     return new JuliaFloat64(jlbun.symbols.jl_box_float64(Number(value))!);
   }
 
@@ -307,6 +352,10 @@ export class JuliaBool extends JuliaPrimitive {
   }
 
   static from(value: boolean): JuliaBool {
+    return Julia.adoptValue(JuliaBool.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: boolean): JuliaBool {
     return new JuliaBool(jlbun.symbols.jl_box_bool(value ? 1 : 0)!);
   }
 
@@ -347,6 +396,10 @@ export class JuliaString extends JuliaPrimitive {
   }
 
   static from(value: string): JuliaString {
+    return Julia.adoptValue(JuliaString.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: string): JuliaString {
     return new JuliaString(
       jlbun.symbols.jl_cstr_to_string(safeCString(value))!,
     );
@@ -373,6 +426,10 @@ export class JuliaSymbol extends JuliaPrimitive {
   }
 
   static from(value: string | symbol): JuliaSymbol {
+    return Julia.adoptValue(JuliaSymbol.unsafeFrom(value));
+  }
+
+  static unsafeFrom(value: string | symbol): JuliaSymbol {
     const name =
       typeof value === "string" ? value : (value.description as string);
     return new JuliaSymbol(jlbun.symbols.jl_symbol(safeCString(name))!, name);
@@ -398,6 +455,7 @@ export class JuliaNothing extends JuliaPrimitive {
       JuliaNothing.instance = new JuliaNothing(
         jlbun.symbols.jl_nothing_getter()!,
       );
+      markJuliaRuntimeValue(JuliaNothing.instance);
     }
     return JuliaNothing.instance;
   }
@@ -462,7 +520,7 @@ export class JuliaPtr extends JuliaPrimitive {
     const addr = typeof address === "bigint" ? address : BigInt(address);
     const ptrType = Julia.Core.apply_type(Julia.Base.Ptr, Julia.Base.Cvoid);
     const ptrValue = Julia.Base.convert(ptrType, Julia.autoWrap(addr));
-    return new JuliaPtr(ptrValue.ptr);
+    return Julia.adoptValue(new JuliaPtr(ptrValue.ptr));
   }
 
   /**
@@ -479,7 +537,7 @@ export class JuliaPtr extends JuliaPrimitive {
    */
   static fromArray(array: JuliaValue): JuliaPtr {
     const ptrValue = Julia.Base.pointer(array);
-    return new JuliaPtr(ptrValue.ptr);
+    return Julia.adoptValue(new JuliaPtr(ptrValue.ptr));
   }
 
   /**
@@ -493,7 +551,7 @@ export class JuliaPtr extends JuliaPrimitive {
    */
   static fromObject(obj: JuliaValue): JuliaPtr {
     const ptrValue = Julia.Base.pointer_from_objref(obj);
-    return new JuliaPtr(ptrValue.ptr);
+    return Julia.adoptValue(new JuliaPtr(ptrValue.ptr));
   }
 
   /**
@@ -588,7 +646,7 @@ export class JuliaPtr extends JuliaPrimitive {
     if (result === null) {
       throw new Error("Failed to create offset pointer");
     }
-    return new JuliaPtr(result);
+    return Julia.adoptValue(new JuliaPtr(result));
   }
 
   /**
@@ -602,7 +660,7 @@ export class JuliaPtr extends JuliaPrimitive {
     // Create Ptr{T} type using Julia's type application
     const ptrType = Julia.Core.apply_type(Julia.Base.Ptr, newElType);
     const newPtr = Julia.Base.reinterpret(ptrType, this);
-    return new JuliaPtr(newPtr.ptr);
+    return Julia.adoptValue(new JuliaPtr(newPtr.ptr));
   }
 
   toString(): string {
