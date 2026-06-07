@@ -9,7 +9,7 @@
 
 **jlbun** is a high-performance FFI library that brings Julia's computational power to the Bun JavaScript runtime. Call Julia functions directly from TypeScript with zero-copy array sharing and automatic memory management.
 
-## What's New in v0.3 (Unreleased)
+## What's New in v0.3
 
 > **Scope-First Julia Object Lifetimes** - v0.3 makes scope ownership the public lifecycle boundary. Any Julia object pointer exposed to JavaScript must be owned by an active `Julia.scope()` / `Julia.scopeAsync()` or explicitly escaped by returning it from the scope or calling `julia.escape()`.
 
@@ -48,7 +48,7 @@
 ## Table of Contents
 
 - [jlbun - Using Julia in Bun](#jlbun---using-julia-in-bun)
-  - [What's New in v0.3 (Unreleased)](#whats-new-in-v03-unreleased)
+  - [What's New in v0.3](#whats-new-in-v03)
     - [Breaking Changes from v0.2](#breaking-changes-from-v02)
     - [v0.2/v0.1 Features (Still Available)](#v02v01-features-still-available)
   - [Table of Contents](#table-of-contents)

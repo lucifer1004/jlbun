@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-07
+
 ### Added
 
 - **Scope-first lifecycle enforcement**: Object-producing APIs now require an active `Julia.scope()` or `Julia.scopeAsync()` unless using the explicit `Julia.unsafe.*` namespace.
@@ -119,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Primitive type wrappers: `JuliaInt*`, `JuliaUInt*`, `JuliaFloat*`, `JuliaBool`, `JuliaString`, `JuliaChar`, `JuliaSymbol`
 - Tuple and dictionary support: `JuliaTuple`, `JuliaNamedTuple`, `JuliaPair`, `JuliaDict`, `JuliaIdDict`, `JuliaSet`
 
-[Unreleased]: https://github.com/lucifer1004/jlbun/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/lucifer1004/jlbun/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lucifer1004/jlbun/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lucifer1004/jlbun/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lucifer1004/jlbun/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lucifer1004/jlbun/releases/tag/v0.1.0
