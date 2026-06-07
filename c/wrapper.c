@@ -18,7 +18,7 @@
   (JULIA_VERSION_MAJOR > (major) ||                                            \
    (JULIA_VERSION_MAJOR == (major) && JULIA_VERSION_MINOR >= (minor)))
 
-#if JL_VERSION_AT_LEAST(1, 14)
+#if JL_VERSION_AT_LEAST(1, 13)
 #define JL_FUNCTION_TYPE jl_value_t
 #else
 #define JL_FUNCTION_TYPE jl_function_t

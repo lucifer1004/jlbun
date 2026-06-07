@@ -6,7 +6,6 @@
     "moduleResolution": "nodenext",
     "strict": true,
     "declaration": true,
-    "downlevelIteration": true,
     "skipLibCheck": true,
     "jsx": "preserve",
     "allowSyntheticDefaultImports": true,
