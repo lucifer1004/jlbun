@@ -20,7 +20,7 @@ jobs:
       package_name: ${{ steps.release.outputs.package_name }}
       version: ${{ steps.release.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
@@ -81,7 +81,7 @@ jobs:
       name: npm
       url: https://www.npmjs.com/package/${{ needs.validate.outputs.package_name }}/v/${{ needs.validate.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
