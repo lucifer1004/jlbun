@@ -28,7 +28,7 @@ jobs:
       - uses: jwlawson/actions-setup-cmake@v2
       - uses: julia-actions/setup-julia@v3
         with:
-          version: "1.12"
+          version: "1.13"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
